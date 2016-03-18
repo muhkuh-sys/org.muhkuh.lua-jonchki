@@ -445,11 +445,15 @@ function artifact_server:download(atArtifact, strClassifier, strExtension)
         -- Download the artifact.
         fOk,tResult = self:download_artifact(atArtifact, strClassifier, strExtension)
         if fOk==true then
-          local strLocalFileName = tResult
+          local strLocalArtifactFileName = tResult
           -- Check the hash sum of the file.
-          fOk, tResult = self.tHash:check_sha1(strLocalFileName, tResolveData.strSha1)
+          fOk, tResult = self.tHash:check_sha1(strLocalArtifactFileName, tResolveData.strSha1)
           if fOk==true then
             print("Download OK!")
+          else
+            -- Remove the SHA1 sum and the artifact.
+            os.remove(strLocalArtifactFileName)
+            -- TODO: remove SHA1 file
           end
         end
       end
