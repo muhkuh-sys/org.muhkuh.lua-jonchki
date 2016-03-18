@@ -3,6 +3,7 @@
 local artifact_server = {}
 
 artifact_server.tLxp = require("lxp")
+artifact_server.tHash = require("Hash")
 
 
 --- Initialize the artifact server object.
@@ -380,7 +381,7 @@ end
 
 function artifact_server:download_artifact(atArtifact, strClassifier, strExtension)
   local fOk = nil
-  local strData = nil
+  local tResult = nil
 
 
   local strOutputFileName = "/tmp/test.bin"
@@ -406,7 +407,7 @@ function artifact_server:download_artifact(atArtifact, strClassifier, strExtensi
       tResult = string.format("Failed to retrieve the nexus search result from %s: %d", strURL, r)
     else
       fOk = true
-      tResult = strOutputFilename
+      tResult = strOutputFileName
     end
   end
 
@@ -444,7 +445,12 @@ function artifact_server:download(atArtifact, strClassifier, strExtension)
         -- Download the artifact.
         fOk,tResult = self:download_artifact(atArtifact, strClassifier, strExtension)
         if fOk==true then
-          print("Download OK!")
+          local strLocalFileName = tResult
+          -- Check the hash sum of the file.
+          fOk, tResult = self.tHash:check_sha1(strLocalFileName, tResolveData.strSha1)
+          if fOk==true then
+            print("Download OK!")
+          end
         end
       end
     end
