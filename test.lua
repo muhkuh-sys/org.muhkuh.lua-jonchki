@@ -39,12 +39,15 @@ if fOk~=true then
 end
 
 print(table.concat(astrMessages, "\n"))
-print("  " .. atArtifact.groupId)
-print("  " .. atArtifact.artifactId)
-print("  " .. atArtifact.version)
+print("  G:" .. atArtifact.groupId)
+print("  A:" .. atArtifact.artifactId)
+print("  V:" .. atArtifact.version)
+print("  R:" .. atArtifact.repositoryId)
 for iCnt2,atLink in ipairs(atArtifact.atLinks) do
   print("    " .. atLink.classifier .. ":" .. atLink.extension)
 end
 
+local fOk,tResult = tArtifactServer:download(atArtifact, atArtifact.atLinks[3].classifier, atArtifact.atLinks[3].extension)
+print(fOk,tResult)
 
 

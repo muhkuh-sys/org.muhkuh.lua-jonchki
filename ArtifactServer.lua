@@ -106,4 +106,23 @@ function artifact_server:resolve(strArtifact, strVersionConstraint)
 end
 
 
+
+-- Download the SHA1 sum, then the artifact. Check the artifact with the SHA1 sum.
+function artifact_server:download(atArtifact, strClassifier, strExtension)
+  local fOk = true
+  local tResult = nil
+
+  -- This does not work if no driver is set.
+  if self.tDriver==nil then
+    tResult = "Not initialized! No driver set."
+    fOk = false
+  else
+    -- Download the SHA1 sum.
+    fOk,tResult = self.tDriver:download(atArtifact, strClassifier, strExtension)
+  end
+
+  return fOk, tResult
+end
+
+
 return artifact_server

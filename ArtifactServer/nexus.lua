@@ -88,6 +88,7 @@ function artifact_server.parseSearch_StartElement(tParser, strName)
 
 	if aLxpAttr.strCurrentPath=="/searchNGResponse/data/artifact" then
 		aLxpAttr.atCurrentArtifact = {}
+    aLxpAttr.atCurrentArtifact.repositoryId = ""
 		aLxpAttr.atCurrentArtifact.atLinks = {}
 	elseif aLxpAttr.strCurrentPath=="/searchNGResponse/data/artifact/artifactHits/artifactHit/artifactLinks/artifactLink" then
 		aLxpAttr.atCurrentArtifactLink = {}
@@ -146,6 +147,8 @@ function artifact_server.parseSearch_CharacterData(tParser, strData)
 		aLxpAttr.atCurrentArtifact.artifactId = strData
 	elseif aLxpAttr.strCurrentPath=="/searchNGResponse/data/artifact/version" then
 		aLxpAttr.atCurrentArtifact.version = strData
+  elseif aLxpAttr.strCurrentPath=="/searchNGResponse/data/artifact/artifactHits/artifactHit/repositoryId" then
+    aLxpAttr.atCurrentArtifact.repositoryId = strData
 	elseif aLxpAttr.strCurrentPath=="/searchNGResponse/data/artifact/artifactHits/artifactHit/artifactLinks/artifactLink/classifier" then
 		aLxpAttr.atCurrentArtifactLink.classifier = strData
 	elseif aLxpAttr.strCurrentPath=="/searchNGResponse/data/artifact/artifactHits/artifactHit/artifactLinks/artifactLink/extension" then
@@ -256,6 +259,200 @@ function artifact_server:search(strArtifact)
 
   return fOk, tResult
 end
+
+
+
+function artifact_server:get_resolve_data(atArtifact, strClassifier, strExtension)
+  local fOk = nil
+  local strData = nil
+  -- Collect the results in this array.
+	local t = {}
+
+
+	-- Create the URL.
+  local strURL = string.format("%s/service/local/artifact/maven/resolve?g=%s&a=%s&v=%s&r=%s&c=%s&e=%s", self.strNexusBase, atArtifact.groupId, atArtifact.artifactId, atArtifact.version, atArtifact.repositoryId, strClassifier, strExtension)
+	local s,r = self.tHttp.request{
+		url = strURL,
+		sink = self.tLtn12.sink.table(t)
+	}
+
+	if s==nil then
+		fOk = nil
+    strData = string.format("Failed to access nexus search engine at %s: %s", strURL, r)
+  elseif r~=200 then
+		fOk = nil
+    strData = string.format("Failed to retrieve the nexus search result from %s: %d", strURL, r)
+  else
+    fOk = true
+    strData = table.concat(t)
+  end
+
+	return fOk, strData
+end
+
+
+
+--- Expat callback function for starting an element.
+-- This function is part of the callbacks for the expat parser.
+-- It is called when a new element is opened.
+-- @param tParser The parser object.
+-- @param strName The name of the new element.
+function artifact_server.parseResolve_StartElement(tParser, strName)
+  local aLxpAttr = tParser:getcallbacks().userdata
+
+	table.insert(aLxpAttr.atCurrentPath, strName)
+	aLxpAttr.strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
+end
+
+
+
+--- Expat callback function for closing an element.
+-- This function is part of the callbacks for the expat parser.
+-- It is called when an element is closed.
+-- @param tParser The parser object.
+-- @param strName The name of the closed element.
+function artifact_server.parseResolve_EndElement(tParser, strName)
+  local aLxpAttr = tParser:getcallbacks().userdata
+
+	table.remove(aLxpAttr.atCurrentPath)
+	aLxpAttr.strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
+end
+
+
+
+--- Expat callback function for character data.
+-- This function is part of the callbacks for the expat parser.
+-- It is called when character data is parsed.
+-- @param tParser The parser object.
+-- @param strData The character data.
+function artifact_server.parseResolve_CharacterData(tParser, strData)
+  local aLxpAttr = tParser:getcallbacks().userdata
+
+	if aLxpAttr.strCurrentPath=="/artifact-resolution/data/sha1" then
+		aLxpAttr.strSha1 = strData
+	elseif aLxpAttr.strCurrentPath=="/artifact-resolution/data/repositoryPath" then
+		aLxpAttr.strRepositoryPath = strData
+	end
+end
+
+
+
+function artifact_server:parse_resolve_data(strData)
+  local fOk = nil
+  local tResult = nil
+
+
+  local aLxpAttr = {
+    -- Start at root ("/").
+    atCurrentPath = {""},
+    strCurrentPath = nil,
+
+    strSha1 = nil,
+    strRepositoryPath = nil
+  }
+
+  local aLxpCallbacks = {}
+  aLxpCallbacks._nonstrict    = false
+  aLxpCallbacks.StartElement  = self.parseResolve_StartElement
+  aLxpCallbacks.EndElement    = self.parseResolve_EndElement
+  aLxpCallbacks.CharacterData = self.parseResolve_CharacterData
+  aLxpCallbacks.userdata      = aLxpAttr
+
+  local tParser = self.tLxp.new(aLxpCallbacks)
+  local tParseResult,strMsg,uiLine,uiCol,uiPos = tParser:parse(strData)
+  if tResult~=nil then
+    tParseResult,strMsg,uiLine,uiCol,uiPos = tParser:parse()
+  end
+  tParser:close()
+
+  if tParseResult~=nil then
+    fOk = true
+    tResult = aLxpAttr
+  else
+    fOk = false
+    tResult = string.format("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos)
+  end
+
+  return fOk,tResult
+end
+
+
+
+function artifact_server:download_artifact(atArtifact, strClassifier, strExtension)
+  local fOk = nil
+  local strData = nil
+
+
+  local strOutputFileName = "/tmp/test.bin"
+
+  -- Open the output file.
+  local tFile = io.open(strOutputFileName, "wb")
+  if tFile==nil then
+    fOk = false
+    tResult = "Failed to open the output file"
+  else
+    -- Create the URL.
+    local strURL = string.format("%s/service/local/artifact/maven/content?g=%s&a=%s&v=%s&r=%s&c=%s&e=%s", self.strNexusBase, atArtifact.groupId, atArtifact.artifactId, atArtifact.version, atArtifact.repositoryId, strClassifier, strExtension)
+    local s,r = self.tHttp.request{
+      url = strURL,
+      sink = self.tLtn12.sink.file(tFile)
+    }
+
+    if s==nil then
+      fOk = false
+      tResult = string.format("Failed to access nexus search engine at %s: %s", strURL, r)
+    elseif r~=200 then
+      fOk = false
+      tResult = string.format("Failed to retrieve the nexus search result from %s: %d", strURL, r)
+    else
+      fOk = true
+      tResult = strOutputFilename
+    end
+  end
+
+	return fOk, tResult
+end
+
+
+
+function artifact_server:download(atArtifact, strClassifier, strExtension)
+  local fOk = true
+  local tResult = nil
+  -- Collect the results in this array.
+	local t = {}
+
+
+  -- Get the resolve data.
+  fOk,tResult = self:get_resolve_data(atArtifact, strClassifier, strExtension)
+  if fOk==true then
+    local strResolveData = tResult
+
+    fOk,tResult = self:parse_resolve_data(strResolveData)
+    if fOk==true then
+      local tResolveData = tResult
+      -- Check if all fields are set.
+      if tResolveData.strSha1==nil or tResolveData.strRepositoryPath==nil then
+        fOk = false
+        tResult = "Invalid result from the server, no sha1 or repository path!"
+      else
+        print("Sha1: " .. tResolveData.strSha1)
+        print("Path: " .. tResolveData.strRepositoryPath)
+
+        -- Write the SHA1 sum to the local repository.
+        -- TODO...
+
+        -- Download the artifact.
+        fOk,tResult = self:download_artifact(atArtifact, strClassifier, strExtension)
+        if fOk==true then
+          print("Download OK!")
+        end
+      end
+    end
+  end
+
+	return fOk, tResult
+end
+
 
 
 return artifact_server
