@@ -42,6 +42,8 @@ function artifact_server:resolve(strArtifact, strVersionConstraint)
   local fOk = true
   local tResult = nil
   local atArtifacts = nil
+  local astrMessages = {}
+  strVersionConstraint = strVersionConstraint or ""
 
   -- This does not work if no driver is set.
   if self.tDriver==nil then
@@ -58,30 +60,38 @@ function artifact_server:resolve(strArtifact, strVersionConstraint)
       local astrVersionLookup = {}
       for iCnt,atArtifact in ipairs(atArtifacts) do
         -- Convert the version to a plain representation.
-        local fOk,strCleanVersion = self.VersionResolver:getCleanString(atArtifact.version)
+        fOk,tResult = self.VersionResolver:getCleanString(atArtifact.version)
         -- Is this a valid version string?
         if fOk~=true then
           fOk = false
-          tResult = string.format("Artifact %s: '%s' is no valid version: %s", atArtifact.artifactId, atArtifact.version, strCleanVersion)
-          break
-        -- Does this version exist already?
-        elseif astrVersionLookup[strCleanVersion]~=nil then
-          fOk = false
-          tResult = string.format("The version %s exists more than once!", strCleanVersion)
+          tResult = string.format("Artifact %s: '%s' is no valid version: %s", atArtifact.artifactId, atArtifact.version, tResult)
           break
         else
-          table.insert(astrVersions, strCleanVersion)
-          astrVersionLookup[strCleanVersion] = atArtifact
+          strCleanVersion = tResult
+
+          -- Does this version exist already?
+          if astrVersionLookup[strCleanVersion]~=nil then
+            fOk = false
+            tResult = string.format("The version %s exists more than once!", strCleanVersion)
+            break
+          else
+            table.insert(astrVersions, strCleanVersion)
+            astrVersionLookup[strCleanVersion] = atArtifact
+          end
         end
       end
 
       if fOk==true then
         -- Get the best matching version.
-        local fOk,strBestVersion = self.VersionResolver:getBestMatch(strVersionConstraint, astrVersions)
+        fOk,tResult,astrMessages = self.VersionResolver:getBestMatch(strVersionConstraint, astrVersions)
         if fOk~=true then
           fOk = false
-          tResult = string.format("No matching version found. Looking for %s, but found only %s.\n%s", strVersionConstraint, table.concat(astrVersions, ", "), strBestVersion);
+        elseif tResult==nil then
+          fOk = false
+          table.insert(astrMessages, "No matching version found!")
         else
+          local strBestVersion = table.concat(tResult, ".")
+
           tResult = astrVersionLookup[strBestVersion]
           if tResult==nil then
             fOk = false
@@ -92,7 +102,7 @@ function artifact_server:resolve(strArtifact, strVersionConstraint)
     end
   end
 
-  return fOk,tResult
+  return fOk,tResult,astrMessages
 end
 
 

@@ -31,22 +31,20 @@ if fOk~=true then
 end
 
 --a,b = nexus_search:search("crypto_cli_public")
-local fOk,atArtifacts = tArtifactServer:resolve("crypto_cli_public", "1.2.0")
-print(fOk,atArtifacts)
+local fOk,atArtifact,astrMessages = tArtifactServer:resolve("crypto_cli_public", "1.2")
 if fOk~=true then
-	error("The search failed: " .. atArtifacts)
+  print(atArtifact)
+  print(table.concat(astrMessages, "\n"))
+	error("The search failed!")
 end
 
-print("Total: " .. #atArtifacts)
-
-for iCnt,atArtifact in ipairs(atArtifacts) do
-	print("  " .. atArtifact.groupId)
-	print("  " .. atArtifact.artifactId)
-	print("  " .. atArtifact.version)
-	for iCnt2,atLink in ipairs(atArtifact.atLinks) do
-		print("    " .. atLink.classifier .. ":" .. atLink.extension)
-	end
-	print("-----------------------")
+print(table.concat(astrMessages, "\n"))
+print("  " .. atArtifact.groupId)
+print("  " .. atArtifact.artifactId)
+print("  " .. atArtifact.version)
+for iCnt2,atLink in ipairs(atArtifact.atLinks) do
+  print("    " .. atLink.classifier .. ":" .. atLink.extension)
 end
+
 
 
