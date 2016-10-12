@@ -27,6 +27,14 @@ end
 
 
 
+--- Convert a string with an optional postfix to a number.
+-- Parse a string with an optional postfix to a number.
+-- The postfix must be exactly one of the following letters or empty:
+--   K, M, G
+-- "K" stands for a multiplier of 1024, M for 1024*1024 and G for
+-- 1024*1024*1024.
+-- @param strNumber The number as a string.
+-- @return The converted number.
 function Configuration:pretty_string_to_number(strNumber)
   local atMultiplier = {
     K = 1024,
