@@ -7,11 +7,11 @@
 
 -- Create the configuration class.
 local class = require 'pl.class'
-local Configuration = class()
+local SystemConfiguration = class()
 
 
 
-function Configuration:_init(strConfigurationFilename)
+function SystemConfiguration:_init(strConfigurationFilename)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
   
@@ -20,7 +20,7 @@ function Configuration:_init(strConfigurationFilename)
 
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
-    error('The Configuration class expects a filename as a parameter.')
+    error('The SystemConfiguration class expects a filename as a parameter.')
   end
   self:parse_configuration(strConfigurationFilename)
 end
@@ -35,7 +35,7 @@ end
 -- 1024*1024*1024.
 -- @param strNumber The number as a string.
 -- @return The converted number.
-function Configuration:pretty_string_to_number(strNumber)
+function SystemConfiguration:pretty_string_to_number(strNumber)
   local atMultiplier = {
     K = 1024,
     M = 1024*1024,
@@ -67,7 +67,7 @@ end
 
 
 
-function Configuration:is_path_child(strPathRoot, strPathChild)
+function SystemConfiguration:is_path_child(strPathRoot, strPathChild)
   -- Get the relative path from the child to the root path.
   local strPath = self.pl.path.relpath(strPathRoot, strPathChild)
   -- If child is really below root, this must start with "..".
@@ -76,7 +76,7 @@ end
 
 
 
-function Configuration:parse_configuration(strConfigurationFilename)
+function SystemConfiguration:parse_configuration(strConfigurationFilename)
   -- Read the configuration file into a LUA table.
   local tCfg,strError = self.pl.config.read(strConfigurationFilename)
   if tCfg==nil then
@@ -188,7 +188,7 @@ end
 
 --- Return the complete configuration as a string.
 -- @return The configuration as a string. 
-function Configuration:__tostring()
+function SystemConfiguration:__tostring()
   local strCfg = nil
   
   if self.tConfiguration==nil then
@@ -201,4 +201,4 @@ function Configuration:__tostring()
 end
 
 
-return Configuration
+return SystemConfiguration

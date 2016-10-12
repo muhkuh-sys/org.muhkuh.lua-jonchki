@@ -1,8 +1,8 @@
 -- This test checks the Configuration class.
 
-local Configuration = require 'Configuration'
+local SystemConfiguration = require 'SystemConfiguration'
 
 -- Create a configuration object and read the settings from 'demo.cfg'.
-cConfiguration = Configuration('demo.cfg')
+cSysCfg = SystemConfiguration('demo.cfg')
 
-print(cConfiguration)
+print(cSysCfg)
