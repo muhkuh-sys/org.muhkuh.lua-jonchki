@@ -192,9 +192,9 @@ function SystemConfiguration:__tostring()
   local strCfg = nil
   
   if self.tConfiguration==nil then
-    strCfg = 'Configuration()'
+    strCfg = 'SystemConfiguration()'
   else
-    strCfg = self.pl.pretty.write(self.tConfiguration)
+    strCfg = string.format('SystemConfiguration(\n%s\n)', self.pl.pretty.write(self.tConfiguration))
   end
   
   return strCfg
