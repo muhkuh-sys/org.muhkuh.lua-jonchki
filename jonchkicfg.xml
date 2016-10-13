@@ -1,0 +1,23 @@
+<jonchkicfg>
+	<repositories>
+		<!-- The main repository for stable artifacts on sourceforge. -->
+		<repository id="sourceforge" type="http" cacheable="true">
+			<config>http://downloads.sourceforge.net/project/muhkuh/mbs/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]</config>
+			<artifact>http://downloads.sourceforge.net/project/muhkuh/mbs/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]</artifact>
+		</repository>
+
+		<!-- The main repository for stable artifacts on GitHub. -->
+		<repository id="github" type="http" cacheable="true">
+			<config>https://github.com/muhkuh-sys/[organisation]-[module]/releases/download/v[revision]/[artifact].[ext]</config>
+			<artifact>https://github.com/muhkuh-sys/[organisation]-[module]/releases/download/v[revision]/[artifact].[ext]</artifact>
+		</repository>
+
+		<!-- This is the resolver for Bintray.
+		     Build results from Travis CI are stored here. They are snapshots and will be replaced with a new build.
+		-->
+		<repository id="bintray" type="http" cacheable="true">
+			<config>http://dl.bintray.com/muhkuh/Muhkuh/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]</config>
+			<artifact>http://dl.bintray.com/muhkuh/Muhkuh/[organisation]/[module]/[revision]/[artifact]-[revision].[ext]</artifact>
+		</repository>
+	</repositories>
+</jonchkicfg>
