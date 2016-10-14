@@ -17,6 +17,7 @@ local atRepositoryDrivers = {}
 table.insert(atRepositoryDrivers, require 'repository_driver.filesystem')
 
 -- Create all repository drivers.
+local atResolverChain = {}
 for uiCnt, tRepo in pairs(cPrjCfg.atRepositories) do
   print(string.format('Creating driver for repository "%s".', tRepo.strID))
   
@@ -38,8 +39,20 @@ for uiCnt, tRepo in pairs(cPrjCfg.atRepositories) do
 
   -- Setup the repository driver.
   tRepositoryDriver:configure(tRepo)
-  print(tRepositoryDriver)
   
+  -- Add the driver to the resolver chain.
+  table.insert(atResolverChain, tRepositoryDriver)
+end
+
+-- Read the artifact configuration.
+local ArtifactConfiguration = require 'ArtifactConfiguration'
+cArtifactCfg = ArtifactConfiguration()
+cArtifactCfg:parse_configuration('org.muhkuh.tools-flasher_cli.xml')
+print(cArtifactCfg)
+
+
+
+--[[
   local tArtifact = {
     ['strGroup'] = 'org.muhkuh.tools',
     ['strArtifact'] = 'flasher',
@@ -54,4 +67,5 @@ for uiCnt, tRepo in pairs(cPrjCfg.atRepositories) do
       print(tVersion)
     end
   end
-end
+]]--
+
