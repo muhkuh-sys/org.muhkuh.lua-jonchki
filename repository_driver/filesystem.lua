@@ -49,7 +49,7 @@ function RepositoryDriverFilesystem:replace_path(tArtifact, strTemplate)
   local atReplace = {
     ['group'] = strGroup,
     ['artifact'] = tArtifact.strArtifact,
-    ['version'] = tArtifact.strVersion
+    ['version'] = tostring(tArtifact.tVersion)
   }
 
   -- Replace the keywords.
