@@ -5,13 +5,13 @@
 local SystemConfiguration = require 'SystemConfiguration'
 local cSysCfg = SystemConfiguration()
 cSysCfg:parse_configuration('demo.cfg')
-print(cSysCfg)
+-- print(cSysCfg)
 
 -- Read the project configuration.
 local ProjectConfiguration = require 'ProjectConfiguration'
 local cPrjCfg = ProjectConfiguration()
 cPrjCfg:parse_configuration('jonchkicfg.xml')
-print(cPrjCfg)
+-- print(cPrjCfg)
 
 -- Get all available repository drivers.
 local atRepositoryDrivers = {}
