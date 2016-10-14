@@ -41,27 +41,9 @@ end
 
 
 
-function RepositoryDriverFilesystem:replace_path(tArtifact, strTemplate)
-  -- Convert the group to a list of folders.
-  local strGroup = self.pl.stringx.replace(tArtifact.strGroup, '.', self.pl.path.sep)
-
-  -- Construct the replace table.
-  local atReplace = {
-    ['group'] = strGroup,
-    ['artifact'] = tArtifact.strArtifact,
-    ['version'] = tostring(tArtifact.tVersion)
-  }
-
-  -- Replace the keywords.
-  return string.gsub(strTemplate, '%[(%w+)%]', atReplace)
-end
-
-
-
-function RepositoryDriverFilesystem:get_available_versions(tArtifact)
+function RepositoryDriverFilesystem:exists()
   local tResult
   local strError
-
 
   -- Does the root folder exist?
   if self.pl.path.exists(self.strRoot)~=self.strRoot then
@@ -74,8 +56,47 @@ function RepositoryDriverFilesystem:get_available_versions(tArtifact)
     strError = string.format('The repository root path "%s" is no directory.', self.strRoot)
 
   else
+    tResult = true
+  end
+
+  return tResult, strError
+end
+
+
+
+function RepositoryDriverFilesystem:getArtifactConfiguration(strGroup, strArtifact, tVersion)
+  local tResult, strError = self:exists()
+  if tResult==true then
+    -- Replace the artifact placeholder in the config path.
+    local strConfig = self:replace_path(strGroup, strArtifact, tVersion, self.strConfig)
+
+    -- Append the config path to the root.
+    local strConfigPath = self.pl.path.join(self.strRoot, strConfig)
+
+    -- Is the configuration a file?
+    if self.pl.path.isfile(strConfigPath)~=true then
+      tResult = false
+      strError = string.format('The artifact configuration at "%s" is no file.', strConfigPath)
+    else
+      -- Read the complete configuration.
+      local tArtifact = self.ArtifactConfiguration()
+      tResult, strError = tArtifact:parse_configuration(strConfigPath)
+      if tResult==true then
+        tResult = tArtifact
+      end
+    end
+  end
+
+  return tResult, strError
+end
+
+
+
+function RepositoryDriverFilesystem:get_available_versions(tArtifact)
+  local tResult, strError = self:exists()
+  if tResult==true then
     -- Replace the artifact placeholder in the versions path.
-    local strVersions = self:replace_path(tArtifact, self.strVersions)
+    local strVersions = self:replace_path(tArtifact.strGroup, tArtifact.strArtifact, tArtifact.tVersion, self.strVersions)
 
     -- Append the version folder to the root.
     local strVersionPath = self.pl.path.join(self.strRoot, strVersions)
@@ -94,6 +115,10 @@ function RepositoryDriverFilesystem:get_available_versions(tArtifact)
         local tVersion = self.Version()
         local fOk = tVersion:set(strSubfolder)
         if fOk==true then
+          -- For a test get the artifact configuration.
+          local tArtifact, strError = self:getArtifactConfiguration(tArtifact.strGroup, tArtifact.strArtifact, tVersion)
+          print(tArtifact, strError)
+          
           table.insert(atVersions, tVersion)
         end
       end

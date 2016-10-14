@@ -26,6 +26,23 @@ end
 
 
 
+function RepositoryDriver:replace_path(strGroup, strArtifact, tVersion, strTemplate)
+  -- Convert the group to a list of folders.
+  local strGroup = self.pl.stringx.replace(strGroup, '.', self.pl.path.sep)
+
+  -- Construct the replace table.
+  local atReplace = {
+    ['group'] = strGroup,
+    ['artifact'] = strArtifact,
+    ['version'] = tostring(tVersion)
+  }
+
+  -- Replace the keywords.
+  return string.gsub(strTemplate, '%[(%w+)%]', atReplace)
+end
+
+
+
 -- scan the repository for available versions.
 function RepositoryDriver:get_available_versions(tArtifact)
   error('This is the function "get_available_versions" in the base class "RepositoryDriver". It must be overwritten!')
