@@ -3,12 +3,13 @@
 
 -- Create a configuration object and read the settings from 'demo.cfg'.
 local SystemConfiguration = require 'SystemConfiguration'
-cSysCfg = SystemConfiguration('demo.cfg')
+local cSysCfg = SystemConfiguration()
+cSysCfg:parse_configuration('demo.cfg')
 print(cSysCfg)
 
 -- Read the project configuration.
 local ProjectConfiguration = require 'ProjectConfiguration'
-cPrjCfg = ProjectConfiguration()
+local cPrjCfg = ProjectConfiguration()
 cPrjCfg:parse_configuration('jonchkicfg.xml')
 print(cPrjCfg)
 
@@ -17,7 +18,7 @@ local atRepositoryDrivers = {}
 table.insert(atRepositoryDrivers, require 'repository_driver.filesystem')
 
 -- Create all repository drivers.
-local atResolverChain = {}
+local atRepositoryList = {}
 for uiCnt, tRepo in pairs(cPrjCfg.atRepositories) do
   print(string.format('Creating driver for repository "%s".', tRepo.strID))
   
@@ -41,16 +42,23 @@ for uiCnt, tRepo in pairs(cPrjCfg.atRepositories) do
   tRepositoryDriver:configure(tRepo)
   
   -- Add the driver to the resolver chain.
-  table.insert(atResolverChain, tRepositoryDriver)
+  table.insert(atRepositoryList, tRepositoryDriver)
 end
 
 -- Read the artifact configuration.
 local ArtifactConfiguration = require 'ArtifactConfiguration'
-cArtifactCfg = ArtifactConfiguration()
+local cArtifactCfg = ArtifactConfiguration()
 cArtifactCfg:parse_configuration('org.muhkuh.tools-flasher_cli.xml')
 print(cArtifactCfg)
 
+-- Create the exact resolver.
+local ResolverExact = require 'resolver.exact'
+local tResolver = ResolverExact('default-exact')
+print(tResolver)
 
+-- Resolve all dependencies.
+tResolver:setRepositories(atRepositoryList)
+tResolver:resolve(cArtifactCfg)
 
 --[[
   local tArtifact = {
