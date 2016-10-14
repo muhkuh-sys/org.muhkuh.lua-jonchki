@@ -131,6 +131,10 @@ end
 
 
 function ArtifactConfiguration:parse_configuration(strConfigurationFilename)
+  local tResult = nil
+  local strError = ''
+
+
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
     error('The function "parse_configuration" expects a filename as a parameter.')
@@ -156,24 +160,28 @@ function ArtifactConfiguration:parse_configuration(strConfigurationFilename)
   local tParser = self.lxp.new(aLxpCallbacks)
 
   -- Read the complete file.
-  local strXmlText, strError = self.pl.utils.readfile(strConfigurationFilename, false)
+  local strXmlText, strMsg = self.pl.utils.readfile(strConfigurationFilename, false)
   if strXmlText==nil then
-    error(string.format('Error reading the configuration file: %s', strError))
-  end
-
-  local tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse(strXmlText)
-  if tParseResult~=nil then
-    tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse()
-  end
-  tParser:close()
-
-  if tParseResult~=nil then
-    self.tVersion = aLxpCallbacks.userdata.tVersion
-    self.tInfo = aLxpCallbacks.userdata.tInfo
-    self.atDependencies = aLxpCallbacks.userdata.atDependencies
+    strError = string.format('Error reading the configuration file: %s', strMsg)
   else
-    error(string.format("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos))
+    local tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse(strXmlText)
+    if tParseResult~=nil then
+      tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse()
+    end
+    tParser:close()
+
+    if tParseResult==nil then
+      strError = string.format("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos)
+    else
+      self.tVersion = aLxpCallbacks.userdata.tVersion
+      self.tInfo = aLxpCallbacks.userdata.tInfo
+      self.atDependencies = aLxpCallbacks.userdata.atDependencies
+
+      tResult = true
+    end
   end
+
+  return tResult, strError
 end
 
 
