@@ -39,8 +39,22 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
 
   if aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository" then
     local tCurrentRepository = {}
-    tCurrentRepository.strID = atAttributes['id']
-    tCurrentRepository.strType = atAttributes['type']
+    local strID = atAttributes['id']
+    if strID==nil or strID=='' then
+      error(string.format('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn))
+    end
+    -- Is the ID already defined?
+    for uiCnt, tRepo in pairs(aLxpAttr.atRepositories) do
+      if tRepo.strID==strID then
+        error(string.format('Error in line %d, col %d: the ID "%s" is already used.', iPosLine, iPosColumn, strID))
+      end
+    end
+    tCurrentRepository.strID = strID
+    local strType = atAttributes['type']
+    if strType==nil or strType=='' then
+      error(string.format('Error in line %d, col %d: missing "type".', iPosLine, iPosColumn))
+    end
+    tCurrentRepository.strType = strType
     local strCacheable = atAttributes['cacheable']
     local fCacheable 
     if strCacheable=='0' or string.lower(strCacheable)=='false' or string.lower(strCacheable)=='no' then
@@ -51,17 +65,12 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
       error(string.format('Error in line %d, col %d: invalid value for "cacheable": "%s".', iPosLine, iPosColumn, strCacheable))
     end
     tCurrentRepository.cacheable = fCacheable
+    tCurrentRepository.strRoot = nil
+    tCurrentRepository.strVersions = nil
     tCurrentRepository.strConfig = nil
     tCurrentRepository.strArtifact = nil
     
     aLxpAttr.tCurrentRepository = tCurrentRepository
-    
-  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/config" then
-    tCurrentRepository.strConfig = atAttributes['pattern']
-
-  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/artifact" then
-    tCurrentRepository.strArtifact = atAttributes['pattern']
-
   end
 end
 
@@ -85,6 +94,12 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
     end
     if tCurrentRepository.strType==nil then
       table.insert(astrMissing, 'type')
+    end
+    if tCurrentRepository.strRoot==nil then
+      table.insert(astrMissing, 'root')
+    end
+    if tCurrentRepository.strVersions==nil then
+      table.insert(astrMissing, 'versions')
     end
     if tCurrentRepository.strConfig==nil then
       table.insert(astrMissing, 'config')
@@ -116,7 +131,11 @@ function ProjectConfiguration.parseCfg_CharacterData(tParser, strData)
   local aLxpAttr = tParser:getcallbacks().userdata
   local tCurrentRepository = aLxpAttr.tCurrentRepository
 
-  if aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/config" then
+  if aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/root" then
+    tCurrentRepository.strRoot = strData
+  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/versions" then
+    tCurrentRepository.strVersions = strData
+  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/config" then
     tCurrentRepository.strConfig = strData
   elseif aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/artifact" then
     tCurrentRepository.strArtifact = strData
