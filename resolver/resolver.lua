@@ -15,6 +15,7 @@ function Resolver:_init(strID)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
+  self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.Version = require 'Version'
   
   self.atRepositoryList = nil
