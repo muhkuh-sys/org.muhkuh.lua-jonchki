@@ -86,6 +86,26 @@ end
 
 
 
+function Resolver:search_artifact(tArtifact)
+  print(string.format("search for %s/%s/%s", tArtifact.strGroup, tArtifact.strArtifact, tostring(tArtifact.tVersion)))
+
+  -- Loop over the repository list.
+  for _, tRepository in pairs(self.atRepositoryList) do
+    local strSourceID = tRepository:get_id()
+    print(string.format('  ... in repository %s', strSourceID))
+    local tResult, strError = tRepository:get_available_versions(tArtifact)
+    if tResult==nil then
+      print(string.format('    failed to scan the repository: %s', strError))
+    else
+      for _, tVersion in pairs(tResult) do
+        print(string.format('    %s', tostring(tVersion)))
+      end
+    end
+  end
+end
+
+
+
 --- Return the complete configuration as a string.
 -- @return The configuration as a string. 
 function Resolver:__tostring()
