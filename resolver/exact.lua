@@ -77,7 +77,7 @@ function ResolverExact:resolve_process_artifact(cArtifact, cArtifactParent, strS
   if tContinue==true then
     -- Loop over all dependencies.
     for _,tDependency in pairs(cArtifact.atDependencies) do
-      print(string.format("search for %s/%s/%s", tDependency.strGroup, tDependency.strArtifact, tostring(tDependency.tVersion)))
+      self:search_artifact(tDependency)
     end
   end
 end
