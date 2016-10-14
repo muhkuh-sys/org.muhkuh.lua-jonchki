@@ -11,18 +11,12 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(strConfigurationFilename)
+function SystemConfiguration:_init()
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
   
   -- There is no configuration yet.
   self.tConfiguration = nil
-
-  -- The filename of the configuration is a required parameter.
-  if strConfigurationFilename==nil then
-    error('The SystemConfiguration class expects a filename as a parameter.')
-  end
-  self:parse_configuration(strConfigurationFilename)
 end
 
 
@@ -77,6 +71,11 @@ end
 
 
 function SystemConfiguration:parse_configuration(strConfigurationFilename)
+  -- The filename of the configuration is a required parameter.
+  if strConfigurationFilename==nil then
+    error('The SystemConfiguration class expects a filename as a parameter.')
+  end
+
   -- Read the configuration file into a LUA table.
   local tCfg,strError = self.pl.config.read(strConfigurationFilename)
   if tCfg==nil then
