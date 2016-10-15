@@ -34,7 +34,7 @@ function RepositoryDriver:replace_path(strGroup, strArtifact, tVersion, strTempl
   local atReplace = {
     ['group'] = strGroup,
     ['artifact'] = strArtifact,
-    ['version'] = tostring(tVersion)
+    ['version'] = tVersion:get()
   }
 
   -- Replace the keywords.
