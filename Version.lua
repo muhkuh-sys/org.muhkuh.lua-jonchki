@@ -146,6 +146,18 @@ end
 
 
 
+function Version:get()
+  local strRepr = ''
+
+  if self.atVersion~=nil then
+    strRepr = table.concat(self.atVersion, '.')
+  end
+
+  return strRepr
+end
+
+
+
 function Version:set(tVersion)
   local fOk = true
   local strMessage = nil
@@ -185,17 +197,22 @@ end
 
 
 function Version:__tostring()
-  local strRepr
-
-  if self.atVersion==nil then
-    strRepr = 'Version()'
-  else
-    strRepr = string.format('Version(%s)', table.concat(self.atVersion, '.'))
-  end
-  
-  return strRepr
+  return string.format('Version(%s)', self:get())
 end
 
+
+
+function Version:__len()
+  local uiLen
+
+  if self.atVersion==nil then
+    uiLen = nil
+  else
+    uiLen = #self.atVersion
+  end
+
+  return uiLen
+end
 
 
 return Version
