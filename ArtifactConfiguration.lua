@@ -194,7 +194,7 @@ function ArtifactConfiguration:__tostring()
   if self.tVersion==nil then
     table.insert(astrRepr, '  no version available')
   else
-    table.insert(astrRepr, string.format('  version: %s', tostring(self.tVersion)))
+    table.insert(astrRepr, string.format('  version: %s', self.tVersion:get()))
   end
 
   if self.tInfo==nil then
@@ -203,7 +203,7 @@ function ArtifactConfiguration:__tostring()
     table.insert(astrRepr, '  info:')
     table.insert(astrRepr, string.format('    group: %s', self.tInfo.strGroup))
     table.insert(astrRepr, string.format('    artifact: %s', self.tInfo.strArtifact))
-    table.insert(astrRepr, string.format('    version: %s', tostring(self.tInfo.tVersion)))
+    table.insert(astrRepr, string.format('    version: %s', self.tInfo.tVersion:get()))
     table.insert(astrRepr, string.format('    vcs-id: %s', self.tInfo.strVcsId))
   end
 
@@ -212,10 +212,10 @@ function ArtifactConfiguration:__tostring()
   else
     table.insert(astrRepr, string.format('  dependencies: %d', #self.atDependencies))
     for uiCnt,tAttr in pairs(self.atDependencies) do
-      table.insert(astrRepr, string.format('  %d', uiCnt))
+      table.insert(astrRepr, string.format('  %d:', uiCnt))
       table.insert(astrRepr, string.format('    group: %s', tAttr.strGroup))
       table.insert(astrRepr, string.format('    artifact: %s', tAttr.strArtifact))
-      table.insert(astrRepr, string.format('    version: %s', tostring(tAttr.tVersion)))
+      table.insert(astrRepr, string.format('    version: %s', tAttr.tVersion:get()))
       table.insert(astrRepr, '')
     end
   end

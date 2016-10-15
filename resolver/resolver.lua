@@ -88,7 +88,7 @@ end
 
 
 function Resolver:search_artifact(tArtifact)
-  print(string.format("search for %s/%s/%s", tArtifact.strGroup, tArtifact.strArtifact, tostring(tArtifact.tVersion)))
+  print(string.format("search for %s/%s/%s", tArtifact.strGroup, tArtifact.strArtifact, tArtifact.tVersion:get()))
 
   -- Loop over the repository list.
   for _, tRepository in pairs(self.atRepositoryList) do
