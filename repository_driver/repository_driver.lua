@@ -15,6 +15,7 @@ function RepositoryDriver:_init(strID)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
+  self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.Version = require 'Version'
 end
 
@@ -30,11 +31,17 @@ function RepositoryDriver:replace_path(strGroup, strArtifact, tVersion, strTempl
   -- Convert the group to a list of folders.
   local strGroup = self.pl.stringx.replace(strGroup, '.', self.pl.path.sep)
 
+  -- Get the version string if there is a version object.
+  local strVersion = nil
+  if tVersion~=nil then
+    strVersion = tVersion:get()
+  end
+
   -- Construct the replace table.
   local atReplace = {
     ['group'] = strGroup,
     ['artifact'] = strArtifact,
-    ['version'] = tVersion:get()
+    ['version'] = strVersion
   }
 
   -- Replace the keywords.
@@ -44,7 +51,7 @@ end
 
 
 -- scan the repository for available versions.
-function RepositoryDriver:get_available_versions(tArtifact)
+function RepositoryDriver:get_available_versions(strGroup, strArtifact)
   error('This is the function "get_available_versions" in the base class "RepositoryDriver". It must be overwritten!')
 end
 

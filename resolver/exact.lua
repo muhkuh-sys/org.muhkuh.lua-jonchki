@@ -66,7 +66,7 @@ end
 
 function ResolverExact:resolve_process_artifact(cArtifact, cArtifactParent, strSourceID)
   -- Add the current artifact to the GA->V table.
-  self:add_to_ga_v(cArtifact, strSourceID)
+  self:add_to_ga_v(cArtifact.tInfo.strGroup, cArtifact.tInfo.strArtifact, cArtifact.tInfo.tVersion, strSourceID)
 
   -- Add the current version to the enforcement table
   local tResult,tContinue = self:add_enforcement(cArtifact, cArtifactParent)
@@ -85,9 +85,12 @@ end
 
 
 function ResolverExact:resolve(cArtifact)
+  -- Start with clean resolver tables.
   self:clear_resolve_tables()
+  self.atEnforcement = {}
 
-  self:resolve_process_artifact(cArtifact, nil, '')
+  -- Write the artifact to the resolve table.
+  self:resolve_set_start_artifact(cArtifact)
 end
 
 
