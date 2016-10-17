@@ -225,4 +225,44 @@ function ArtifactConfiguration:__tostring()
 end
 
 
+
+function ArtifactConfiguration:toxml(tXml)
+  local tAttr = {}
+  if self.version~=nil then
+    tAttr.version = self.tVersion:get()
+  end
+  tXml:addtag('jonchki-artifact', tAttr)
+
+  -- Add the info node.
+  if self.tInfo~=nil then
+    local tAttr = {
+      ['group'] = self.tInfo.strGroup,
+      ['artifact'] = self.tInfo.strArtifact,
+      ['version'] = self.tInfo.tVersion:get(),
+      ['vcs-id'] = self.tInfo.strVcsId
+    }
+    tXml:addtag('info', tAttr)
+    tXml:up()
+  end
+
+  -- Add the dependencies.
+  if self.atDependencies~=nil then
+    tXml:addtag('dependencies')
+      for _,tDependency in pairs(self.atDependencies) do
+        local tAttr = {
+          ['group'] = tDependency.strGroup,
+          ['artifact'] = tDependency.strArtifact,
+          ['version'] = tDependency.tVersion:get()
+        }
+        tXml:addtag('dependency', tAttr)
+        tXml:up()
+      end
+    tXml:up()
+  end
+
+  tXml:up()
+end
+
+
+
 return ArtifactConfiguration
