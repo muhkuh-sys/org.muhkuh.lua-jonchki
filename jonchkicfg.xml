@@ -27,7 +27,7 @@
 -->
 
 		<repository id="test" type="file" cacheable="false">
-			<root>/home/cthelen/workspace/org.muhkuh.lua-jonchki/demo_repository</root>
+			<root>demo_repository</root>
 			<versions>[group]/[artifact]</versions>
 			<config>[group]/[artifact]/[version]/jonchki-[version].xml</config>
 			<artifact>[group]/[artifact]/[version]/[artifact]-[version].zip</artifact>
