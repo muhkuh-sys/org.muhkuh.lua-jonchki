@@ -531,6 +531,14 @@ function Resolver:resolve_step(tResolv)
         -- The child is not completely resolved yet.
         tCombinedStatus = self.RT_ResolvingDependencies
 
+      elseif tChildStatus==self.RT_GetConfiguration then
+        -- The child is not completely resolved yet.
+        tCombinedStatus = self.RT_ResolvingDependencies
+
+      elseif tChildStatus==self.RT_GetDependencyVersions then
+        -- The child is not completely resolved yet.
+        tCombinedStatus = self.RT_ResolvingDependencies
+
       elseif tChildStatus==self.RT_ResolvingDependencies then
         -- The child is not completely resolved yet.
         tCombinedStatus = self.RT_ResolvingDependencies
