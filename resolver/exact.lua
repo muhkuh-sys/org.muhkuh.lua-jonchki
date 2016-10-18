@@ -84,6 +84,59 @@ end
 
 
 
+function ResolverExact:select_version_by_constraints(atVersions, atConstraints)
+  local fResult = true
+  local tResult = nil
+  local strMessage = ''
+
+  -- In "exact" mode there must be one single constraint with an exact version number.
+  -- An empty string means any version, first match.
+  local strConstraint = nil
+  for strC,_ in pairs(atConstraints) do
+    if strConstraint==nil then
+      -- This is the first constraint.
+      strConstraint = strC
+    elseif strConstraint=='' and strC~='' then
+      -- The current constraint is "anything" and the new constraint is a real one.
+      strConstraint = strC
+    elseif strC=='' then
+      -- '' can be combined with anything as it means any version, first match.
+    elseif strConstraint~=strC then
+      -- There are several different constraints. This is not possible in "exact" mode.
+      fResult = false
+      strMessage = 'More than one different constraint!'
+      break
+    end
+  end
+  print(string.format('Constraint: %s', strConstraint))
+
+  if fResult==true then
+    -- Try to parse the constraint as a version.
+    local tVersion = self.Version()
+    fResult, strMessage = tVersion:set(strConstraint)
+    if fResult==true then
+      -- Look for the exact version string.
+      local fFound = false
+      for tV, atVers in pairs(atVersions) do
+        if tV:get()==strConstraint then
+          fFound = true
+          break
+        end
+      end
+
+      if fFound==true then
+        tResult = tVersion
+      else
+        strMessage = string.format('No matching version found for exact constraint "%s".', strConstraint)
+      end
+    end
+  end
+
+  return tResult, strMessage
+end
+
+
+
 function ResolverExact:resolve(cArtifact)
   -- Start with clean resolver tables.
   self:clear_resolve_tables()
@@ -91,6 +144,9 @@ function ResolverExact:resolve(cArtifact)
 
   -- Write the artifact to the resolve table.
   self:resolve_set_start_artifact(cArtifact)
+
+  -- Execute one resolve step.
+  self:resolve_step()
 end
 
 
