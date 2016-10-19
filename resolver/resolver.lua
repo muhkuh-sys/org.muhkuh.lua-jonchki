@@ -347,8 +347,14 @@ end
 
 
 function Resolver:resolve_set_start_artifact(cArtifact)
+  -- Start writing dumps with 000.
+  self.uiResolveTabDumpCounter = 0
+
   -- Write the artifact to the resolve table.
   local tResolv = self:resolvtab_create_entry(cArtifact.tInfo.strGroup, cArtifact.tInfo.strArtifact)
+
+  -- Set the new element as the root of the resolve table.
+  self.atResolvTab = tResolv
 
   -- Add the current version as the constraint.
   self:resolvtab_add_constraint(tResolv, cArtifact.tInfo.tVersion:get(), '')
@@ -356,22 +362,19 @@ function Resolver:resolve_set_start_artifact(cArtifact)
   -- Add the current version as the available version.
   self:resolvtab_add_versions(tResolv, {cArtifact.tInfo.tVersion})
 
-  -- Add the configuration to the version.
-  self:resolvetab_add_config_to_active_version(tResolv, cArtifact)
-
-  -- Get the available versions for all dependencies.
-  self:resolvetab_get_dependency_versions(tResolv)
-
-  -- Set the new element as the root of the resolve table.
-  self.atResolvTab = tResolv
-
   -- Dump the initial resolve table.
-  self.uiResolveTabDumpCounter = 0
   self:resolvetab_dump('This is the initial resolve table with just the start artifact.')
 
   -- Pick the version.
   self:resolvetab_pick_version(tResolv, cArtifact.tInfo.tVersion)
   self:resolvetab_dump('The initial version was picked.')
+
+  -- Add the configuration to the version.
+  self:resolvetab_add_config_to_active_version(tResolv, cArtifact)
+  self:resolvetab_dump('Added configuration.')
+
+  -- Get the available versions for all dependencies.
+  self:resolvetab_get_dependency_versions(tResolv)
 end
 
 
