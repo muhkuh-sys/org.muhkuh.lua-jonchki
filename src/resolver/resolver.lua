@@ -476,7 +476,7 @@ erroneous or removed.
 
   self:resolvetab_dump('Step.')
 
-  return tResultStatus
+  return tStatus
 end
 
 
