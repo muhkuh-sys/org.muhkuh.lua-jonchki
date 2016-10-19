@@ -455,6 +455,10 @@ erroneous or removed.
         -- That's an error. Stop processing the other children.
         tCombinedStatus = self.RT_Blocked
         break
+
+      else
+        -- This is an unknown status from the child resolver.
+        error(string.format('Internal error: got strange result from recursive resolve step: %s', tostring(tChildStatus)))
       end
     end
 
