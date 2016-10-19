@@ -111,6 +111,7 @@ function Resolver:resolvtab_add_versions(tResolvEntry, atNewVersions)
 
     if atV==nil then
       atV = {
+        tVersion = tNewVersion,
         cArtifact = nil,                     -- the Artifact object
         eStatus = self.V_Unused,
         atDependencies = nil,
@@ -303,7 +304,7 @@ function Resolver:resolvetab_dump_resolv(tXml, tResolv)
 
   if tResolv.ptActiveVersion~=nil then
     local atV = tResolv.ptActiveVersion
-    local strVersion = atV.cArtifact.tInfo.tVersion:get()
+    local strVersion = atV.tVersion:get()
     tXml:addtag('ActiveVersion', { version=strVersion })
     tXml:up()
   end
