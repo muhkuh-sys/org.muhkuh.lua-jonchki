@@ -1,5 +1,8 @@
 -- This test checks the Configuration class.
 
+-- Add the src folder to the search list.
+package.path = package.path .. ";src/?.lua;src/?/init.lua"
+
 
 -- Create a configuration object and read the settings from 'demo.cfg'.
 local SystemConfiguration = require 'SystemConfiguration'
