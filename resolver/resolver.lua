@@ -18,7 +18,7 @@ function Resolver:_init(strID)
   self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.Version = require 'Version'
   
-  self.atRepositoryList = nil
+  self.cResolverChain = nil
   self.atRepositoryByID = nil
 
   -- This is the state enumeration for a ressolve table entry.
@@ -42,8 +42,6 @@ end
 function Resolver:clear_resolve_tables()
   -- No resolve table yet.
   self.atResolvTab = nil
-  -- Create a new GA->V table.
-  self.atGA_V = {}
 end
 
 
@@ -54,102 +52,10 @@ end
 
 
 
-function Resolver:setRepositories(atRepositoryList)
-  -- Store the list.
-  self.atRepositoryList = atRepositoryList
+function Resolver:setResolverChain(cResolverChain)
+  -- Store the chain.
+  self.cResolverChain = cResolverChain
   
-  -- Create a mapping from the ID -> repository driver.
-  local atMap = {}
-  for _,tRepository in pairs(atRepositoryList) do
-    local strID = tRepository:get_id()
-    atMap[strID] = tRepository
-  end
-  self.atRepositoryByID = atMap
-end
-
-
-
-function Resolver:add_to_ga_v(strGroup, strArtifact, tVersion, strSourceID)
-  -- Combine the group and artifact.
-  local strGA = string.format('%s/%s', strGroup, strArtifact)
-
-  -- Is the GA already registered?
-  local atGA = self.atGA_V[strGA]
-  if atGA==nil then
-    -- No, register GA now.
-    atGA = {}
-    self.atGA_V[strGA] = atGA
-  end
-
-  -- Is the version already registered?
-  local strVersion = tVersion:get()
-  local atV = atGA[strVersion]
-  if atV==nil then
-    -- No, register the version now.
-    atV = {}
-    atGA[strVersion] = atV
-  end
-
-  -- Add the source ID.
-  local atSrcID = atV[strSourceID]
-  if atSrcID==nil then
-    atSrcID = {}
-    atV[strSourceID] = atSrcID
-  end
-end
-
-
-
-function Resolver:dump_ga_v_table()
-  print 'GA_V('
-
-  -- Loop over all GA pairs.
-  for strGA, atGA in pairs(self.atGA_V) do
-    -- Split the GA pair by the separating slash ('/').
-    local aTmp = self.pl.stringx.split(strGA, '/')
-    local strGroup = aTmp[1]
-    local strArtifact = aTmp[2]
-    print(string.format('  G=%s, A=%s', strGroup, strArtifact))
-
-    -- Loop over all versions.
-    for tVersion, atV in pairs(atGA) do
-      print(string.format('    V=%s:', tVersion))
-
-      -- Loop over all sources.
-      print '      sources:'
-      for strSrcID,_ in pairs(atV) do
-        print(string.format('        %s', strSrcID))
-      end
-    end
-  end
-  print ')'
-end
-
-
-
-function Resolver:search_artifact(tArtifact)
-  local strGroup = tArtifact.strGroup
-  local strArtifact = tArtifact.strArtifact
-  print(string.format("search for %s/%s/%s", strGroup, strArtifact, tArtifact.tVersion:get()))
-
-  -- Loop over the repository list.
-  for _, tRepository in pairs(self.atRepositoryList) do
-    -- Get the ID of the current repository.
-    local strSourceID = tRepository:get_id()
-    print(string.format('  ... in repository %s', strSourceID))
-
-    -- Get all available versions in this repository.
-    local tResult, strError = tRepository:get_available_versions(strGroup, strArtifact)
-    if tResult==nil then
-      print(string.format('    failed to scan the repository: %s', strError))
-    else
-      -- Write all versions to the GA->V table.
-      for _, tVersion in pairs(tResult) do
-        self:add_to_ga_v(strGroup, strArtifact, tVersion, strSourceID)
-        print(string.format('    %s', tostring(tVersion)))
-      end
-    end
-  end
 end
 
 
@@ -219,31 +125,8 @@ end
 
 
 function Resolver:add_versions_from_repositories(tResolv, strGroup, strArtifact)
-  local atDuplicateCheck = {}
-  local atNewVersions = {}
-
-  -- Loop over the repository list.
-  for _, tRepository in pairs(self.atRepositoryList) do
-    -- Get the ID of the current repository.
-    local strSourceID = tRepository:get_id()
-
-    -- Get all available versions in this repository.
-    local tResult, strError = tRepository:get_available_versions(strGroup, strArtifact)
-    if tResult==nil then
-      print(string.format('Error: failed to scan repository "%s": %s', strSourceID, strError))
-    else
-      -- Get all unique versions.
-      for _, tVersion in pairs(tResult) do
-        local strVersion = tVersion:get()
-        if atDuplicateCheck[strVersion]==nil then
-          atDuplicateCheck[strVersion] = true
-          table.insert(atNewVersions, tVersion)
-        end
-      end
-    end
-  end
-
   -- Add all members of the set as new versions.
+  local atNewVersions = self.cResolverChain:get_available_versions(strGroup, strArtifact)
   self:resolvtab_add_versions(tResolv, atNewVersions)
 end
 
@@ -512,7 +395,17 @@ function Resolver:resolve_step(tResolv)
   elseif tStatus==self.RT_GetConfiguration then
     error('Continue here.')
 --[[
+This part should get the configuration file from the repository.
 
+We have already the group, the artifact and the version.
+The ID of the repository is still missing. This is the task of the GA->V
+table.
+
+When all versions for an artifact are collected with
+resolvetab_get_dependency_versions, the GA->V table can be updated.
+Each step like a config or artifact download will further update the GA->V
+table, for example if a download fails, the entry in the GA->V is marked as
+erroneous or removed.
 ]]--
 
   elseif tStatus==self.RT_GetDependencyVersions then
