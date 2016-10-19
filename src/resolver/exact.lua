@@ -145,8 +145,8 @@ function ResolverExact:resolve(cArtifact)
   -- Write the artifact to the resolve table.
   self:resolve_set_start_artifact(cArtifact)
 
-  -- Execute one resolve step.
-  self:resolve_step()
+  -- Resolve until done or an error occurs.
+  local tStatus = self:resolve_loop()
 end
 
 

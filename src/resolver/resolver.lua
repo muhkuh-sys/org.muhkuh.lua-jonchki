@@ -385,6 +385,43 @@ end
 
 
 
+function Resolver:is_done(tStatus)
+  local fIsDone
+
+  if tStatus==self.RT_Initialized then
+    -- Not completely resolved yet.
+    fIsDone = false
+
+  elseif tStatus==self.RT_GetConfiguration then
+    -- Not completely resolved yet.
+    fIsDone = false
+
+  elseif tStatus==self.RT_GetDependencyVersions then
+    -- Not completely resolved yet.
+    fIsDone = false
+
+  elseif tStatus==self.RT_ResolvingDependencies then
+    -- Not completely resolved yet.
+    fIsDone = false
+
+  elseif tStatus==self.RT_Resolved then
+    -- Completely resolved.
+    fIsDone = true
+
+  elseif tStatus==self.RT_Blocked then
+    -- Error!
+    fIsDone = nil
+
+  else
+    -- This is an unknown status from the child resolver.
+    error(string.format('Internal error: got strange result from recursive resolve step: %s', tostring(tChildStatus)))
+  end
+
+  return fIsDone
+end
+
+
+
 function Resolver:resolve_step(tResolv)
   -- If no parameter was given, start at the root of the tree.
   local tResolv = tResolv or self.atResolvTab
@@ -432,33 +469,16 @@ erroneous or removed.
     local tCombinedStatus = self.RT_Resolved
     for _,tDependency in pairs(tResolv.ptActiveVersion.atDependencies) do
       local tChildStatus = self:resolve_step(tDependency)
-      if tChildStatus==self.RT_Initialized then
-        -- The child is not completely resolved yet.
-        tCombinedStatus = self.RT_ResolvingDependencies
-
-      elseif tChildStatus==self.RT_GetConfiguration then
-        -- The child is not completely resolved yet.
-        tCombinedStatus = self.RT_ResolvingDependencies
-
-      elseif tChildStatus==self.RT_GetDependencyVersions then
-        -- The child is not completely resolved yet.
-        tCombinedStatus = self.RT_ResolvingDependencies
-
-      elseif tChildStatus==self.RT_ResolvingDependencies then
-        -- The child is not completely resolved yet.
-        tCombinedStatus = self.RT_ResolvingDependencies
-
-      elseif tChildStatus==self.RT_Resolved then
+      local fIsDone = self:is_done(tChildStatus)
+      if fIsDone==true then
         -- No change...
-
-      elseif tChildStatus==self.RT_Blocked then
+      elseif fIsDone==false then
+        -- The child is not completely resolved yet.
+        tCombinedStatus = self.RT_ResolvingDependencies
+      else
         -- That's an error. Stop processing the other children.
         tCombinedStatus = self.RT_Blocked
         break
-
-      else
-        -- This is an unknown status from the child resolver.
-        error(string.format('Internal error: got strange result from recursive resolve step: %s', tostring(tChildStatus)))
       end
     end
 
@@ -477,6 +497,29 @@ erroneous or removed.
   self:resolvetab_dump('Step.')
 
   return tStatus
+end
+
+
+
+function Resolver:resolve_loop(tResolv)
+  repeat
+    -- Execute one resolve step.
+    local tStatus = self:resolve_step()
+
+    -- Translate the status to a simple form.
+    local fIsDone = self:is_done(tStatus)
+
+    local fFinished
+    if fIsDone==true then
+      fFinished = true
+    elseif fIsDone==false then
+      fFinished = false
+    else
+      fFinished = true
+    end
+  until fFinished==true
+
+  return fIsDone
 end
 
 
