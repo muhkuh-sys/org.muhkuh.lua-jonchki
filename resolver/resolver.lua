@@ -195,6 +195,12 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
   if atV==nil then
     error('No active version set!')
   else
+    -- Get the configuration.
+    local cA = atV.cArtifact
+    if cA==nil then
+      error('No artifact configuration set.')
+    end
+
     -- Create a new empty dependency list.
     atV.atDependencies = {}
     atV.ptBlockingConstraint = nil
