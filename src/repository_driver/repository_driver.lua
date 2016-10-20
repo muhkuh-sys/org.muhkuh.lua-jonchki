@@ -17,6 +17,7 @@ function RepositoryDriver:_init(strID)
 
   self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.Version = require 'Version'
+  self.Hash = require 'Hash'
 end
 
 
