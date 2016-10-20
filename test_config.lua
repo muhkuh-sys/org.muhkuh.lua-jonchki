@@ -23,7 +23,7 @@ cResolverChain:set_repositories(cPrjCfg.atRepositories)
 -- Read the artifact configuration.
 local ArtifactConfiguration = require 'ArtifactConfiguration'
 local cArtifactCfg = ArtifactConfiguration()
-cArtifactCfg:parse_configuration('org.muhkuh.tools-flasher_cli.xml')
+cArtifactCfg:parse_configuration_file('org.muhkuh.tools-flasher_cli.xml')
 
 -- Create the exact resolver.
 local ResolverExact = require 'resolver.exact'

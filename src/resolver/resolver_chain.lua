@@ -49,6 +49,14 @@ end
 
 
 
+function ResolverChain:get_driver_by_id(strID)
+  local tRepositoryDriver = self.atRepositoryByID[strID]
+
+  return tRepositoryDriver
+end
+
+
+
 function ResolverChain:set_repositories(atRepositories)
   -- Create all repository drivers.
   local atResolverChain = {}
@@ -57,19 +65,24 @@ function ResolverChain:set_repositories(atRepositories)
     -- Get the repository ID.
     local strID = tRepo.strID
     print(string.format('Creating driver for repository "%s".', strID))
-  
+
+    -- Does this ID already exist?
+    if atMap[strID]~=nil then
+      error(string.format('The ID "%s" is not unique!', strID))
+    end
+
     -- Find the type.
     local tRepositoryDriverClass = self:get_driver_class_by_type(tRepo.strType)
     if tRepositoryDriverClass==nil then
       error(string.format('Could not find a repository driver for the type "%s".', tRepo.strType))
     end
-  
+
     -- Create a driver instance.
     local tRepositoryDriver = tRepositoryDriverClass(strID)
 
     -- Setup the repository driver.
     tRepositoryDriver:configure(tRepo)
-  
+
     -- Add the driver to the resolver chain.
     table.insert(atResolverChain, tRepositoryDriver)
 
@@ -84,9 +97,16 @@ end
 
 
 
+function ResolverChain:get_ga(strGroup, strArtifact)
+  -- Combine the group and artifact.
+  return string.format('%s/%s', strGroup, strArtifact)
+end
+
+
+
 function ResolverChain:add_to_ga_v(strGroup, strArtifact, tVersion, strSourceID)
   -- Combine the group and artifact.
-  local strGA = string.format('%s/%s', strGroup, strArtifact)
+  local strGA = self:get_ga(strGroup, strArtifact)
 
   -- Is the GA already registered?
   local atGA = self.atGA_V[strGA]
@@ -117,6 +137,28 @@ function ResolverChain:add_to_ga_v(strGroup, strArtifact, tVersion, strSourceID)
     -- Add the source ID.
     table.insert(atV, strSourceID)
   end
+end
+
+
+
+function ResolverChain:get_sources_by_gav(strGroup, strArtifact, tVersion)
+  local atSources = nil
+
+  -- Combine the group and artifact.
+  local strGA = self:get_ga(strGroup, strArtifact)
+
+  -- Is the GA already registered?
+  local atGA = self.atGA_V[strGA]
+  if atGA~=nil then
+    -- Yes, now look for the version.
+    local strVersion = tVersion:get()
+    local atV = atGA[strVersion]
+    if atV~=nil then
+      atSources = atV
+    end
+  end
+
+  return atSources
 end
 
 
@@ -152,6 +194,8 @@ function ResolverChain:get_available_versions(strGroup, strArtifact)
   local atDuplicateCheck = {}
   local atNewVersions = {}
 
+  -- TODO: Check the GA->V table first.
+
   -- Loop over the repository list.
   for _, tRepository in pairs(self.atResolverChain) do
     -- Get the ID of the current repository.
@@ -179,6 +223,39 @@ function ResolverChain:get_available_versions(strGroup, strArtifact)
 
   return atNewVersions
 end
+
+
+
+function ResolverChain:get_configuration(strGroup, strArtifact, tVersion)
+  local tResult = nil
+  local strMessage = ''
+
+  -- Check if the GA->V table has already the sources.
+  local atGAVSources = self:get_sources_by_gav(strGroup, strArtifact, tVersion)
+  if atGAVSources==nil then
+    -- No GA->V entries present.
+    error('Continue here')
+--[[
+Loop over all repositories in the chain and try to get the GAV.
+Do not store this in the GA->V table as it would look like this is a complete dataset over all available versions.
+]]--
+  end
+
+  -- Loop over the sources and try to get the configuration.
+  for _, strSourceID in pairs(atGAVSources) do
+    -- Get the repository with this ID.
+    local tDriver = self:get_driver_by_id(strSourceID)
+    if tDriver~=nil then
+      tResult, strMessage = tDriver:get_configuration(strGroup, strArtifact, tVersion)
+      if tResult~=nil then
+        break
+      end
+    end
+  end
+
+  return tResult, strMessage
+end
+
 
 
 return ResolverChain

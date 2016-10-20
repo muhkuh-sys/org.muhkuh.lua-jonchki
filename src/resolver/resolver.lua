@@ -17,7 +17,7 @@ function Resolver:_init(strID)
 
   self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.Version = require 'Version'
-  
+
   self.cResolverChain = nil
   self.atRepositoryByID = nil
 
@@ -55,7 +55,7 @@ end
 function Resolver:setResolverChain(cResolverChain)
   -- Store the chain.
   self.cResolverChain = cResolverChain
-  
+
 end
 
 
@@ -442,6 +442,13 @@ function Resolver:resolve_step(tResolv)
     tStatus = tResolv.eStatus
 
   elseif tStatus==self.RT_GetConfiguration then
+    -- Get the GAV parameters.
+    local strGroup = tResolv.strGroup
+    local strArtifact = tResolv.strArtifact
+    local tVersion = tResolv.ptActiveVersion.tVersion
+
+    local tResult, strMessage = self.cResolverChain:get_configuration(strGroup, strArtifact, tVersion)
+    print(tResult, strMessage)
     error('Continue here.')
 --[[
 This part should get the configuration file from the repository.
