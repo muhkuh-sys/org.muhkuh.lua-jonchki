@@ -17,7 +17,7 @@ function ProjectConfiguration:_init()
 
   -- lxp is used to parse the XML data.
   self.lxp = require 'lxp'
-  
+
   -- There is no configuration yet.
   self.atRepositories = nil
 end
@@ -69,7 +69,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
     tCurrentRepository.strVersions = nil
     tCurrentRepository.strConfig = nil
     tCurrentRepository.strArtifact = nil
-    
+
     aLxpAttr.tCurrentRepository = tCurrentRepository
   end
 end
@@ -193,13 +193,13 @@ end
 -- @return The configuration as a string. 
 function ProjectConfiguration:__tostring()
   local strCfg = nil
-  
+
   if self.atRepositories==nil then
     strCfg = 'ProjectConfiguration()'
   else
     strCfg = self.pl.pretty.write(self.atRepositories)
   end
-  
+
   return strCfg
 end
 
