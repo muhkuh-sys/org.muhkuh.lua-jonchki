@@ -64,34 +64,6 @@ end
 
 
 
-function RepositoryDriverFilesystem:getArtifactConfiguration(strGroup, strArtifact, tVersion)
-  local tResult, strError = self:exists()
-  if tResult==true then
-    -- Replace the artifact placeholder in the config path.
-    local strConfig = self:replace_path(strGroup, strArtifact, tVersion, self.strConfig)
-
-    -- Append the config path to the root.
-    local strConfigPath = self.pl.path.join(self.strRoot, strConfig)
-
-    -- Is the configuration a file?
-    if self.pl.path.isfile(strConfigPath)~=true then
-      tResult = false
-      strError = string.format('The artifact configuration at "%s" is no file.', strConfigPath)
-    else
-      -- Read the complete configuration.
-      local tArtifact = self.ArtifactConfiguration()
-      tResult, strError = tArtifact:parse_configuration(strConfigPath)
-      if tResult==true then
-        tResult = tArtifact
-      end
-    end
-  end
-
-  return tResult, strError
-end
-
-
-
 function RepositoryDriverFilesystem:get_available_versions(strGroup, strArtifact)
   local tResult, strError = self:exists()
   if tResult==true then
@@ -122,6 +94,60 @@ function RepositoryDriverFilesystem:get_available_versions(strGroup, strArtifact
 
     tResult = atVersions
     strError = nil
+  end
+
+  return tResult, strError
+end
+
+
+
+function RepositoryDriverFilesystem:get_configuration(strGroup, strArtifact, tVersion)
+  -- Does the root folder of the repository exist?
+  local tResult, strError = self:exists()
+  if tResult==true then
+    -- Replace the artifact placeholder in the configuration path.
+    local strCfg = self:replace_path(strGroup, strArtifact, tVersion, self.strConfig)
+
+    -- Append the version folder to the root.
+    local strCfgPath = self.pl.path.join(self.strRoot, strCfg)
+    -- Get the SHA1 path.
+    local strShaPath = strCfgPath .. '.sha1'
+
+    -- Get the complete file.
+    local strCfg, strMsg = self.pl.utils.readfile(strCfgPath, false)
+    if strCfg==nil then
+      tResult = nil
+      strError = string.format('Failed to read the configuration file "%s": %s', strCfgPath, strMsg)
+    else
+      -- Get tha SHA sum.
+      local strShaRaw, strMsg = self.pl.utils.readfile(strShaPath, false)
+      if strShaRaw==nil then
+        tResult = nil
+        strError = string.format('Failed to read the configuration file: %s', strMsg)
+      else
+        -- Extract the SHA sum.
+        local strSha = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
+        if strSha==nil then
+          tResult = nil
+          strError = 'The SHA1 file does not contain a valid hash.'
+        else
+          -- Build the local SHA sum.
+          local strShaLocal = self.Hash:get_sha1_string(strCfg)
+
+          -- Compare the SHA1 sum from the repository and the local.
+          if strSha~=strShaLocal then
+            tResult = nil
+            strError = 'The SHA1 sum of the configuration does not match.'
+          else
+            local cA = self.ArtifactConfiguration()
+            cA.parse_configuration(strCfg)
+
+            tResult = cA
+            strError = nil
+          end
+        end
+      end
+    end
   end
 
   return tResult, strError
