@@ -51,7 +51,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       error(string.format('Error in line %d, col %d: invalid "version".', iPosLine, iPosColumn))
     end
     aLxpAttr.tVersion = tVersion
-    
+
   elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/info' then
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
@@ -107,7 +107,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       error(string.format('Error in line %d, col %d: invalid "version".', iPosLine, iPosColumn))
     end
     tDependency.tVersion = tVersion
-    
+
     table.insert(aLxpAttr.atDependencies, tDependency)
   end
 end
@@ -130,15 +130,30 @@ end
 
 
 
-function ArtifactConfiguration:parse_configuration(strConfigurationFilename)
+function ArtifactConfiguration:parse_configuration_file(strConfigurationFilename)
   local tResult = nil
-  local strError = ''
-
 
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
     error('The function "parse_configuration" expects a filename as a parameter.')
   end
+
+  local strXmlText, strMsg = self.pl.utils.readfile(strConfigurationFilename, false)
+  if strXmlText==nil then
+    strError = string.format('Error reading the configuration file: %s', strMsg)
+  else
+    tResult, strMsg = self:parse_configuration(strXmlText)
+  end
+
+  return tResult, strMsg
+end
+
+
+
+function ArtifactConfiguration:parse_configuration(strConfiguration)
+  local tResult = nil
+  local strError = ''
+
 
   local aLxpAttr = {
     -- Start at root ("/").
@@ -159,26 +174,20 @@ function ArtifactConfiguration:parse_configuration(strConfigurationFilename)
 
   local tParser = self.lxp.new(aLxpCallbacks)
 
-  -- Read the complete file.
-  local strXmlText, strMsg = self.pl.utils.readfile(strConfigurationFilename, false)
-  if strXmlText==nil then
-    strError = string.format('Error reading the configuration file: %s', strMsg)
+  local tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse(strConfiguration)
+  if tParseResult~=nil then
+    tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse()
+  end
+  tParser:close()
+
+  if tParseResult==nil then
+    strError = string.format("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos)
   else
-    local tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse(strXmlText)
-    if tParseResult~=nil then
-      tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse()
-    end
-    tParser:close()
+    self.tVersion = aLxpCallbacks.userdata.tVersion
+    self.tInfo = aLxpCallbacks.userdata.tInfo
+    self.atDependencies = aLxpCallbacks.userdata.atDependencies
 
-    if tParseResult==nil then
-      strError = string.format("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos)
-    else
-      self.tVersion = aLxpCallbacks.userdata.tVersion
-      self.tInfo = aLxpCallbacks.userdata.tInfo
-      self.atDependencies = aLxpCallbacks.userdata.atDependencies
-
-      tResult = true
-    end
+    tResult = true
   end
 
   return tResult, strError
@@ -220,7 +229,7 @@ function ArtifactConfiguration:__tostring()
     end
   end
   table.insert(astrRepr, ')')
-  
+
   return table.concat(astrRepr, '\n')
 end
 
