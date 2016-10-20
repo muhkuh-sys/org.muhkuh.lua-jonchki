@@ -161,7 +161,7 @@ end
 function Version:set(tVersion)
   local fOk = true
   local strMessage = nil
-  
+
   -- A parameter of "nil" allows to clear the version.
   if type(tVersion)=='nil' then
     self.atVersion = nil
@@ -174,7 +174,7 @@ function Version:set(tVersion)
     else
       self.atVersion = tResult
     end
-    
+
   elseif type(tVersion)=='table' then
     -- Is this a Version object or a plain version table?
     if type(tVersion.is_a)=='function' and tVersion:is_a(Version)==true then
@@ -190,7 +190,7 @@ function Version:set(tVersion)
       end
     end
   end
-  
+
   return fOk, strMessage
 end
 
