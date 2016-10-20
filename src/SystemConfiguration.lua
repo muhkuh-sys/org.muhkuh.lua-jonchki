@@ -14,7 +14,7 @@ local SystemConfiguration = class()
 function SystemConfiguration:_init()
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
-  
+
   -- There is no configuration yet.
   self.tConfiguration = nil
 end
@@ -49,13 +49,13 @@ function SystemConfiguration:pretty_string_to_number(strNumber)
       -- No multiplier present, use the default of 1.
       ulMultiplier = 1
     end
-    
+
     local ulValue = tonumber(strNumber)
     if ulValue~=nil then
       ulNumber = ulValue * ulMultiplier
     end
   end
-  
+
   return ulNumber
 end
 
@@ -128,7 +128,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
   local atConfiguration = {}
   -- Collect all replacements in a new table.
   local atReplacements = {}
-  
+
   -- Parse all options.
   for uiCnt,tAttr in ipairs(atOptions) do
     -- Get the key.
@@ -139,16 +139,16 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
       -- Get the default value.
       tValue = tAttr.default
     end
-    
+
     -- Replace.
     local strValue = string.gsub(tValue, '%${([a-zA-Z0-9_]+)}', atReplacements)
     atConfiguration[strKey] = strValue
-    
+
     if tAttr.replacement==true then
       atReplacements[strKey] = strValue
     end
   end
-  
+
   -- 'cache_max_size' must be a number.
   local strValue = atConfiguration.cache_max_size
   local ulValue = self:pretty_string_to_number(strValue)
@@ -156,7 +156,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
     error(string.format('Invalid value for "cache_max_size": %s', strValue))
   end
   atConfiguration.cache_max_size = ulValue
-  
+
   -- Convert all paths to ablosute.
   atConfiguration.work = self.pl.path.abspath(atConfiguration.work)
   atConfiguration.depack = self.pl.path.abspath(atConfiguration.depack)
@@ -189,13 +189,13 @@ end
 -- @return The configuration as a string. 
 function SystemConfiguration:__tostring()
   local strCfg = nil
-  
+
   if self.tConfiguration==nil then
     strCfg = 'SystemConfiguration()'
   else
     strCfg = string.format('SystemConfiguration(\n%s\n)', self.pl.pretty.write(self.tConfiguration))
   end
-  
+
   return strCfg
 end
 
