@@ -1,0 +1,26 @@
+TODO
+----
+
+* Add a link to the parent object in the resolve table. This is important for good error messages about one instance.
+Example:
+Error xyz in group/artifact/version required by
+ G/A/V ->
+   G/A/V ->
+     G/A/V
+
+* Recognize artifacts which were already processed before and do not resolve them again.
+Be careful to create something which will also work with other resolvers than "exact".
+
+* Store error messages or warnings for any resolve operations in the GA->V table.
+
+* Store error messages for the resolve process in the resolve table.
+
+* Combine the XML dumps of the resolve steps into one big XML.
+
+* Add a stylesheet to view the big dumped XML.
+
+* Add the system configuration to the XML dump.
+
+* Add the project configuration to the XML dump.
+
+* Add the GA->V table to each step of the XML dump.
