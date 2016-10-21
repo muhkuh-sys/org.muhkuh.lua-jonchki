@@ -22,8 +22,8 @@ function hash:check_sha1(strPath, strSha1)
 
 
   -- Create a new MHash state for SHA1.
-  local tState = self.tMhash.mhash_state()
-  tState:init(self.tMhash.MHASH_SHA1)
+  local tState = self.mhash.mhash_state()
+  tState:init(self.mhash.MHASH_SHA1)
 
   -- Open the file and read it in chunks.
   local tFile = io.open(strPath, "rb")
@@ -62,8 +62,8 @@ end
 
 function hash:get_sha1_string(strData, strSha1)
   -- Create a new MHash state for SHA1.
-  local tState = self.tMhash.mhash_state()
-  tState:init(self.tMhash.MHASH_SHA1)
+  local tState = self.mhash.mhash_state()
+  tState:init(self.mhash.MHASH_SHA1)
   tState:hash(strData)
   local strHashBin = tState:hash_end()
 
