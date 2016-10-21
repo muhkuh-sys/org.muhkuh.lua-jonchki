@@ -126,11 +126,13 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strArtifact, tVe
         strError = string.format('Failed to read the configuration file: %s', strMsg)
       else
         -- Extract the SHA sum.
-        local strSha = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
-        if strSha==nil then
+        local astrMatches = string.match(strShaRaw, '(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)')
+        if astrMatches==nil then
           tResult = nil
           strError = 'The SHA1 file does not contain a valid hash.'
         else
+          local strSha = astrMatches[1]
+
           -- Build the local SHA sum.
           local strShaLocal = self.Hash:get_sha1_string(strCfg)
 
