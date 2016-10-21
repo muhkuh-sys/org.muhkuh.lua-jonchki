@@ -448,8 +448,16 @@ function Resolver:resolve_step(tResolv)
     local tVersion = tResolv.ptActiveVersion.tVersion
 
     local tResult, strMessage = self.cResolverChain:get_configuration(strGroup, strArtifact, tVersion)
-    print(tResult, strMessage)
-    error('Continue here.')
+    if tResult==nil then
+      -- The configuration file could not be retrieved.
+      print(string.format('Failed to get the configuration file for %s/%s/%s: %s', strGroup, strArtifact, tVersion:get(), strMessage))
+      
+      -- This item is now blocked.
+      tResolv.eStatus = self.RT_Blocked
+    else
+--      print(tResult, strMessage)
+      error('Continue here.')
+
 --[[
 This part should get the configuration file from the repository.
 
@@ -463,7 +471,7 @@ Each step like a config or artifact download will further update the GA->V
 table, for example if a download fails, the entry in the GA->V is marked as
 erroneous or removed.
 ]]--
-
+    end
   elseif tStatus==self.RT_GetDependencyVersions then
     self:resolvetab_get_dependency_versions(tResolv)
 
