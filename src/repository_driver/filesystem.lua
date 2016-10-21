@@ -142,7 +142,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strArtifact, tVe
             strError = 'The SHA1 sum of the configuration does not match.'
           else
             local cA = self.ArtifactConfiguration()
-            cA.parse_configuration(strCfg)
+            cA:parse_configuration(strCfg)
 
             tResult = cA
             strError = nil
