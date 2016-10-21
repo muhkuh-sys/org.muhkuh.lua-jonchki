@@ -53,17 +53,18 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     aLxpAttr.tVersion = tVersion
 
   elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/info' then
+    local tInfo = {}
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
       error(string.format('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn))
     end
-    aLxpAttr.tInfo.strGroup = strGroup
+    tInfo.strGroup = strGroup
 
     local strArtifact = atAttributes['artifact']
     if strArtifact==nil or strArtifact=='' then
       error(string.format('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn))
     end
-    aLxpAttr.tInfo.strArtifact = strArtifact
+    tInfo.strArtifact = strArtifact
 
     local strVersion = atAttributes['version']
     if strVersion==nil or strVersion=='' then
@@ -74,14 +75,15 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     if fOk~=true then
       error(string.format('Error in line %d, col %d: invalid "version".', iPosLine, iPosColumn))
     end
-    aLxpAttr.tInfo.tVersion = tVersion
+    tInfo.tVersion = tVersion
 
     local strVcsId = atAttributes['vcs-id']
     if strVcsId==nil or strVcsId=='' then
       error(string.format('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn))
     end
-    aLxpAttr.tInfo.strVcsId = strVcsId
+    tInfo.strVcsId = strVcsId
 
+    aLxpAttr.tInfo = tInfo
   elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies/dependency' then
     local tDependency = {}
     
@@ -162,7 +164,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration)
 
     Version = self.Version,
     tVersion = nil,
-    tInfo = {},
+    tInfo = nil,
     atDependencies = {}
   }
 
@@ -187,6 +189,17 @@ function ArtifactConfiguration:parse_configuration(strConfiguration)
     self.tInfo = aLxpCallbacks.userdata.tInfo
     self.atDependencies = aLxpCallbacks.userdata.atDependencies
 
+    local astrErrors = {}
+    if self.tVersion==nil then
+      table.insert(astrErrors, 'No Version found!')
+    end
+    if self.tInfo==nil then
+      table.insert(astrErrors, 'No Info block found!')
+    end
+    -- NOTE: the dependency block is optional.
+    if #astrErrors>0 then
+      error(string.format('Failed to parse the artifact configuration:\n%s', table.concat(astrErrors, '\n')))
+    end
     tResult = true
   end
 
