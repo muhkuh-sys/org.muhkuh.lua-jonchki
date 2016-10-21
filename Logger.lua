@@ -14,8 +14,8 @@ function Logger:_init()
   self.pl = require'pl.import_into'()
 
   -- There is no data yet.
-  self.cSystemConfiguraion = nil
-  self.cProjectConfiguration = nil
+  self.strSystemConfiguraion = nil
+  self.strProjectConfiguration = nil
 end
 
 
@@ -25,7 +25,9 @@ function Logger:setSystemConfiguration(cSystemConfiguration)
     error('Logger: failed to log the system configuration: the element is already present.')
   end
 
-  self.cSystemConfiguraion = cSystemConfiguration
+  local tXml = self.pl.xml.new('SystemConfig')
+  cSystemConfiguration:toxml(tXml)
+  self.strSystemConfiguraion = self.pl.xml.tostring(tXml, '', '\t')
 end
 
 
@@ -35,32 +37,31 @@ function Logger:setProjectConfiguration(cProjectConfiguration)
     error('Logger: failed to log the project configuration: the element is already present.')
   end
 
-  self.cProjectConfiguration = cProjectConfiguration
+  local tXml = self.pl.xml.new('ProjectConfiguration')
+  cProjectConfiguration:toxml(tXml)
+  self.strProjectConfiguration = self.pl.xml.tostring(tXml, '', '\t')
 end
 
 
 
 function Logger:write_to_file(strFileName)
-  -- Create a new XML document.
-  local tXml = self.pl.xml.new('JonchkiLog')
+  -- Open a file for writing.
+  local tFile = io.open(strFileName, 'w')
 
-  -- Append the system configuration block.
-  if self.cSystemConfiguraion~=nil then
-    tXml:addtag('System')
+  tFile:write('<JonchkiLog>')
 
-    self.cSystemConfiguraion:toxml(tXml)
-
-    tXml:up()
-  end
-  if self.cProjectConfiguration~=nil then
-    tXml:addtag('ProjectConfiguration')
-
-    self.cProjectConfiguration:toxml(tXml)
-
-    tXml:up()
+  if self.strSystemConfiguraion~=nil then
+    tFile:write('\t<System>')
+    tFile:write(self.strSystemConfiguraion)
+    tFile:write('\t</System>')
   end
 
-  self.pl.file.write(strFileName, self.pl.xml.tostring(tXml, '', '\t'))
+  if self.strProjectConfiguration~=nil then
+    tFile:write(self.strProjectConfiguration)
+  end
+
+  tFile:write('</JonchkiLog>')
+  tFile:close()
 end
 
 
