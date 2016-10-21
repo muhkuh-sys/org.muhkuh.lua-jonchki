@@ -455,22 +455,12 @@ function Resolver:resolve_step(tResolv)
       -- This item is now blocked.
       tResolv.eStatus = self.RT_Blocked
     else
---      print(tResult, strMessage)
-      error('Continue here.')
+      -- Add the configuration to the active configuration.
+      self:resolvetab_add_config_to_active_version(tResolv, tResult)
 
---[[
-This part should get the configuration file from the repository.
+      -- Update the status.
+      tStatus = self.RT_GetDependencyVersions
 
-We have already the group, the artifact and the version.
-The ID of the repository is still missing. This is the task of the GA->V
-table.
-
-When all versions for an artifact are collected with
-resolvetab_get_dependency_versions, the GA->V table can be updated.
-Each step like a config or artifact download will further update the GA->V
-table, for example if a download fails, the entry in the GA->V is marked as
-erroneous or removed.
-]]--
     end
   elseif tStatus==self.RT_GetDependencyVersions then
     self:resolvetab_get_dependency_versions(tResolv)
