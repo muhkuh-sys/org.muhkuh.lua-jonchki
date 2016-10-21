@@ -185,6 +185,56 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
 end
 
 
+
+function SystemConfiguration:toxml(tXml)
+  tXml:addtag('SystemConfiguration')
+
+  tXml:addtag('work')
+  tXml:text(self.tConfiguration.work)
+  tXml:up()
+
+  local tAttr = {
+    ['max_size'] = tostring(self.tConfiguration.cache_max_size)
+  }
+  tXml:addtag('cache', tAttr)
+  tXml:text(self.tConfiguration.cache)
+  tXml:up()
+
+  tXml:addtag('depack')
+  tXml:text(self.tConfiguration.depack)
+  tXml:up()
+
+  tXml:addtag('install')
+
+  tXml:addtag('base')
+  tXml:text(self.tConfiguration.install_base)
+  tXml:up()
+
+  tXml:addtag('lua_path')
+  tXml:text(self.tConfiguration.install_lua_path)
+  tXml:up()
+
+  tXml:addtag('lua_cpath')
+  tXml:text(self.tConfiguration.install_lua_cpath)
+  tXml:up()
+
+  tXml:addtag('shared_objects')
+  tXml:text(self.tConfiguration.install_shared_objects)
+  tXml:up()
+
+  tXml:addtag('doc')
+  tXml:text(self.tConfiguration.install_doc)
+  tXml:up()
+
+  -- Leave the "install" node.
+  tXml:up()
+
+  -- Leave the "system" node.
+  tXml:up()
+end
+
+
+
 --- Return the complete configuration as a string.
 -- @return The configuration as a string. 
 function SystemConfiguration:__tostring()
