@@ -189,6 +189,54 @@ end
 
 
 
+function ProjectConfiguration:toxml(tXml)
+  tXml:addtag('jonchkicfg')
+
+  local atRepositories = self.atRepositories
+  if atRepositories~=nil then
+    tXml:addtag('repositories')
+
+    -- Loop over all repositories.
+    for _, tRepository in pairs(self.atRepositories) do
+      -- Create the "repository" node with the attributes "id", "type" and "cacheable".
+      local tAttributes = {
+        ['id'] = tRepository.strID,
+        ['type'] = tRepository.strType,
+        ['cacheable'] = tostring(tRepository.cacheable)
+      }
+      tXml:addtag('repository', tAttributes)
+
+      -- Create the "root" node.
+      tXml:addtag('root')
+      tXml:text(tRepository.strRoot)
+      tXml:up()
+
+      -- Create the "versions" node.
+      tXml:addtag('versions')
+      tXml:text(tRepository.strVersions)
+      tXml:up()
+
+      -- Create the "config" node.
+      tXml:addtag('config')
+      tXml:text(tRepository.strConfig)
+      tXml:up()
+
+      -- Create the "artifact" node.
+      tXml:addtag('artifact')
+      tXml:text(tRepository.strArtifact)
+      tXml:up()
+
+      tXml:up()
+    end
+
+    tXml:up()
+  end
+
+  tXml:up()
+end
+
+
+
 --- Return the complete configuration as a string.
 -- @return The configuration as a string. 
 function ProjectConfiguration:__tostring()
