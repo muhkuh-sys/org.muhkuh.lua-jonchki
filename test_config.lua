@@ -4,17 +4,21 @@
 package.path = package.path .. ";src/?.lua;src/?/init.lua"
 
 
+-- Create the logger.
+local Logger = require 'Logger'
+local cLogger = Logger()
+
 -- Create a configuration object and read the settings from 'demo.cfg'.
 local SystemConfiguration = require 'SystemConfiguration'
 local cSysCfg = SystemConfiguration()
 cSysCfg:parse_configuration('demo.cfg')
--- print(cSysCfg)
+cLogger:setSystemConfiguration(cSysCfg)
 
 -- Read the project configuration.
 local ProjectConfiguration = require 'ProjectConfiguration'
 local cPrjCfg = ProjectConfiguration()
 cPrjCfg:parse_configuration('jonchkicfg.xml')
--- print(cPrjCfg)
+cLogger:setProjectConfiguration(cPrjCfg)
 
 local ResolverChain = require 'resolver.resolver_chain'
 local cResolverChain = ResolverChain('default')
@@ -36,3 +40,5 @@ local atArtifacts = tResolver:get_used_artifacs()
 for strGA,tV in pairs(atArtifacts) do
   print(strGA, tV:get())
 end
+
+cLogger:write_to_file('jonchkilog.xml')
