@@ -32,3 +32,7 @@ local tResolver = ResolverExact('default-exact')
 -- Resolve all dependencies.
 tResolver:setResolverChain(cResolverChain)
 tResolver:resolve(cArtifactCfg)
+local atArtifacts = tResolver:get_used_artifacs()
+for strGA,tV in pairs(atArtifacts) do
+  print(strGA, tV:get())
+end

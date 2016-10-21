@@ -431,7 +431,7 @@ function Resolver:resolve_step(tResolv)
     -- Select a version based on the constraints.
     local tVersion, strMessage = self:select_version_by_constraints(tResolv.atVersions, tResolv.atConstraints)
     if tVersion==nil then
-      print('Failed to select a new version: ' .. strMessage)
+      print(string.format('Failed to select a new version for %s/%s: %s', tResolv.strGroup, tResolv.strArtifact, strMessage))
       -- The item is now blocked.
       tResolv.eStatus = self.RT_Blocked
     else
@@ -525,6 +525,44 @@ function Resolver:resolve_loop(tResolv)
   until fFinished==true
 
   return fIsDone
+end
+
+
+
+function Resolver:get_used_artifacs(tResolv, atArtifacts)
+  tResolv = tResolv or self.atResolvTab
+  atArtifacts = atArtifacts or {}
+
+  -- Get the combination of the group and artifact.
+  local strGA = string.format('%s/%s', tResolv.strGroup, tResolv.strArtifact)
+  local atV = tResolv.ptActiveVersion
+  local tVersion = atV.tVersion
+
+  -- Is the combination already in the list?
+  local tV = atArtifacts[strGA]
+  if tV==nil then
+    -- No version registered yet. Do this now.
+    atArtifacts[strGA] = tVersion
+  elseif tV:get()==tVersion:get() then
+    -- The same version is OK.
+  else
+    -- The versions differ.
+    error(string.format('More than one version found for %s/%s: %s and %s .', tResolv.strGroup, tResolv.strArtifact, tVersion:get(), tV:get()))
+  end
+
+  -- Set the version.
+  print('*', strGA, tVersion)
+
+  -- Loop over all dependencies.
+  local atDependencies = atV.atDependencies
+  if atDependencies~=nil then
+    for _, tDependency in pairs(atDependencies) do
+      self:get_used_artifacs(tDependency, atArtifacts)
+    end
+  end
+
+  -- Return the list of artifacts.
+  return atArtifacts
 end
 
 
