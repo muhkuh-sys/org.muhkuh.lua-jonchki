@@ -60,10 +60,11 @@ end
 
 
 
-function Resolver:resolvtab_create_entry(strGroup, strArtifact)
+function Resolver:resolvtab_create_entry(strGroup, strArtifact, tParentEntry)
   local tResolvEntry = {
     strGroup = strGroup,
     strArtifact = strArtifact,
+    ptParent = nil,
     eStatus = self.RT_Initialized,
     atConstraints = {},
     atVersions = {},
@@ -210,9 +211,9 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
     for _,tDependency in pairs(cA.atDependencies) do
       local strGroup = tDependency.strGroup
       local strArtifact = tDependency.strArtifact
-      local tResolv = self:resolvtab_create_entry(strGroup, strArtifact)
+      local tResolv = self:resolvtab_create_entry(strGroup, strArtifact, tResolvEntry)
       self:add_versions_from_repositories(tResolv, strGroup, strArtifact)
-      self:resolvtab_add_constraint(tResolv, tDependency.tVersion:get(), cA)
+      self:resolvtab_add_constraint(tResolv, tDependency.tVersion:get())
       table.insert(atV.atDependencies, tResolv)
     end
 
@@ -351,13 +352,13 @@ function Resolver:resolve_set_start_artifact(cArtifact)
   self.uiResolveTabDumpCounter = 0
 
   -- Write the artifact to the resolve table.
-  local tResolv = self:resolvtab_create_entry(cArtifact.tInfo.strGroup, cArtifact.tInfo.strArtifact)
+  local tResolv = self:resolvtab_create_entry(cArtifact.tInfo.strGroup, cArtifact.tInfo.strArtifact, nil)
 
   -- Set the new element as the root of the resolve table.
   self.atResolvTab = tResolv
 
   -- Add the current version as the constraint.
-  self:resolvtab_add_constraint(tResolv, cArtifact.tInfo.tVersion:get(), '')
+  self:resolvtab_add_constraint(tResolv, cArtifact.tInfo.tVersion:get())
 
   -- Add the current version as the available version.
   self:resolvtab_add_versions(tResolv, {cArtifact.tInfo.tVersion})
