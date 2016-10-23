@@ -65,20 +65,50 @@
 
 <xsl:template match="ProjectConfiguration">
 	<a name="project"/>
+	<h2>Project Configuration</h2>
 	<xsl:apply-templates select="jonchkicfg"/>
 </xsl:template>
+
+
+
+<xsl:template match="Resolv">
+	<table border="1" width="100%">
+		<tr><td>Group-Artifact:</td><td><xsl:value-of select="concat(@group,'-',@artifact)"/></td></tr>
+		<tr><td>Status:</td><td><xsl:value-of select="@status"/></td></tr>
+	</table>
+</xsl:template>
+
+<xsl:template match="JonchkiResolvtab">
+	<p>The resolve table</p>
+	<xsl:apply-templates select="Resolv"/>
+</xsl:template>
+
+<xsl:template match="Step">
+	<h3>Step <xsl:value-of select="@index"/></h3>
+	<p><xsl:value-of select="Comment"/></p>
+
+	<xsl:apply-templates select="JonchkiResolvtab"/>
+</xsl:template>
+
+<xsl:template match="Steps">
+	<a name="steps"/>
+	<h2>Steps</h2>
+	Logged <xsl:value-of select="count(Step)"/> steps.
+	<xsl:apply-templates select="Step"/>
+</xsl:template>
+
+
 
 <xsl:template match="JonchkiLog">
 	<!-- Show a table of contents. -->
 	<h2><a name="toc">Table of Contents</a></h2>
 	<b><big><a href="#system">System Information</a></big></b><br/>
 	<b><big><a href="#project">Project Configuration</a></big></b><br/>
-	<b><big><a href="#scons">Scons</a></big></b><br/>
-	<b><big><a href="#tools">Tools</a></big></b><br/>
-	<b><big><a href="#filters">Filters</a></big></b><br/>
+	<b><big><a href="#steps">Steps</a></big></b><br/>
 
 	<xsl:apply-templates select="System"/>
 	<xsl:apply-templates select="ProjectConfiguration"/>
+	<xsl:apply-templates select="Steps"/>
 </xsl:template>
 
 </xsl:stylesheet>

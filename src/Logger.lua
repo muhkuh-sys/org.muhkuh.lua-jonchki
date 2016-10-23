@@ -16,6 +16,9 @@ function Logger:_init()
   -- There is no data yet.
   self.strSystemConfiguraion = nil
   self.strProjectConfiguration = nil
+
+  self.uiStepIndex = 0
+  self.atSteps = {}
 end
 
 
@@ -44,6 +47,21 @@ end
 
 
 
+function Logger:log_resolve_status(cResolver, strComment)
+  local tXml = self.pl.xml.new('Step')
+  tXml:set_attribs({['index']=tostring(self.uiStepIndex)})
+  self.uiStepIndex = self.uiStepIndex + 1
+
+  tXml:addtag('Comment')
+  tXml:text(strComment)
+  tXml:up()
+
+  cResolver:toxml(tXml)
+  table.insert(self.atSteps, self.pl.xml.tostring(tXml, '', '\t'))
+end
+
+
+
 function Logger:write_to_file(strFileName)
   -- Open a file for writing.
   local tFile = io.open(strFileName, 'w')
@@ -61,6 +79,12 @@ function Logger:write_to_file(strFileName)
   if self.strProjectConfiguration~=nil then
     tFile:write(self.strProjectConfiguration)
   end
+
+  tFile:write('<Steps>\n')
+  for _, strStep in pairs(self.atSteps) do
+    tFile:write(strStep)
+  end
+  tFile:write('</Steps>\n')
 
   tFile:write('</JonchkiLog>')
   tFile:close()

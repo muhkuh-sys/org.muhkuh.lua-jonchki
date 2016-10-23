@@ -21,6 +21,8 @@ function Resolver:_init(strID)
   self.cResolverChain = nil
   self.atRepositoryByID = nil
 
+  self.cLogger = nil
+
   -- This is the state enumeration for a ressolve table entry.
   self.RT_Initialized = 0            -- The structure was initialized, no version picked, no resolving done.
   self.RT_ResolvingDependencies = 1  -- Resolving the dependencies.
@@ -55,7 +57,12 @@ end
 function Resolver:setResolverChain(cResolverChain)
   -- Store the chain.
   self.cResolverChain = cResolverChain
+end
 
+
+
+function Resolver:set_logger(cLogger)
+  self.cLogger = cLogger
 end
 
 
@@ -223,7 +230,7 @@ end
 
 
 
-function Resolver:resolvetab_dump_resolv(tXml, tResolv)
+function Resolver:toxml_resolv(tXml, tResolv)
   -- Get the status.
   local atStatusNames = {
     [self.RT_Initialized] = 'initialized, selecting version...',
@@ -247,22 +254,9 @@ function Resolver:resolvetab_dump_resolv(tXml, tResolv)
 
   tXml:addtag('Constraints')
     -- Loop over all constraints.
-    for strConstraint, cDefiningArtifact in pairs(tResolv.atConstraints) do
-      local strGroup
-      local strArtifact
-      local strVersion
-      if type(cDefiningArtifact)=='table' then
-        strGroup = cDefiningArtifact.tInfo.strGroup
-        strArtifact = cDefiningArtifact.tInfo.strArtifact
-        strVersion = cDefiningArtifact.tInfo.tVersion:get()
-      end
-      local tAttr = {
-          constraint = strConstraint,
-          by_group = strGroup,
-          by_artifact = strArtifact,
-          by_version = strVersion
-      }
-      tXml:addtag('Constraint', tAttr)
+    for _, strConstraint in pairs(tResolv.atConstraints) do
+      tXml:addtag('Constraint')
+      tXml:text(strConstraint)
       tXml:up()
     end
   tXml:up()
@@ -300,7 +294,7 @@ function Resolver:resolvetab_dump_resolv(tXml, tResolv)
     if atV.atDependencies~=nil then
       tXml:addtag('Dependencies')
       for _,tDependency in pairs(atV.atDependencies) do
-        self:resolvetab_dump_resolv(tXml, tDependency)
+        self:toxml_resolv(tXml, tDependency)
       end
       tXml:up()
     end
@@ -321,28 +315,16 @@ end
 
 
 
-function Resolver:resolvetab_dump(strComment)
+function Resolver:toxml(tXml)
   -- Dump the resolve table as XML.
-  local tXml = self.pl.xml.new('JonchkiResolvtab')
-
-  -- Add the comment.
-  if strComment~=nil then
-    tXml:addtag('Comment')
-    tXml:text(strComment)
-    tXml:up()
-    tXml:up()
-  end
+  tXml:addtag('JonchkiResolvtab')
 
   -- Dump all entries of the resolve table recursively.
   if self.atResolvTab~=nil then
-    self:resolvetab_dump_resolv(tXml, self.atResolvTab)
+    self:toxml_resolv(tXml, self.atResolvTab)
   end
 
-  -- Write the resolve table to a file.
-  local strFileName = string.format('jonchki_resolve_tab_%03d.xml', self.uiResolveTabDumpCounter)
-  print(string.format('Dump resolve table to %s.', strFileName))
-  self.pl.file.write(strFileName, self.pl.xml.tostring(tXml, '', '\t'))
-  self.uiResolveTabDumpCounter = self.uiResolveTabDumpCounter + 1
+  tXml:up()
 end
 
 
@@ -364,15 +346,15 @@ function Resolver:resolve_set_start_artifact(cArtifact)
   self:resolvtab_add_versions(tResolv, {cArtifact.tInfo.tVersion})
 
   -- Dump the initial resolve table.
-  self:resolvetab_dump('This is the initial resolve table with just the start artifact.')
+  self.cLogger:log_resolve_status(self, 'This is the initial resolve table with just the start artifact.')
 
   -- Pick the version.
   self:resolvetab_pick_version(tResolv, cArtifact.tInfo.tVersion)
-  self:resolvetab_dump('The initial version was picked.')
+  self.cLogger:log_resolve_status(self, 'The initial version was picked.')
 
   -- Add the configuration to the version.
   self:resolvetab_add_config_to_active_version(tResolv, cArtifact)
-  self:resolvetab_dump('Added configuration.')
+  self.cLogger:log_resolve_status(self, 'Added configuration.')
 
   -- Get the available versions for all dependencies.
   self:resolvetab_get_dependency_versions(tResolv)
@@ -500,7 +482,7 @@ function Resolver:resolve_step(tResolv)
 
   end
 
-  self:resolvetab_dump('Step.')
+  self.cLogger:log_resolve_status(self, 'Step.')
 
   return tStatus
 end
