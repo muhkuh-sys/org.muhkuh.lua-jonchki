@@ -92,7 +92,7 @@ function ResolverExact:select_version_by_constraints(atVersions, atConstraints)
   -- In "exact" mode there must be one single constraint with an exact version number.
   -- An empty string means any version, first match.
   local strConstraint = nil
-  for strC,_ in pairs(atConstraints) do
+  for _, strC in pairs(atConstraints) do
     if strConstraint==nil then
       -- This is the first constraint.
       strConstraint = strC

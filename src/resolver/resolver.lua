@@ -75,21 +75,21 @@ end
 
 
 
-function Resolver:resolvtab_add_constraint(tResolvEntry, strConstraint, cDefiningArtifact)
+function Resolver:resolvtab_add_constraint(tResolvEntry, strConstraint)
   -- Get a shortcut to the constraints.
   local atConstraints = tResolvEntry.atConstraints
 
   -- Is this constraint already set?
   local fAlreadyThere = false
-  for strC, cA in pairs(atConstraints) do
-    if strC==strConstraint and cA==cDefiningArtifact then
+  for _, strC in pairs(atConstraints) do
+    if strC==strConstraint then
       fAlreadyThere = true
       break
     end
   end
 
   if fAlreadyThere==false then
-    atConstraints[strConstraint] = cDefiningArtifact
+    table.insert(atConstraints, strConstraint)
   end
 end
 
