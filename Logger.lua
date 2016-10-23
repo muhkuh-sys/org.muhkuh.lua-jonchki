@@ -48,6 +48,8 @@ function Logger:write_to_file(strFileName)
   -- Open a file for writing.
   local tFile = io.open(strFileName, 'w')
 
+  tFile:write('<?xml version="1.0" encoding="UTF-8"?>\n')
+  tFile:write('<?xml-stylesheet type="text/xsl" href="jonchkilog.xsl"?>\n')
   tFile:write('<JonchkiLog>')
 
   if self.strSystemConfiguraion~=nil then
