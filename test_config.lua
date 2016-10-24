@@ -38,8 +38,8 @@ tResolver:setResolverChain(cResolverChain)
 tResolver:set_logger(cLogger)
 tResolver:resolve(cArtifactCfg)
 local atArtifacts = tResolver:get_used_artifacs()
-for strGA,tV in pairs(atArtifacts) do
-  print(strGA, tV:get())
+for _,tGAV in pairs(atArtifacts) do
+  print(string.format('G:%s,A:%s,V:%s', tGAV.strGroup, tGAV.strArtifact, tGAV.tVersion:get()))
 end
 
 cLogger:write_to_file('jonchkilog.xml')

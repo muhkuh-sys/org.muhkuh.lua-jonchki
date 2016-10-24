@@ -501,25 +501,43 @@ function Resolver:get_used_artifacs(tResolv, atArtifacts)
   tResolv = tResolv or self.atResolvTab
   atArtifacts = atArtifacts or {}
 
-  -- Get the combination of the group and artifact.
-  local strGA = string.format('%s/%s', tResolv.strGroup, tResolv.strArtifact)
+  -- Get the active version.
   local atV = tResolv.ptActiveVersion
-  local tVersion = atV.tVersion
-
-  -- Is the combination already in the list?
-  local tV = atArtifacts[strGA]
-  if tV==nil then
-    -- No version registered yet. Do this now.
-    atArtifacts[strGA] = tVersion
-  elseif tV:get()==tVersion:get() then
-    -- The same version is OK.
-  else
-    -- The versions differ.
-    error(string.format('More than one version found for %s/%s: %s and %s .', tResolv.strGroup, tResolv.strArtifact, tVersion:get(), tV:get()))
+  if atV==nil then
+    error('No active version!')
   end
 
-  -- Set the version.
-  print('*', strGA, tVersion)
+  -- Get the group, artifact and version.
+  local strGroup = tResolv.strGroup
+  local strArtifact = tResolv.strArtifact
+  local tVersion = atV.tVersion
+  local strVersion = tVersion:get()
+
+  -- Is the GA already in the list?
+  local fNotThereYet = true
+  for _, tAttr in pairs(atArtifacts) do
+    -- Yes, there is an entry. Now check the version.
+    if strGroup==tAttr.strGroup and strArtifact==tAttr.strArtifact then
+      -- Get the entries version.
+      local strEntryVersion = tAttr.tVersion:get()
+      -- Compare the version.
+      if strVersion==strEntryVersion then
+        fNotThereYet = false
+      else
+        -- The version differs.
+        error(string.format('More than one version found for %s/%s: %s and %s .', strGroup, strArtifact, strVersion, strEntryVersion))
+      end
+    end
+  end
+
+  if fNotThereYet==true then
+    local atGAV = {
+      ['strGroup'] = tResolv.strGroup,
+      ['strArtifact'] = tResolv.strArtifact,
+      ['tVersion'] = atV.tVersion
+    }
+    table.insert(atArtifacts, atGAV)
+  end
 
   -- Loop over all dependencies.
   local atDependencies = atV.atDependencies
