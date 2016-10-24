@@ -71,10 +71,38 @@
 
 
 
+<xsl:template match="Dependencies">
+	<xsl:apply-templates select="Resolv"/>
+</xsl:template>
+
+<xsl:template match="dependencies/dependency">
+	<tr><td></td><td colspan="2"><xsl:value-of select="concat(@group, '-', @artifact, '-', @version)"/></td></tr>
+</xsl:template>
+
+<xsl:template match="jonchki-artifact">
+	<table border="1">
+		<tr><td colspan="3">Info</td></tr>
+		<tr><td></td><td>Group:</td><td><xsl:value-of select="info/@group"/></td></tr>
+		<tr><td></td><td>Artifact:</td><td><xsl:value-of select="info/@artifact"/></td></tr>
+		<tr><td></td><td>Version:</td><td><xsl:value-of select="info/@version"/></td></tr>
+		<tr><td></td><td>VCS ID:</td><td><xsl:value-of select="info/@vcs-id"/></td></tr>
+		<tr><td colspan="3">Dependencies</td></tr>
+		<xsl:apply-templates select="dependencies/dependency"/>
+	</table>
+</xsl:template>
+
+<xsl:template match="Versions/Version">
+	<xsl:value-of select="concat(@version,' (', @status, ')')"/>
+	<xsl:apply-templates select="jonchki-artifact"/>
+	<xsl:apply-templates select="Dependencies"/>
+</xsl:template>
+
 <xsl:template match="Resolv">
 	<table border="1" width="100%">
 		<tr><td>Group-Artifact:</td><td><xsl:value-of select="concat(@group,'-',@artifact)"/></td></tr>
 		<tr><td>Status:</td><td><xsl:value-of select="@status"/></td></tr>
+		<tr><td>Constraint:</td><td><xsl:value-of select="Constraint"/></td></tr>
+		<tr><td>Versions:</td><td><xsl:apply-templates select="Versions/Version"/></td></tr>
 	</table>
 </xsl:template>
 
