@@ -73,7 +73,7 @@ function Resolver:resolvtab_create_entry(strGroup, strArtifact, tParentEntry)
     strArtifact = strArtifact,
     ptParent = nil,
     eStatus = self.RT_Initialized,
-    atConstraints = {},
+    strConstraint = nil,
     atVersions = {},
     ptActiveVersion = nil
   }
@@ -83,22 +83,12 @@ end
 
 
 
-function Resolver:resolvtab_add_constraint(tResolvEntry, strConstraint)
-  -- Get a shortcut to the constraints.
-  local atConstraints = tResolvEntry.atConstraints
-
+function Resolver:resolvtab_set_constraint(tResolvEntry, strConstraint)
   -- Is this constraint already set?
-  local fAlreadyThere = false
-  for _, strC in pairs(atConstraints) do
-    if strC==strConstraint then
-      fAlreadyThere = true
-      break
-    end
+  if tResolvEntry.strConstraint~=nil then
+    error('Overwriting an existing constraint.')
   end
-
-  if fAlreadyThere==false then
-    table.insert(atConstraints, strConstraint)
-  end
+  tResolvEntry.strConstraint = strConstraint
 end
 
 
@@ -220,7 +210,7 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
       local strArtifact = tDependency.strArtifact
       local tResolv = self:resolvtab_create_entry(strGroup, strArtifact, tResolvEntry)
       self:add_versions_from_repositories(tResolv, strGroup, strArtifact)
-      self:resolvtab_add_constraint(tResolv, tDependency.tVersion:get())
+      self:resolvtab_set_constraint(tResolv, tDependency.tVersion:get())
       table.insert(atV.atDependencies, tResolv)
     end
 
@@ -252,13 +242,8 @@ function Resolver:toxml_resolv(tXml, tResolv)
   }
   tXml:addtag('Resolv', tAttrib)
 
-  tXml:addtag('Constraints')
-    -- Loop over all constraints.
-    for _, strConstraint in pairs(tResolv.atConstraints) do
-      tXml:addtag('Constraint')
-      tXml:text(strConstraint)
-      tXml:up()
-    end
+  tXml:addtag('Constraint')
+  tXml:text(tResolv.strConstraint)
   tXml:up()
 
   tXml:addtag('Versions')
@@ -340,7 +325,7 @@ function Resolver:resolve_set_start_artifact(cArtifact)
   self.atResolvTab = tResolv
 
   -- Add the current version as the constraint.
-  self:resolvtab_add_constraint(tResolv, cArtifact.tInfo.tVersion:get())
+  self:resolvtab_set_constraint(tResolv, cArtifact.tInfo.tVersion:get())
 
   -- Add the current version as the available version.
   self:resolvtab_add_versions(tResolv, {cArtifact.tInfo.tVersion})
@@ -362,7 +347,7 @@ end
 
 
 
-function Resolver:select_version_by_constraints(atVersions, atConstraints)
+function Resolver:select_version_by_constraints(atVersions, strConstraint)
   error('This is the function "select_version_by_constraints" in the Resolver base class. Overwrite the function!')
 end
 
@@ -412,7 +397,7 @@ function Resolver:resolve_step(tResolv)
   local tStatus = tResolv.eStatus
   if tStatus==self.RT_Initialized then
     -- Select a version based on the constraints.
-    local tVersion, strMessage = self:select_version_by_constraints(tResolv.atVersions, tResolv.atConstraints)
+    local tVersion, strMessage = self:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
     if tVersion==nil then
       print(string.format('Failed to select a new version for %s/%s: %s', tResolv.strGroup, tResolv.strArtifact, strMessage))
       -- The item is now blocked.
