@@ -41,7 +41,7 @@ local tStatus = tResolver:resolve(cArtifactCfg)
 if tStatus~=true then
   print("ERROR: Failed to resolve all dependencies.")
 else
-  local atArtifacts = tResolver:get_used_artifacs()
+  local atArtifacts = tResolver:get_all_dependencies()
 
   -- Download and depack all dependencies.
   cResolverChain:install_artifacts(atArtifacts)

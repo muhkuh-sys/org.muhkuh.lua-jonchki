@@ -500,9 +500,13 @@ end
 
 
 -- Get all dependencies. This is a list of all artifacts except the root in the resolve table.
-function Resolver:get_used_artifacs(tResolv, atArtifacts)
+function Resolver:get_all_dependencies(tResolv, atArtifacts, fIsRoot)
   tResolv = tResolv or self.atResolvTab
   atArtifacts = atArtifacts or {}
+  -- If no third argument is specified, assume this is the root.
+  if fIsRoot==nil then
+    fIsRoot = true
+  end
 
   -- Get the active version.
   local atV = tResolv.ptActiveVersion
@@ -510,43 +514,46 @@ function Resolver:get_used_artifacs(tResolv, atArtifacts)
     error('No active version!')
   end
 
-  -- Get the group, artifact and version.
-  local strGroup = tResolv.strGroup
-  local strArtifact = tResolv.strArtifact
-  local tVersion = atV.tVersion
-  local strVersion = tVersion:get()
+  -- Do not add the root artifact.
+  if fIsRoot==false then
+    -- Get the group, artifact and version.
+    local strGroup = tResolv.strGroup
+    local strArtifact = tResolv.strArtifact
+    local tVersion = atV.tVersion
+    local strVersion = tVersion:get()
 
-  -- Is the GA already in the list?
-  local fNotThereYet = true
-  for _, tAttr in pairs(atArtifacts) do
-    -- Yes, there is an entry. Now check the version.
-    if strGroup==tAttr.strGroup and strArtifact==tAttr.strArtifact then
-      -- Get the entries version.
-      local strEntryVersion = tAttr.tVersion:get()
-      -- Compare the version.
-      if strVersion==strEntryVersion then
-        fNotThereYet = false
-      else
-        -- The version differs.
-        error(string.format('More than one version found for %s/%s: %s and %s .', strGroup, strArtifact, strVersion, strEntryVersion))
+    -- Is the GA already in the list?
+    local fNotThereYet = true
+    for _, tAttr in pairs(atArtifacts) do
+      -- Yes, there is an entry. Now check the version.
+      if strGroup==tAttr.strGroup and strArtifact==tAttr.strArtifact then
+        -- Get the entries version.
+        local strEntryVersion = tAttr.tVersion:get()
+        -- Compare the version.
+        if strVersion==strEntryVersion then
+          fNotThereYet = false
+        else
+          -- The version differs.
+          error(string.format('More than one version found for %s/%s: %s and %s .', strGroup, strArtifact, strVersion, strEntryVersion))
+        end
       end
     end
-  end
 
-  if fNotThereYet==true then
-    local atGAV = {
-      ['strGroup'] = tResolv.strGroup,
-      ['strArtifact'] = tResolv.strArtifact,
-      ['tVersion'] = atV.tVersion
-    }
-    table.insert(atArtifacts, atGAV)
+    if fNotThereYet==true then
+      local atGAV = {
+        ['strGroup'] = strGroup,
+        ['strArtifact'] = strArtifact,
+        ['tVersion'] = tVersion
+      }
+      table.insert(atArtifacts, atGAV)
+    end
   end
 
   -- Loop over all dependencies.
   local atDependencies = atV.atDependencies
   if atDependencies~=nil then
     for _, tDependency in pairs(atDependencies) do
-      self:get_used_artifacs(tDependency, atArtifacts)
+      self:get_all_dependencies(tDependency, atArtifacts, false)
     end
   end
 
