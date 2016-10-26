@@ -11,15 +11,14 @@ function hash:bin_to_hex(strBin)
   for iCnt=1,string.len(strBin) do
     table.insert(aHashHex, string.format("%02x", string.byte(strBin, iCnt)))
   end
-  local strHashHex = table.concat(aHashHex)
+  return table.concat(aHashHex)
 end
 
 
 
 function hash:check_sha1(strPath, strSha1)
-  local fOk = true
   local tResult = nil
-
+  local strError = nil
 
   -- Create a new MHash state for SHA1.
   local tState = self.mhash.mhash_state()
@@ -28,8 +27,8 @@ function hash:check_sha1(strPath, strSha1)
   -- Open the file and read it in chunks.
   local tFile = io.open(strPath, "rb")
   if tFile==nil then
-    fOk = false
-    tResult = string.format("Failed to open the file for reading: %s", strPath)
+    tResult = nil
+    strError = string.format("Failed to open the file for reading: %s", strPath)
   else
     repeat
       local tChunk = tFile:read(4096)
@@ -47,15 +46,15 @@ function hash:check_sha1(strPath, strSha1)
     local strHashExpected = string.lower(strSha1)
     if strHashExpected==strHashHex then
       print("Hash OK!")
-      fOk = true
-      tResult = nil
+      tResult = true
+      strError = nil
     else
-      fOk = false
-      tResult = string.format("The hash does not match!\nExpected: %s\nRead:    %s", strHashExpected, strHashHex)
+      tResult = nil
+      strError = string.format("The hash does not match!\nExpected: %s\nRead:    %s", strHashExpected, strHashHex)
     end
   end
 
-  return fOk,tResult
+  return tResult, strError
 end
 
 
