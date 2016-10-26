@@ -124,7 +124,7 @@ function ResolverExact:resolve(cArtifact)
   self:resolve_set_start_artifact(cArtifact)
 
   -- Resolve until done or an error occurs.
-  local tStatus = self:resolve_loop()
+  return self:resolve_loop()
 end
 
 
