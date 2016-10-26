@@ -314,6 +314,16 @@ function ResolverChain:install_artifacts(atArtifacts)
   local tResult
   local strError
 
+  -- Collect all arguments for the install scripts in a table.
+  local tInstallArgs = {
+    install_base = self.cSystemConfiguration.tConfiguration.install_base,
+    install_lua_path = self.cSystemConfiguration.tConfiguration.install_lua_path,
+    install_lua_cpath = self.cSystemConfiguration.tConfiguration.install_lua_cpath,
+    install_shared_objects = self.cSystemConfiguration.tConfiguration.install_shared_objects,
+    install_doc = self.cSystemConfiguration.tConfiguration.install_doc
+  }
+
+
   for _,tGAV in pairs(atArtifacts) do
     local strGroup = tGAV.strGroup
     local strArtifact = tGAV.strArtifact
@@ -353,36 +363,85 @@ function ResolverChain:install_artifacts(atArtifacts)
           -- Loop over all files in the archive.
           for tAttr in tZip:files() do
             local strZipFileName = tAttr.filename
+            print(string.format('  extracting "%s"', strZipFileName))
+            -- Skip entries ending with a "/".
+            if string.sub(strZipFileName, -1)~='/' then
+              -- Get the directory part of the filename.
+              local strZipFolder = self.pl.path.dirname(strZipFileName)
+              local strOutputFolder = self.pl.path.join(strDepackPath, strZipFolder)
 
-            -- Get the directory part of the filename.
-            local strZipFolder = self.pl.path.dirname(strZipFileName)
-            local strOutputFolder = self.pl.path.join(strDepackPath, strZipFolder)
-
-            -- The output folder must be below the depack folder.
-            local strRel = self.pl.path.relpath(strDepackPath, strOutputFolder)
-            if strRel~='' then
-              if string.sub(strRel, 1, 2)~='..' then
-                error(string.format('Error depacking %s: the path "%s" leaves the depack folder!', strGAV, strZipFileName))
+              -- The output folder must be below the depack folder.
+              local strRel = self.pl.path.relpath(strDepackPath, strOutputFolder)
+              if strRel~='' then
+                if string.sub(strRel, 1, 2)~='..' then
+                  error(string.format('Error depacking %s: the path "%s" leaves the depack folder!', strGAV, strZipFileName))
+                end
+                -- Create the output folder.
+                tResult, strError = self.pl.dir.makepath(strOutputFolder)
               end
-              -- Create the output folder.
-              tResult, strError = self.pl.dir.makepath(strOutputFolder)
+
+              -- Copy the file from the ZIP archive to the destination folder.
+              local strOutputFile = self.pl.path.join(strDepackPath, strZipFileName)
+              local tFileSrc = tZip:open(strZipFileName)
+              if tFileSrc==nil then
+                error(string.format('Error depacking %s: failed to extract "%s".', strGAV, strZipFileName))
+              end
+              local tFileDst = io.open(strOutputFile, 'wb')
+              if tFileDst==nil then
+                error(string.format('Error depacking %s: failed write to "%s".', strGAV, strOutputFile))
+              end
+              repeat
+                local aucData = tFileSrc:read(4096)
+                if aucData~=nil then
+                  tFileDst:write(aucData)
+                end
+              until aucData==nil
+              tFileSrc:close()
+              tFileDst:close()
             end
-
-            -- Copy the file from the ZIP archive to the destination folder.
-            local strOutputFile = self.pl.path.join(strDepackPath, strZipFileName)
-            local tFileSrc = tZip:open(strZipFileName)
-            local tFileDst = io.open(strOutputFile, 'wb')
-            repeat
-              local aucData = tFileSrc:read(4096)
-              if aucData~=nil then
-                tFileDst:write(aucData)
-              end
-            until aucData==nil
-            tFileSrc:close()
-            tFileDst:close()
           end
 
           tZip:close()
+
+          -- Get the path to the installation script.
+          local strInstallScriptFile = self.pl.path.join(strDepackPath, 'install.lua')
+          -- Check if the file exists.
+          if self.pl.path.exists(strInstallScriptFile)~=strInstallScriptFile then
+            strError = string.format('Error installing %s: the install script "%s" does not exist.', strGAV, strInstallScriptFile)
+            error(strError)
+          end
+          -- Check if the install script is a file.
+          if self.pl.path.isfile(strInstallScriptFile)~=true then
+            strError = string.format('Error installing %s: the install script "%s" is no file.', strGAV, strInstallScriptFile)
+            error(strError)
+          end
+          -- Call the install script.
+          local tResult, strError = self.pl.utils.readfile(strInstallScriptFile, false)
+          if tResult==nil then
+            strError = string.format('Error installing %s: failed to read the install script "%s": %s', strGAV, strInstallScriptFile, strError)
+            error(strError)
+          else
+            -- Parse the install script.
+            local strInstallScript = tResult
+            tResult, strError = loadstring(strInstallScript, strInstallScriptFile)
+            if tResult==nil then
+              strError = string.format('Error installing %s: failed to parse the install script "%s": %s', strGAV, strInstallScriptFile, strError)
+              error(strError)
+            end
+            local fnInstall = tResult
+
+            -- Call the install script.
+            tResult, strError = pcall(fnInstall, tInstallArgs)
+            if tResult~=true then
+              strError = string.format('Error installing %s: failed to run the install script "%s": %s', strGAV, strInstallScriptFile, tostring(strError))
+              error(strError)
+            end
+            -- The second value is the return value.
+            if strError~=true then
+              strError = string.format('Error installing %s: the install script "%s" returned "%s".', strGAV, strInstallScriptFile, tostring(strError))
+              error(strError)
+            end
+          end
         end
       end
     end
