@@ -14,6 +14,9 @@ local cSysCfg = SystemConfiguration()
 cSysCfg:parse_configuration('demo.cfg')
 cLogger:setSystemConfiguration(cSysCfg)
 
+-- Check if all paths exist. Try to create them. Clean the depack and the install folders.
+cSysCfg:initialize_paths()
+
 -- Read the project configuration.
 local ProjectConfiguration = require 'ProjectConfiguration'
 local cPrjCfg = ProjectConfiguration()

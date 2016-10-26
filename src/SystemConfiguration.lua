@@ -186,6 +186,61 @@ end
 
 
 
+function SystemConfiguration:initialize_paths()
+  local tResult
+  local strError
+
+  local atPaths = {
+    { strKey='work',                   fClear=false },
+    { strKey='cache',                  fClear=false },
+    { strKey='depack',                 fClear=true },
+    { strKey='install_base',           fClear=true },
+    { strKey='install_lua_path',       fClear=true },
+    { strKey='install_lua_cpath',      fClear=true },
+    { strKey='install_shared_objects', fClear=true },
+    { strKey='install_doc',            fClear=true }
+  }
+
+  -- Check if all paths exists. Try to create them otherwise.
+  for _, tAttr in pairs(atPaths) do
+    -- Get the path.
+    local strPath = self.tConfiguration[tAttr.strKey]
+
+    -- Check if the path already exists.
+    if self.pl.path.exists(strPath)~=strPath then
+      -- The path does not exist yet. Try to create it.
+      tResult, strError = self.pl.dir.makepath(strPath)
+      if tResult~=true then
+        error(string.format('Failed to create the path "%s": %s', strPath, strError))
+      end
+
+    else
+      -- The path already exists. It must be a folder.
+      if self.pl.path.isdir(strPath)~=true then
+        error(string.format('The path "%s" is no directory!', strPath))
+      end
+
+      -- Clear the path.
+      if tAttr.fClear==true then
+        tResult, strError = self.pl.dir.rmtree(strPath)
+        if tResult~=true then
+          error(string.format('Failed to remove the path "%s": %s', strPath, strError))
+        end
+
+        -- Create the path again.
+        tResult, strError = self.pl.dir.makepath(strPath)
+        if tResult~=true then
+          error(string.format('Failed to create the path "%s": %s', strPath, strError))
+        end
+      end
+    end
+  end
+
+  -- Clear the complete depack folder.
+end
+
+
+
 function SystemConfiguration:toxml(tXml)
   tXml:addtag('SystemConfiguration')
 
