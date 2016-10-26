@@ -475,12 +475,14 @@ end
 
 
 function Resolver:resolve_loop(tResolv)
+  local fIsDone
+
   repeat
     -- Execute one resolve step.
     local tStatus = self:resolve_step()
 
     -- Translate the status to a simple form.
-    local fIsDone = self:is_done(tStatus)
+    fIsDone = self:is_done(tStatus)
 
     local fFinished
     if fIsDone==true then
@@ -497,6 +499,7 @@ end
 
 
 
+-- Get all dependencies. This is a list of all artifacts except the root in the resolve table.
 function Resolver:get_used_artifacs(tResolv, atArtifacts)
   tResolv = tResolv or self.atResolvTab
   atArtifacts = atArtifacts or {}

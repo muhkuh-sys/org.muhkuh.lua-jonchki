@@ -16,6 +16,9 @@ function ResolverChain:_init(strID)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
+  -- The system configuration.
+  self.cSystemConfiguration = nil
+
   -- Create a new chain.
   self.atResolverChain = {}
   -- Mapping from the repository ID to the member of the resolver chain.
@@ -53,6 +56,12 @@ function ResolverChain:get_driver_by_id(strID)
   local tRepositoryDriver = self.atRepositoryByID[strID]
 
   return tRepositoryDriver
+end
+
+
+
+function ResolverChain:set_systemconfig(cSysCfg)
+  self.cSystemConfiguration = cSysCfg
 end
 
 
@@ -247,6 +256,47 @@ Do not store this in the GA->V table as it would look like this is a complete da
     local tDriver = self:get_driver_by_id(strSourceID)
     if tDriver~=nil then
       tResult, strMessage = tDriver:get_configuration(strGroup, strArtifact, tVersion)
+      if tResult==nil then
+        print(string.format('Failed to get %s/%s/%s from repository %s: %s', strGroup, strArtifact, tVersion:get(), strSourceID, strMessage))
+      else
+        break
+      end
+    end
+  end
+
+  if tResult==nil then
+    strMessage = 'No valid configuration found in all available repositories.'
+  end
+
+  return tResult, strMessage
+end
+
+
+
+function ResolverChain:get_artifact(strGroup, strArtifact, tVersion)
+  local tResult = nil
+  local strMessage = ''
+
+  -- Check if the GA->V table has already the sources.
+  local atGAVSources = self:get_sources_by_gav(strGroup, strArtifact, tVersion)
+  if atGAVSources==nil then
+    -- No GA->V entries present.
+    error('Continue here')
+--[[
+Loop over all repositories in the chain and try to get the GAV.
+Do not store this in the GA->V table as it would look like this is a complete dataset over all available versions.
+]]--
+  end
+
+  -- Get the depack folder from the system configuration.
+  local strDepackFolder = self.cSystemConfiguration.tConfiguration.depack
+
+  -- Loop over the sources and try to get the configuration.
+  for _, strSourceID in pairs(atGAVSources) do
+    -- Get the repository with this ID.
+    local tDriver = self:get_driver_by_id(strSourceID)
+    if tDriver~=nil then
+      tResult, strMessage = tDriver:get_artifact(strGroup, strArtifact, tVersion, strDepackFolder)
       if tResult~=nil then
         break
       end
@@ -254,6 +304,21 @@ Do not store this in the GA->V table as it would look like this is a complete da
   end
 
   return tResult, strMessage
+end
+
+
+
+function ResolverChain:install_artifacts(atArtifacts)
+  local tResult
+  local strError
+
+  for _,tGAV in pairs(atArtifacts) do
+    print(string.format('Installing G:%s,A:%s,V:%s', tGAV.strGroup, tGAV.strArtifact, tGAV.tVersion:get()))
+
+    -- Copy the artifact to the local depack folder.
+    tResult, strError = self:get_artifact(tGAV.strGroup, tGAV.strArtifact, tGAV.tVersion)
+    print(tResult, strError)
+  end
 end
 
 

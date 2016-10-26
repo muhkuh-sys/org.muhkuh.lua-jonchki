@@ -22,6 +22,7 @@ cLogger:setProjectConfiguration(cPrjCfg)
 
 local ResolverChain = require 'resolver.resolver_chain'
 local cResolverChain = ResolverChain('default')
+cResolverChain:set_systemconfig(cSysCfg)
 cResolverChain:set_repositories(cPrjCfg.atRepositories)
 
 -- Read the artifact configuration.
@@ -36,10 +37,14 @@ local tResolver = ResolverExact('default-exact')
 -- Resolve all dependencies.
 tResolver:setResolverChain(cResolverChain)
 tResolver:set_logger(cLogger)
-tResolver:resolve(cArtifactCfg)
-local atArtifacts = tResolver:get_used_artifacs()
-for _,tGAV in pairs(atArtifacts) do
-  print(string.format('G:%s,A:%s,V:%s', tGAV.strGroup, tGAV.strArtifact, tGAV.tVersion:get()))
+local tStatus = tResolver:resolve(cArtifactCfg)
+if tStatus~=true then
+  print("ERROR: Failed to resolve all dependencies.")
+else
+  local atArtifacts = tResolver:get_used_artifacs()
+
+  -- Download and depack all dependencies.
+  cResolverChain:install_artifacts(atArtifacts)
 end
 
 cLogger:write_to_file('jonchkilog.xml')
