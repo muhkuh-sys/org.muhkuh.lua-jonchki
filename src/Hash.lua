@@ -45,7 +45,6 @@ function hash:check_sha1(strPath, strSha1)
 
     local strHashExpected = string.lower(strSha1)
     if strHashExpected==strHashHex then
-      print("Hash OK!")
       tResult = true
       strError = nil
     else
