@@ -101,6 +101,35 @@ end
 
 
 
+function RepositoryDriverFilesystem:get_sha_sum(strMainFile)
+  local tResult = nil
+  local strError = nil
+
+  -- Get the SHA1 path.
+  local strShaPath = strMainFile .. '.sha1'
+
+  -- Get tha SHA sum.
+  local strShaRaw, strMsg = self.pl.utils.readfile(strShaPath, false)
+  if strShaRaw==nil then
+    tResult = nil
+    strError = string.format('Failed to read the SHA file "%s": %s', strShaPath, strMsg)
+  else
+    -- Extract the SHA sum.
+    local strMatch = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
+    if strMatch==nil then
+      tResult = nil
+      strError = 'The SHA1 file does not contain a valid hash.'
+    else
+      tResult = strMatch
+      strError = ''
+    end
+  end
+
+  return tResult, strError
+end
+
+
+
 function RepositoryDriverFilesystem:get_configuration(strGroup, strArtifact, tVersion)
   -- Does the root folder of the repository exist?
   local tResult, strError = self:exists()
@@ -110,8 +139,6 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strArtifact, tVe
 
     -- Append the version folder to the root.
     local strCfgPath = self.pl.path.join(self.strRoot, strCfg)
-    -- Get the SHA1 path.
-    local strShaPath = strCfgPath .. '.sha1'
 
     -- Get the complete file.
     local strCfg, strMsg = self.pl.utils.readfile(strCfgPath, false)
@@ -120,33 +147,65 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strArtifact, tVe
       strError = string.format('Failed to read the configuration file "%s": %s', strCfgPath, strMsg)
     else
       -- Get tha SHA sum.
-      local strShaRaw, strMsg = self.pl.utils.readfile(strShaPath, false)
-      if strShaRaw==nil then
-        tResult = nil
-        strError = string.format('Failed to read the configuration file: %s', strMsg)
-      else
-        -- Extract the SHA sum.
-        local astrMatches = string.match(strShaRaw, '(%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x)')
-        if astrMatches==nil then
+      tResult, strError = self:get_sha_sum(strCfgPath)
+      if tResult~=nil then
+        local strShaRemote = tResult
+
+        -- Build the local SHA sum.
+        local strShaLocal = self.Hash:get_sha1_string(strCfg)
+
+        -- Compare the SHA1 sum from the repository and the local.
+        if strShaRemote~=strShaLocal then
           tResult = nil
-          strError = 'The SHA1 file does not contain a valid hash.'
+          strError = 'The SHA1 sum of the configuration does not match.'
         else
-          local strSha = astrMatches[1]
+          local cA = self.ArtifactConfiguration()
+          cA:parse_configuration(strCfg)
 
-          -- Build the local SHA sum.
-          local strShaLocal = self.Hash:get_sha1_string(strCfg)
+          tResult = cA
+          strError = nil
+        end
+      end
+    end
+  end
 
-          -- Compare the SHA1 sum from the repository and the local.
-          if strSha~=strShaLocal then
-            tResult = nil
-            strError = 'The SHA1 sum of the configuration does not match.'
-          else
-            local cA = self.ArtifactConfiguration()
-            cA:parse_configuration(strCfg)
+  return tResult, strError
+end
 
-            tResult = cA
-            strError = nil
-          end
+
+
+function RepositoryDriverFilesystem:get_artifact(strGroup, strArtifact, tVersion, strDestinationFolder)
+  -- Does the root folder of the repository exist?
+  local tResult, strError = self:exists()
+  if tResult==true then
+    -- Construct the artifact path.
+    local strArtifact = self:replace_path(strGroup, strArtifact, tVersion, self.strArtifact)
+
+    -- Append the version folder to the root.
+    local strArtifactPath = self.pl.path.join(self.strRoot, strArtifact)
+    -- Get the file name.
+    local _, strFileName = self.pl.path.splitpath(strArtifactPath)
+
+    -- Copy the file to the destination folder.
+    local strLocalFile = self.pl.path.join(strDestinationFolder, strFileName)
+    local tResult, strError = self.pl.file.copy(strArtifactPath, strLocalFile)
+    if tResult~=true then
+      print(tResult, strError)
+      error('Copy failed!')
+    else
+      -- Get tha SHA sum.
+      local tResult, strError = self:get_sha_sum(strCfgPath)
+      if tResult~=nil then
+        local strShaRemote = tResult
+
+        -- Compare the SHA sums.
+        tResult, strError = self.Hash:check_sha1(strLocalFile, strShaRemote)
+        if tResult~=true then
+          tResult = nil
+          strError = 'The SHA1 sum of the configuration does not match.'
+        else
+          tResult = strLocalFile
+          strError = nil
         end
       end
     end
