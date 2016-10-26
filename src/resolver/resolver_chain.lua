@@ -313,11 +313,36 @@ function ResolverChain:install_artifacts(atArtifacts)
   local strError
 
   for _,tGAV in pairs(atArtifacts) do
-    print(string.format('Installing G:%s,A:%s,V:%s', tGAV.strGroup, tGAV.strArtifact, tGAV.tVersion:get()))
+    local strGroup = tGAV.strGroup
+    local strArtifact = tGAV.strArtifact
+    local tVersion = tGAV.tVersion
+    local strVersion = tGAV.tVersion:get()
+
+    local strGAV = string.format('G:%s,A:%s,V:%s', strGroup, strArtifact, strVersion)
+    print(string.format('Installing %s', strGAV))
 
     -- Copy the artifact to the local depack folder.
-    tResult, strError = self:get_artifact(tGAV.strGroup, tGAV.strArtifact, tGAV.tVersion)
-    print(tResult, strError)
+    tResult, strError = self:get_artifact(strGroup, strArtifact, tVersion)
+    if tResult==nil then
+      error(string.format('Failed to install %s: %s', strGAV, strError))
+    else
+      -- Create a unique temporary path for the artifact.
+      local strGroupPath = self.pl.stringx.replace(strGroup, '.', self.pl.path.sep)
+      local strDepackPath = self.pl.path.join(self.cSystemConfiguration.tConfiguration.depack, strGroupPath, strArtifact, strVersion)
+
+      -- Does the depack path already exist?
+      if self.pl.path.exists(strDepackPath)==strDepackPath then
+        error(string.format('The unique depack path %s already exists.', strDepackPath))
+      else
+        tResult, strError = self.pl.dir.makepath(strDepackPath)
+        if tResult~=true then
+          tResult = nil
+          strError = string.format('Failed to create the depack path for %s: %s', strGAV, strError)
+        else
+          print(strDepackPath)
+        end
+      end
+    end
   end
 end
 
