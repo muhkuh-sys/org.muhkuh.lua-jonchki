@@ -188,13 +188,13 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strArtifact, tVersion
 
     -- Copy the file to the destination folder.
     local strLocalFile = self.pl.path.join(strDestinationFolder, strFileName)
-    local tResult, strError = self.pl.file.copy(strArtifactPath, strLocalFile)
+    tResult, strError = self.pl.file.copy(strArtifactPath, strLocalFile)
     if tResult~=true then
-      print(tResult, strError)
-      error('Copy failed!')
+      tResult = nil
+      strError = string.format('Failed to copy the artifact to the depack folder: %s', strError)
     else
       -- Get tha SHA sum.
-      local tResult, strError = self:get_sha_sum(strCfgPath)
+      tResult, strError = self:get_sha_sum(strArtifactPath)
       if tResult~=nil then
         local strShaRemote = tResult
 
