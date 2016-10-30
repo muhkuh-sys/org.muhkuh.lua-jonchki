@@ -310,6 +310,230 @@ end
 
 
 
+function ResolverChain.copy(strSrc, strDst)
+  local tResult
+  local strError
+
+  local tSrc, strError = io.open(strSrc, 'rb')
+  if tSrc~=nil then
+    local tDst, strError = io.open(strDst, 'wb')
+    if tDst~=nil then
+      repeat
+        local strData = tSrc:read(4096)
+        if strData~=nil then
+          tDst:write(strData)
+        end
+      until strData==nil
+
+      tSrc:close()
+      tDst:close()
+
+      tResult = true
+    end
+  end
+
+  return tResult, strError
+end
+
+
+
+-- NOTE: This function will not be called as a member of the ResolverChain class.
+--       It will be attached to the InstallArgs as the "install" element.
+function ResolverChain.install(self, tSrc, strDst)
+  -- The first argument must be a table with the install arguments.
+  if type(self)~='table' then
+    error('The "install" method was called without a proper "self" argument. Use "t:install(source, destination)" to call the function.')
+  end
+  -- Check if the install arguments have all required members.
+  local astrErrors = {}
+  local astrRequired = {
+    install_base = 'string',
+    install_lua_path = 'string',
+    install_lua_cpath = 'string',
+    install_shared_objects = 'string',
+    install_doc = 'string',
+    install = 'function',
+    copy = 'function',
+    pl = 'table',
+    atInstalledFiles = 'table',
+    strGAV = 'string'
+  }
+  for strKey, strRequiredType in pairs(astrRequired) do
+    local tValue = self[strKey]
+    local strType = type(tValue)
+    if strType~=strRequiredType then
+      table.insert(astrErrors, strKey)
+    end
+  end
+  if #astrErrors~=0 then
+    error(string.format('The "install" method was called with an invalid "self" argument. The following members do not have the required type: %s', table.concat(astrErrors, ', ')))
+  end
+
+  -- The second argument must be either a list of strings or a string.
+  local astrSrc = nil
+  local strSrcType = type(tSrc)
+  if strSrcType=='string' then
+    astrSrc = { tSrc }
+  elseif strSrcType=='table' then
+    astrSrc = tSrc
+  else
+    error(string.format('The "install" method was called with an invalid "tSrc" argument. It must be either a string or a table.'))
+  end
+  -- Loop over all elements and check their type.
+  local astrErrors = {}
+  for uiCnt, tValue in pairs(astrSrc) do
+    local strType = type(tValue)
+    if strType~='string' then
+      table.insert(astrErrors, tostring(uiCnt))
+    end
+  end
+  if #astrErrors~=0 then
+    error(string.format('The "install" method was called with an invalid "tSrc" argument. The table contains non-string elements at the following indices: %s', table.concat(astrErrors, ', ')))
+  end
+
+  -- The third argument must be a string.
+  if type(strDst)~='string' then
+    error(string.format('The "install" method was called with an invalid "strDst" argument. It must be a string.'))
+  end
+
+  -- Replace the ${} strings.
+  local atReplacements = {
+    ['install_base'] = self.install_base,
+    ['install_lua_path'] = self.install_lua_path,
+    ['install_lua_cpath'] = self.install_lua_cpath,
+    ['install_shared_objects'] = self.install_shared_objects,
+    ['install_doc'] = self.install_doc
+  }
+  local strDst = string.gsub(strDst, '%${([a-zA-Z0-9_]+)}', atReplacements)
+
+  -- The destination is treated as a directory...
+  --   if it ends with a slash or
+  --   if the source is a list with more than one element.
+  local fDstIsDir = nil
+  if string.sub(strDst, -1)=='/' then
+    fDstIsDir = true
+  elseif #astrSrc>1 then
+    fDstIsDir = true
+  else
+    fDstIsDir = false
+  end
+
+  -- Get the directory part of the destination.
+  local strDstDirname = nil
+  local strDstFilename = nil
+  if fDstIsDir==true then
+    strDstDirname = strDst
+  else
+    strDstDirname, strDstFilename = self.pl.path.splitpath(strDst)
+  end
+
+  -- Loop over all elements in the source list.
+  for _, strSrc in pairs(astrSrc) do
+    print(string.format('Installing "%s"...', strSrc))
+    -- Get the absolute path for the current source.
+    local strSrcAbs = self.pl.path.abspath(strSrc, self.strCwd)
+
+    -- Does the source exist?
+    if self.pl.path.exists(strSrcAbs)~=strSrcAbs then
+      error(string.format('Error installing %s: the source path "%s" does not exist.', self.strGAV, strSrcAbs))
+    end
+
+    -- Is the source a folder or a file.
+    local fIsDir = self.pl.path.isdir(strSrcAbs)
+    local fIsFile = self.pl.path.isfile(strSrcAbs)
+    if (fIsDir==true) and (fIsFile==true) then
+      error(string.format('Error installing %s: "%s" is both a file and a directory.', self.strGAV, strSrcAbs))
+    elseif (fIsDir==false) and (fIsFile==false) then
+      error(string.format('Error installing %s: "%s" is neither a file nor a directory.', self.strGAV, strSrcAbs))
+    end
+
+    if fIsFile==true then
+      -- Copy one single file.
+
+      -- Get the filename of the source without the directory part.
+      local strSrcFilename = self.pl.path.basename(strSrcAbs)
+
+      -- Get the destination path.
+      local strDstPath = nil
+      if fDstIsDir==true then
+        strDstPath = self.pl.path.join(strDstDirname, strSrcFilename)
+      else
+        strDstPath = self.pl.path.join(strDstDirname, strDstFilename)
+      end
+
+      -- FIXME: check if the path is below the install base folder.
+
+      -- Was this file already installed?
+      local strPackage = self.atInstalledFiles[strDstPath]
+      if strPackage~=nil then
+        -- Yes -> refuse to overwrite it.
+        error(string.format('Error installing %s. The file "%s" was already installed by the artifact %s.', self.strGAV, strDstPath, strPackage))
+      end
+      self.atInstalledFiles[strDstPath] = self.strGAV
+
+      -- Create the output folder.
+      local tResult, strError = self.pl.dir.makepath(strDstDirname)
+      if tResult~=true then
+        error(string.format('Error installing %s: Failed to create the output folder "%s": %s', self.strGAV, strDstDirname, strError))
+      end
+
+      -- Copy the file.
+      local tResult, strError = self.copy(strSrcAbs, strDstPath)
+      if tResult~=true then
+        error(string.format('Error installing %s: Failed to copy "%s" to "%s": %s', self.strGAV, strSrcAbs, strDstPath, strError))
+      end
+    else
+      -- Copy a complete directory.
+
+      -- Reconsider the destination path. If the filename is set, add it to the directors.
+      if strDstFilename~=nil then
+        strDstDirname = self.pl.path.join(strDstDirname, strDstFilename)
+        strDstFilename = nil
+      end
+
+      for strRoot, astrDirs, astrFiles in self.pl.dir.walk(strSrcAbs, false, true) do
+        -- Get the relative path from the depack folder to the current root.
+        local strRootRel = self.pl.path.relpath(strRoot, strSrcAbs)
+
+        -- Create the root folder. This is important for empty folders.
+        local strDstDir = self.pl.path.join(strDstDirname, strRootRel)
+        local tResult, strError = self.pl.dir.makepath(strDstDir)
+        if tResult~=true then
+          error(string.format('Error installing %s: Failed to create the output folder "%s": %s', self.strGAV, strDstDir, strError))
+        end
+
+        -- Loop over all files and copy them.
+        for _, strFile in pairs(astrFiles) do
+          local strSrcPath = self.pl.path.join(strRoot, strFile)
+          local strDstPath = self.pl.path.join(strDstDir, strFile)
+
+          -- FIXME: check if the path is below the install base folder.
+
+          -- Was this file already installed?
+          local strPackage = self.atInstalledFiles[strDstPath]
+          if strPackage~=nil then
+            -- Yes -> refuse to overwrite it.
+            error(string.format('Error installing %s. The file "%s" was already installed by the artifact %s.', self.strGAV, strDstPath, strPackage))
+          end
+          self.atInstalledFiles[strDstPath] = self.strGAV
+
+          -- Copy the file.
+          print(string.format('copy "%s" -> "%s"', strSrcPath, strDstPath))
+          local tResult, strError = self.copy(strSrcPath, strDstPath)
+          if tResult~=true then
+            error(string.format('Error installing %s: Failed to copy "%s" to "%s": %s', self.strGAV, strSrcPath, strDstPath, strError))
+          end
+        end
+      end
+    end
+  end
+
+  error('Continue here!')
+
+end
+
+
+
 function ResolverChain:install_artifacts(atArtifacts)
   local tResult
   local strError
@@ -320,7 +544,14 @@ function ResolverChain:install_artifacts(atArtifacts)
     install_lua_path = self.cSystemConfiguration.tConfiguration.install_lua_path,
     install_lua_cpath = self.cSystemConfiguration.tConfiguration.install_lua_cpath,
     install_shared_objects = self.cSystemConfiguration.tConfiguration.install_shared_objects,
-    install_doc = self.cSystemConfiguration.tConfiguration.install_doc
+    install_doc = self.cSystemConfiguration.tConfiguration.install_doc,
+
+    install = self.install,
+    copy = self.copy,
+    pl = self.pl,
+
+    atInstalledFiles = {},
+    strGAV = ''
   }
 
 
@@ -330,7 +561,7 @@ function ResolverChain:install_artifacts(atArtifacts)
     local tVersion = tGAV.tVersion
     local strVersion = tGAV.tVersion:get()
 
-    local strGAV = string.format('G:%s,A:%s,V:%s', strGroup, strArtifact, strVersion)
+    local strGAV = string.format('%s-%s-%s', strGroup, strArtifact, strVersion)
     print(string.format('Installing %s', strGAV))
 
     -- Copy the artifact to the local depack folder.
@@ -429,6 +660,12 @@ function ResolverChain:install_artifacts(atArtifacts)
               error(strError)
             end
             local fnInstall = tResult
+
+            -- Add the artifact's depack path to the install arguments as the current working folder.
+            tInstallArgs.strCwd = strDepackPath
+
+            -- Add the current artifact identification for error messages.
+            tInstallArgs.strGAV = strGAV
 
             -- Call the install script.
             tResult, strError = pcall(fnInstall, tInstallArgs)
