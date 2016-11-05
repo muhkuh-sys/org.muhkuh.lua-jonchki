@@ -67,9 +67,10 @@ end
 
 
 
-function Resolver:resolvtab_create_entry(strGroup, strArtifact, tParentEntry)
+function Resolver:resolvtab_create_entry(strGroup, strModule, strArtifact, tParentEntry)
   local tResolvEntry = {
     strGroup = strGroup,
+    strModule = strModule,
     strArtifact = strArtifact,
     ptParent = nil,
     eStatus = self.RT_Initialized,
@@ -123,9 +124,9 @@ end
 
 
 
-function Resolver:add_versions_from_repositories(tResolv, strGroup, strArtifact)
+function Resolver:add_versions_from_repositories(tResolv, strGroup, strModule, strArtifact)
   -- Add all members of the set as new versions.
-  local atNewVersions = self.cResolverChain:get_available_versions(strGroup, strArtifact)
+  local atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
   self:resolvtab_add_versions(tResolv, atNewVersions)
 end
 
@@ -207,9 +208,10 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
     -- Loop over all dependencies.
     for _,tDependency in pairs(cA.atDependencies) do
       local strGroup = tDependency.strGroup
+      local strModule = tDependency.strModule
       local strArtifact = tDependency.strArtifact
-      local tResolv = self:resolvtab_create_entry(strGroup, strArtifact, tResolvEntry)
-      self:add_versions_from_repositories(tResolv, strGroup, strArtifact)
+      local tResolv = self:resolvtab_create_entry(strGroup, strModule, strArtifact, tResolvEntry)
+      self:add_versions_from_repositories(tResolv, strGroup, strModule, strArtifact)
       self:resolvtab_set_constraint(tResolv, tDependency.tVersion:get())
       table.insert(atV.atDependencies, tResolv)
     end
@@ -319,7 +321,7 @@ function Resolver:resolve_set_start_artifact(cArtifact)
   self.uiResolveTabDumpCounter = 0
 
   -- Write the artifact to the resolve table.
-  local tResolv = self:resolvtab_create_entry(cArtifact.tInfo.strGroup, cArtifact.tInfo.strArtifact, nil)
+  local tResolv = self:resolvtab_create_entry(cArtifact.tInfo.strGroup, cArtifact.tInfo.strModule, cArtifact.tInfo.strArtifact, nil)
 
   -- Set the new element as the root of the resolve table.
   self.atResolvTab = tResolv
@@ -412,14 +414,15 @@ function Resolver:resolve_step(tResolv)
   elseif tStatus==self.RT_GetConfiguration then
     -- Get the GAV parameters.
     local strGroup = tResolv.strGroup
+    local strModule = tResolv.strModule
     local strArtifact = tResolv.strArtifact
     local tVersion = tResolv.ptActiveVersion.tVersion
 
-    local tResult, strMessage = self.cResolverChain:get_configuration(strGroup, strArtifact, tVersion)
+    local tResult, strMessage = self.cResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
     if tResult==nil then
       -- The configuration file could not be retrieved.
-      print(string.format('Failed to get the configuration file for %s/%s/%s: %s', strGroup, strArtifact, tVersion:get(), strMessage))
-      
+      print(string.format('Failed to get the configuration file for %s/%s/%s/%s: %s', strGroup, strModule, strArtifact, tVersion:get(), strMessage))
+
       -- This item is now blocked.
       tResolv.eStatus = self.RT_Blocked
     else
@@ -518,15 +521,16 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, fIsRoot)
   if fIsRoot==false then
     -- Get the group, artifact and version.
     local strGroup = tResolv.strGroup
+    local strModule = tResolv.strModule
     local strArtifact = tResolv.strArtifact
     local tVersion = atV.tVersion
     local strVersion = tVersion:get()
 
-    -- Is the GA already in the list?
+    -- Is the GMA already in the list?
     local fNotThereYet = true
     for _, tAttr in pairs(atArtifacts) do
       -- Yes, there is an entry. Now check the version.
-      if strGroup==tAttr.strGroup and strArtifact==tAttr.strArtifact then
+      if strGroup==tAttr.strGroup and strModule==tAttr.strModule and strArtifact==tAttr.strArtifact then
         -- Get the entries version.
         local strEntryVersion = tAttr.tVersion:get()
         -- Compare the version.
@@ -540,12 +544,13 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, fIsRoot)
     end
 
     if fNotThereYet==true then
-      local atGAV = {
+      local atGMAV = {
         ['strGroup'] = strGroup,
+        ['strModule'] = strModule,
         ['strArtifact'] = strArtifact,
         ['tVersion'] = tVersion
       }
-      table.insert(atArtifacts, atGAV)
+      table.insert(atArtifacts, atGMAV)
     end
   end
 

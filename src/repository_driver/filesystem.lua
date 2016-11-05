@@ -64,11 +64,11 @@ end
 
 
 
-function RepositoryDriverFilesystem:get_available_versions(strGroup, strArtifact)
+function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, strArtifact)
   local tResult, strError = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the versions path.
-    local strVersions = self:replace_path(strGroup, strArtifact, nil, self.strVersions)
+    local strVersions = self:replace_path(strGroup, strModule, strArtifact, nil, self.strVersions)
 
     -- Append the version folder to the root.
     local strVersionPath = self.pl.path.join(self.strRoot, strVersions)
@@ -130,12 +130,12 @@ end
 
 
 
-function RepositoryDriverFilesystem:get_configuration(strGroup, strArtifact, tVersion)
+function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strArtifact, tVersion)
   -- Does the root folder of the repository exist?
   local tResult, strError = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the configuration path.
-    local strCfg = self:replace_path(strGroup, strArtifact, tVersion, self.strConfig)
+    local strCfg = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strConfig)
 
     -- Append the version folder to the root.
     local strCfgPath = self.pl.path.join(self.strRoot, strCfg)
@@ -174,12 +174,12 @@ end
 
 
 
-function RepositoryDriverFilesystem:get_artifact(strGroup, strArtifact, tVersion, strDestinationFolder)
+function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifact, tVersion, strDestinationFolder)
   -- Does the root folder of the repository exist?
   local tResult, strError = self:exists()
   if tResult==true then
     -- Construct the artifact path.
-    local strArtifact = self:replace_path(strGroup, strArtifact, tVersion, self.strArtifact)
+    local strArtifact = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strArtifact)
 
     -- Append the version folder to the root.
     local strArtifactPath = self.pl.path.join(self.strRoot, strArtifact)

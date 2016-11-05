@@ -27,7 +27,7 @@ function ResolverChain:_init(strID)
   self.atRepositoryByID = {}
 
   -- Create a new GA->V table.
-  self.atGA_V = {}
+  self.atGMA_V = {}
 
   -- Get all available repository drivers.
   local atRepositoryDriverClasses = {}
@@ -108,32 +108,32 @@ end
 
 
 
-function ResolverChain:get_ga(strGroup, strArtifact)
-  -- Combine the group and artifact.
-  return string.format('%s/%s', strGroup, strArtifact)
+function ResolverChain:get_gma(strGroup, strModule, strArtifact)
+  -- Combine the group, module and artifact.
+  return string.format('%s/%s/%s', strGroup, strModule, strArtifact)
 end
 
 
 
-function ResolverChain:add_to_ga_v(strGroup, strArtifact, tVersion, strSourceID)
-  -- Combine the group and artifact.
-  local strGA = self:get_ga(strGroup, strArtifact)
+function ResolverChain:add_to_ga_v(strGroup, strModule, strArtifact, tVersion, strSourceID)
+  -- Combine the group, module and artifact.
+  local strGMA = self:get_gma(strGroup, strModule, strArtifact)
 
-  -- Is the GA already registered?
-  local atGA = self.atGA_V[strGA]
-  if atGA==nil then
-    -- No, register GA now.
-    atGA = {}
-    self.atGA_V[strGA] = atGA
+  -- Is the GMA already registered?
+  local atGMA = self.atGMA_V[strGMA]
+  if atGMA==nil then
+    -- No, register GMA now.
+    atGMA = {}
+    self.atGMA_V[strGMA] = atGMA
   end
 
   -- Is the version already registered?
   local strVersion = tVersion:get()
-  local atV = atGA[strVersion]
+  local atV = atGMA[strVersion]
   if atV==nil then
     -- No, register the version now.
     atV = {}
-    atGA[strVersion] = atV
+    atGMA[strVersion] = atV
   end
 
   -- Does the source ID already exist?
@@ -152,18 +152,18 @@ end
 
 
 
-function ResolverChain:get_sources_by_gav(strGroup, strArtifact, tVersion)
+function ResolverChain:get_sources_by_gmav(strGroup, strModule, strArtifact, tVersion)
   local atSources = nil
 
-  -- Combine the group and artifact.
-  local strGA = self:get_ga(strGroup, strArtifact)
+  -- Combine the group, module and artifact.
+  local strGMA = self:get_gma(strGroup, strModule, strArtifact)
 
   -- Is the GA already registered?
-  local atGA = self.atGA_V[strGA]
-  if atGA~=nil then
+  local atGMA = self.atGMA_V[strGMA]
+  if atGMA~=nil then
     -- Yes, now look for the version.
     local strVersion = tVersion:get()
-    local atV = atGA[strVersion]
+    local atV = atGMA[strVersion]
     if atV~=nil then
       atSources = atV
     end
@@ -175,18 +175,19 @@ end
 
 
 function ResolverChain:dump_ga_v_table()
-  print 'GA_V('
+  print 'GMA_V('
 
   -- Loop over all GA pairs.
-  for strGA, atGA in pairs(self.atGA_V) do
+  for strGMA, atGMA in pairs(self.atGMA_V) do
     -- Split the GA pair by the separating slash ('/').
-    local aTmp = self.pl.stringx.split(strGA, '/')
+    local aTmp = self.pl.stringx.split(strGMA, '/')
     local strGroup = aTmp[1]
-    local strArtifact = aTmp[2]
-    print(string.format('  G=%s, A=%s', strGroup, strArtifact))
+    local strModule = aTmp[2]
+    local strArtifact = aTmp[3]
+    print(string.format('  G=%s, M=%s, A=%s', strGroup, strModule, strArtifact))
 
     -- Loop over all versions.
-    for tVersion, atV in pairs(atGA) do
+    for tVersion, atV in pairs(atGMA) do
       print(string.format('    V=%s:', tVersion))
 
       -- Loop over all sources.
@@ -201,7 +202,7 @@ end
 
 
 
-function ResolverChain:get_available_versions(strGroup, strArtifact)
+function ResolverChain:get_available_versions(strGroup, strModule, strArtifact)
   local atDuplicateCheck = {}
   local atNewVersions = {}
 
@@ -213,14 +214,14 @@ function ResolverChain:get_available_versions(strGroup, strArtifact)
     local strSourceID = tRepository:get_id()
 
     -- Get all available versions in this repository.
-    local tResult, strError = tRepository:get_available_versions(strGroup, strArtifact)
+    local tResult, strError = tRepository:get_available_versions(strGroup, strModule, strArtifact)
     if tResult==nil then
       print(string.format('Error: failed to scan repository "%s": %s', strSourceID, strError))
     else
       -- Loop over all versions found in this repository.
       for _, tVersion in pairs(tResult) do
         -- Register the version in the GA->V table.
-        self:add_to_ga_v(strGroup, strArtifact, tVersion, strSourceID)
+        self:add_to_ga_v(strGroup, strModule, strArtifact, tVersion, strSourceID)
 
         -- Is this version unique?
         local strVersion = tVersion:get()
@@ -237,29 +238,29 @@ end
 
 
 
-function ResolverChain:get_configuration(strGroup, strArtifact, tVersion)
+function ResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
   local strMessage = ''
 
   -- Check if the GA->V table has already the sources.
-  local atGAVSources = self:get_sources_by_gav(strGroup, strArtifact, tVersion)
-  if atGAVSources==nil then
-    -- No GA->V entries present.
+  local atGMAVSources = self:get_sources_by_gmav(strGroup, strModule, strArtifact, tVersion)
+  if atGMAVSources==nil then
+    -- No GMA->V entries present.
     error('Continue here')
 --[[
 Loop over all repositories in the chain and try to get the GAV.
-Do not store this in the GA->V table as it would look like this is a complete dataset over all available versions.
+Do not store this in the GMA->V table as it would look like this is a complete dataset over all available versions.
 ]]--
   end
 
   -- Loop over the sources and try to get the configuration.
-  for _, strSourceID in pairs(atGAVSources) do
+  for _, strSourceID in pairs(atGMAVSources) do
     -- Get the repository with this ID.
     local tDriver = self:get_driver_by_id(strSourceID)
     if tDriver~=nil then
-      tResult, strMessage = tDriver:get_configuration(strGroup, strArtifact, tVersion)
+      tResult, strMessage = tDriver:get_configuration(strGroup, strModule, strArtifact, tVersion)
       if tResult==nil then
-        print(string.format('Failed to get %s/%s/%s from repository %s: %s', strGroup, strArtifact, tVersion:get(), strSourceID, strMessage))
+        print(string.format('Failed to get %s/%s/%s/%s from repository %s: %s', strGroup, strModule, strArtifact, tVersion:get(), strSourceID, strMessage))
       else
         break
       end
@@ -275,18 +276,18 @@ end
 
 
 
-function ResolverChain:get_artifact(strGroup, strArtifact, tVersion)
+function ResolverChain:get_artifact(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
   local strMessage = ''
 
-  -- Check if the GA->V table has already the sources.
-  local atGAVSources = self:get_sources_by_gav(strGroup, strArtifact, tVersion)
-  if atGAVSources==nil then
-    -- No GA->V entries present.
+  -- Check if the GMA->V table has already the sources.
+  local atGMAVSources = self:get_sources_by_gmav(strGroup, strModule, strArtifact, tVersion)
+  if atGMAVSources==nil then
+    -- No GMA->V entries present.
     error('Continue here')
 --[[
-Loop over all repositories in the chain and try to get the GAV.
-Do not store this in the GA->V table as it would look like this is a complete dataset over all available versions.
+Loop over all repositories in the chain and try to get the GMAV.
+Do not store this in the GMA->V table as it would look like this is a complete dataset over all available versions.
 ]]--
   end
 
@@ -294,11 +295,11 @@ Do not store this in the GA->V table as it would look like this is a complete da
   local strDepackFolder = self.cSystemConfiguration.tConfiguration.depack
 
   -- Loop over the sources and try to get the configuration.
-  for _, strSourceID in pairs(atGAVSources) do
+  for _, strSourceID in pairs(atGMAVSources) do
     -- Get the repository with this ID.
     local tDriver = self:get_driver_by_id(strSourceID)
     if tDriver~=nil then
-      tResult, strMessage = tDriver:get_artifact(strGroup, strArtifact, tVersion, strDepackFolder)
+      tResult, strMessage = tDriver:get_artifact(strGroup, strModule, strArtifact, tVersion, strDepackFolder)
       if tResult~=nil then
         break
       end
@@ -356,7 +357,7 @@ function ResolverChain.install(self, tSrc, strDst)
     copy = 'function',
     pl = 'table',
     atInstalledFiles = 'table',
-    strGAV = 'string'
+    strGMAV = 'string'
   }
   for strKey, strRequiredType in pairs(astrRequired) do
     local tValue = self[strKey]
@@ -551,29 +552,30 @@ function ResolverChain:install_artifacts(atArtifacts)
     pl = self.pl,
 
     atInstalledFiles = {},
-    strGAV = ''
+    strGMAV = ''
   }
 
 
-  for _,tGAV in pairs(atArtifacts) do
-    local strGroup = tGAV.strGroup
-    local strArtifact = tGAV.strArtifact
-    local tVersion = tGAV.tVersion
-    local strVersion = tGAV.tVersion:get()
+  for _,tGMAV in pairs(atArtifacts) do
+    local strGroup = tGMAV.strGroup
+    local strModule = tGMAV.strModule
+    local strArtifact = tGMAV.strArtifact
+    local tVersion = tGMAV.tVersion
+    local strVersion = tGMAV.tVersion:get()
 
-    local strGAV = string.format('%s-%s-%s', strGroup, strArtifact, strVersion)
-    print(string.format('Installing %s', strGAV))
+    local strGMAV = string.format('%s-%s-%s-%s', strGroup, strModule, strArtifact, strVersion)
+    print(string.format('Installing %s', strGMAV))
 
     -- Copy the artifact to the local depack folder.
-    tResult, strError = self:get_artifact(strGroup, strArtifact, tVersion)
+    tResult, strError = self:get_artifact(strGroup, strModule, strArtifact, tVersion)
     if tResult==nil then
-      error(string.format('Failed to install %s: %s', strGAV, strError))
+      error(string.format('Failed to install %s: %s', strGMAV, strError))
     else
       local strArtifactPath = tResult
 
       -- Create a unique temporary path for the artifact.
       local strGroupPath = self.pl.stringx.replace(strGroup, '.', self.pl.path.sep)
-      local strDepackPath = self.pl.path.join(self.cSystemConfiguration.tConfiguration.depack, strGroupPath, strArtifact, strVersion)
+      local strDepackPath = self.pl.path.join(self.cSystemConfiguration.tConfiguration.depack, strGroupPath, strModule, strArtifact, strVersion)
 
       -- Does the depack path already exist?
       if self.pl.path.exists(strDepackPath)==strDepackPath then
@@ -582,12 +584,12 @@ function ResolverChain:install_artifacts(atArtifacts)
         tResult, strError = self.pl.dir.makepath(strDepackPath)
         if tResult~=true then
           tResult = nil
-          strError = string.format('Failed to create the depack path for %s: %s', strGAV, strError)
+          strError = string.format('Failed to create the depack path for %s: %s', strGMAV, strError)
         else
           -- Open the artifact as a zip file.
           tResult, strError = self.zip.open(strArtifactPath)
           if tResult==nil then
-            error(string.format('Failed to open %s as a ZIP archive: %s', strGAV, strError))
+            error(string.format('Failed to open %s as a ZIP archive: %s', strGMAV, strError))
           end
           local tZip = tResult
 
@@ -605,7 +607,7 @@ function ResolverChain:install_artifacts(atArtifacts)
               local strRel = self.pl.path.relpath(strDepackPath, strOutputFolder)
               if strRel~='' then
                 if string.sub(strRel, 1, 2)~='..' then
-                  error(string.format('Error depacking %s: the path "%s" leaves the depack folder!', strGAV, strZipFileName))
+                  error(string.format('Error depacking %s: the path "%s" leaves the depack folder!', strGMAV, strZipFileName))
                 end
                 -- Create the output folder.
                 tResult, strError = self.pl.dir.makepath(strOutputFolder)
@@ -615,11 +617,11 @@ function ResolverChain:install_artifacts(atArtifacts)
               local strOutputFile = self.pl.path.join(strDepackPath, strZipFileName)
               local tFileSrc = tZip:open(strZipFileName)
               if tFileSrc==nil then
-                error(string.format('Error depacking %s: failed to extract "%s".', strGAV, strZipFileName))
+                error(string.format('Error depacking %s: failed to extract "%s".', strGMAV, strZipFileName))
               end
               local tFileDst = io.open(strOutputFile, 'wb')
               if tFileDst==nil then
-                error(string.format('Error depacking %s: failed write to "%s".', strGAV, strOutputFile))
+                error(string.format('Error depacking %s: failed write to "%s".', strGMAV, strOutputFile))
               end
               repeat
                 local aucData = tFileSrc:read(4096)
@@ -638,25 +640,25 @@ function ResolverChain:install_artifacts(atArtifacts)
           local strInstallScriptFile = self.pl.path.join(strDepackPath, 'install.lua')
           -- Check if the file exists.
           if self.pl.path.exists(strInstallScriptFile)~=strInstallScriptFile then
-            strError = string.format('Error installing %s: the install script "%s" does not exist.', strGAV, strInstallScriptFile)
+            strError = string.format('Error installing %s: the install script "%s" does not exist.', strGMAV, strInstallScriptFile)
             error(strError)
           end
           -- Check if the install script is a file.
           if self.pl.path.isfile(strInstallScriptFile)~=true then
-            strError = string.format('Error installing %s: the install script "%s" is no file.', strGAV, strInstallScriptFile)
+            strError = string.format('Error installing %s: the install script "%s" is no file.', strGMAV, strInstallScriptFile)
             error(strError)
           end
           -- Call the install script.
           local tResult, strError = self.pl.utils.readfile(strInstallScriptFile, false)
           if tResult==nil then
-            strError = string.format('Error installing %s: failed to read the install script "%s": %s', strGAV, strInstallScriptFile, strError)
+            strError = string.format('Error installing %s: failed to read the install script "%s": %s', strGMAV, strInstallScriptFile, strError)
             error(strError)
           else
             -- Parse the install script.
             local strInstallScript = tResult
             tResult, strError = loadstring(strInstallScript, strInstallScriptFile)
             if tResult==nil then
-              strError = string.format('Error installing %s: failed to parse the install script "%s": %s', strGAV, strInstallScriptFile, strError)
+              strError = string.format('Error installing %s: failed to parse the install script "%s": %s', strGMAV, strInstallScriptFile, strError)
               error(strError)
             end
             local fnInstall = tResult
@@ -665,17 +667,17 @@ function ResolverChain:install_artifacts(atArtifacts)
             tInstallArgs.strCwd = strDepackPath
 
             -- Add the current artifact identification for error messages.
-            tInstallArgs.strGAV = strGAV
+            tInstallArgs.strGMAV = strGMAV
 
             -- Call the install script.
             tResult, strError = pcall(fnInstall, tInstallArgs)
             if tResult~=true then
-              strError = string.format('Error installing %s: failed to run the install script "%s": %s', strGAV, strInstallScriptFile, tostring(strError))
+              strError = string.format('Error installing %s: failed to run the install script "%s": %s', strGMAV, strInstallScriptFile, tostring(strError))
               error(strError)
             end
             -- The second value is the return value.
             if strError~=true then
-              strError = string.format('Error installing %s: the install script "%s" returned "%s".', strGAV, strInstallScriptFile, tostring(strError))
+              strError = string.format('Error installing %s: the install script "%s" returned "%s".', strGMAV, strInstallScriptFile, tostring(strError))
               error(strError)
             end
           end

@@ -28,9 +28,9 @@
 
 		<repository id="test" type="file" cacheable="false">
 			<root>demo_repository</root>
-			<versions>[group]/[artifact]</versions>
-			<config>[group]/[artifact]/[version]/jonchki-[version].xml</config>
-			<artifact>[group]/[artifact]/[version]/[artifact]-[version].zip</artifact>
+			<versions>[group]/[module]</versions>
+			<config>[group]/[module]/[version]/[artifact]-[version].xml</config>
+			<artifact>[group]/[module]/[version]/[artifact]-[version].zip</artifact>
 		</repository>
 
 	</repositories>
