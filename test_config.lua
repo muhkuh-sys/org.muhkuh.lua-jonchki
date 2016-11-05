@@ -47,7 +47,17 @@ else
   local atArtifacts = tResolver:get_all_dependencies()
 
   -- Download and depack all dependencies.
-  cResolverChain:install_artifacts(atArtifacts)
+  local tResult, strError = cResolverChain:retrieve_artifacts(atArtifacts)
+  if tResult==nil then
+    error(string.format('Retrieve failed: %s', strError))
+  end
+
+  local Installer = require 'installer.installer'
+  local cInstaller = Installer(cSysCfg)
+  local tResult, strError = cInstaller:install_artifacts(atArtifacts)
+  if tResult==nil then
+    error(string.format('Install failed: %s', strError))
+  end
 end
 
 cLogger:write_to_file('jonchkilog.xml')
