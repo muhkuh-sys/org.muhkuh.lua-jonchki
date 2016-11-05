@@ -53,12 +53,25 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     aLxpAttr.tVersion = tVersion
 
   elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/info' then
+    -- Create a new "info" table.
     local tInfo = {}
+    -- Set some default values for the optional elements.
+    tInfo.strLicense = nil
+    tInfo.strAuthorName = nil
+    tInfo.strAuthorUrl = nil
+    tInfo.strDescription = nil
+
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
       error(string.format('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn))
     end
     tInfo.strGroup = strGroup
+
+    local strModule = atAttributes['module']
+    if strModule==nil or strModule=='' then
+      error(string.format('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn))
+    end
+    tInfo.strModule = strModule
 
     local strArtifact = atAttributes['artifact']
     if strArtifact==nil or strArtifact=='' then
@@ -84,6 +97,28 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     tInfo.strVcsId = strVcsId
 
     aLxpAttr.tInfo = tInfo
+
+  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/info/license' then
+    local tInfo = aLxpAttr.tInfo
+
+    local strLicense = atAttributes['name']
+    if strLicense~=nil and strLicense~='' then
+      tInfo.strLicense = strLicense
+    end
+
+  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/info/author' then
+    local tInfo = aLxpAttr.tInfo
+
+    local strAuthorName = atAttributes['name']
+    if strAuthorName~=nil and strAuthorName~='' then
+      tInfo.strAuthorName = strAuthorName
+    end
+
+    local strAuthorUrl = atAttributes['url']
+    if strAuthorUrl~=nil and strAuthorUrl~='' then
+      tInfo.strAuthorUrl = strAuthorUrl
+    end
+
   elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies/dependency' then
     local tDependency = {}
     
@@ -92,6 +127,12 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       error(string.format('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn))
     end
     tDependency.strGroup = strGroup
+
+    local strModule = atAttributes['module']
+    if strModule==nil or strModule=='' then
+      error(string.format('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn))
+    end
+    tDependency.strModule = strModule
 
     local strArtifact = atAttributes['artifact']
     if strArtifact==nil or strArtifact=='' then
@@ -124,10 +165,24 @@ end
 function ArtifactConfiguration.parseCfg_EndElement(tParser, strName)
   local aLxpAttr = tParser:getcallbacks().userdata
   local iPosLine, iPosColumn, iPosAbs = tParser:pos()
-  local tCurrentRepository = aLxpAttr.tCurrentRepository
 
   table.remove(aLxpAttr.atCurrentPath)
   aLxpAttr.strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
+end
+
+
+
+--- Expat callback function for character data.
+-- This function is part of the callbacks for the expat parser.
+-- It is called when character data is parsed.
+-- @param tParser The parser object.
+-- @param strData The character data.
+function ArtifactConfiguration.parseCfg_CharacterData(tParser, strData)
+  local aLxpAttr = tParser:getcallbacks().userdata
+
+  if aLxpAttr.strCurrentPath=="/jonchki-artifact/info/description" then
+    aLxpAttr.tInfo.strDescription = strData
+  end
 end
 
 
@@ -172,6 +227,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration)
   aLxpCallbacks._nonstrict    = false
   aLxpCallbacks.StartElement  = self.parseCfg_StartElement
   aLxpCallbacks.EndElement    = self.parseCfg_EndElement
+  aLxpCallbacks.CharacterData = self.parseCfg_CharacterData
   aLxpCallbacks.userdata      = aLxpAttr
 
   local tParser = self.lxp.new(aLxpCallbacks)
@@ -224,9 +280,43 @@ function ArtifactConfiguration:__tostring()
   else
     table.insert(astrRepr, '  info:')
     table.insert(astrRepr, string.format('    group: %s', self.tInfo.strGroup))
+    table.insert(astrRepr, string.format('    module: %s', self.tInfo.strModule))
     table.insert(astrRepr, string.format('    artifact: %s', self.tInfo.strArtifact))
     table.insert(astrRepr, string.format('    version: %s', self.tInfo.tVersion:get()))
     table.insert(astrRepr, string.format('    vcs-id: %s', self.tInfo.strVcsId))
+
+    local strLicense = self.tInfo.strLicense
+    if strLicense==nil then
+      strLicense = 'no license specified'
+    else
+      strLicense = string.format('license: %s', strLicense)
+    end
+    table.insert(astrRepr, string.format('    %s', strLicense))
+
+    local strAuthorName = self.tInfo.strAuthorName
+    if strAuthorName==nil then
+      strAuthorName = 'no author name specified'
+    else
+      strAuthorName = string.format('author name: %s', strAuthorName)
+    end
+    table.insert(astrRepr, string.format('    %s', strAuthorName))
+
+    local strAuthorUrl = self.tInfo.strAuthorUrl
+    if strAuthorUrl==nil then
+      strAuthorUrl = 'no author url specified'
+    else
+      strAuthorUrl = string.format('author url: %s', strAuthorUrl)
+    end
+    table.insert(astrRepr, string.format('    %s', strAuthorUrl))
+
+    local strDescription = self.tInfo.strDescription
+    if strDescription==nil then
+      strDescription = 'no description specified'
+    else
+      strDescription = string.format('description: %s', strDescription)
+    end
+    table.insert(astrRepr, string.format('    %s', strDescription))
+
   end
 
   if self.atDependencies==nil then
@@ -236,6 +326,7 @@ function ArtifactConfiguration:__tostring()
     for uiCnt,tAttr in pairs(self.atDependencies) do
       table.insert(astrRepr, string.format('  %d:', uiCnt))
       table.insert(astrRepr, string.format('    group: %s', tAttr.strGroup))
+      table.insert(astrRepr, string.format('    module: %s', tAttr.strModule))
       table.insert(astrRepr, string.format('    artifact: %s', tAttr.strArtifact))
       table.insert(astrRepr, string.format('    version: %s', tAttr.tVersion:get()))
       table.insert(astrRepr, '')
@@ -259,11 +350,33 @@ function ArtifactConfiguration:toxml(tXml)
   if self.tInfo~=nil then
     local tAttr = {
       ['group'] = self.tInfo.strGroup,
+      ['module'] = self.tInfo.strModule,
       ['artifact'] = self.tInfo.strArtifact,
       ['version'] = self.tInfo.tVersion:get(),
       ['vcs-id'] = self.tInfo.strVcsId
     }
     tXml:addtag('info', tAttr)
+
+    local tAttr = {
+      ['name'] = self.tInfo.strLicense,
+    }
+    tXml:addtag('license', tAttr)
+    tXml:up()
+
+    local tAttr = {
+      ['name'] = self.tInfo.strAuthorName,
+      ['url'] = self.tInfo.strAuthorName
+    }
+    tXml:addtag('author', tAttr)
+    tXml:up()
+
+    tXml:addtag('description')
+    local strDescription = self.tInfo.strDescription
+    if strDescription~=nil and strDescription~='' then
+      tXml:text(strDescription)
+    end
+    tXml:up()
+
     tXml:up()
   end
 
@@ -273,6 +386,7 @@ function ArtifactConfiguration:toxml(tXml)
       for _,tDependency in pairs(self.atDependencies) do
         local tAttr = {
           ['group'] = tDependency.strGroup,
+          ['module'] = tDependency.strModule,
           ['artifact'] = tDependency.strArtifact,
           ['version'] = tDependency.tVersion:get()
         }
