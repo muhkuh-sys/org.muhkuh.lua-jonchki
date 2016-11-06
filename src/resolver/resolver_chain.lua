@@ -10,14 +10,17 @@ local ResolverChain = class()
 
 --- Initialize a new instance of the resolver chain.
 -- @param strID The ID identifies the resolver.
-function ResolverChain:_init(strID)
+function ResolverChain:_init(cLogger, cSystemConfiguration, strID)
   self.strID = strID
 
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
   -- The system configuration.
-  self.cSystemConfiguration = nil
+  self.cSystemConfiguration = cSystemConfiguration
+
+  -- Get the logger object from the system configuration.
+  self.tLogger = cLogger
 
   -- Create a new chain.
   self.atResolverChain = {}
@@ -60,48 +63,59 @@ end
 
 
 
-function ResolverChain:set_systemconfig(cSysCfg)
-  self.cSystemConfiguration = cSysCfg
-end
-
-
-
 function ResolverChain:set_repositories(atRepositories)
+  local tResult = true
+
   -- Create all repository drivers.
   local atResolverChain = {}
   local atMap = {}
   for _, tRepo in pairs(atRepositories) do
     -- Get the repository ID.
     local strID = tRepo.strID
-    print(string.format('Creating driver for repository "%s".', strID))
+    -- Get the repository type.
+    local strType = tRepo.strType
+    self.tLogger:info('Creating driver for repository "%s" with type "%s".', strID, strType)
 
     -- Does this ID already exist?
     if atMap[strID]~=nil then
-      error(string.format('The ID "%s" is not unique!', strID))
+      tResult = nil
+      self.tLogger:fatal('The ID "%s" is not unique!', strID)
+      break
+    else
+      -- Find the type.
+      local tRepositoryDriverClass = self:get_driver_class_by_type(strType)
+      if tRepositoryDriverClass==nil then
+        tResult = nil
+        self.tLogger:fatal('Could not find a repository driver for the type "%s".', tRepo.strType)
+        break
+      end
+  
+      -- Create a driver instance.
+      local tRepositoryDriver = tRepositoryDriverClass(self.tLogger, strID)
+  
+      -- Setup the repository driver.
+      tResult = tRepositoryDriver:configure(tRepo)
+      if tResult~=true then
+        tResult = nil
+        self.tLogger:fatal('Failed to setup repository driver "%s".', strID)
+        break
+      end
+  
+      -- Add the driver to the resolver chain.
+      table.insert(atResolverChain, tRepositoryDriver)
+  
+      -- Create an ID -> repository mapping.
+      atMap[strID] = tRepositoryDriver
     end
-
-    -- Find the type.
-    local tRepositoryDriverClass = self:get_driver_class_by_type(tRepo.strType)
-    if tRepositoryDriverClass==nil then
-      error(string.format('Could not find a repository driver for the type "%s".', tRepo.strType))
-    end
-
-    -- Create a driver instance.
-    local tRepositoryDriver = tRepositoryDriverClass(strID)
-
-    -- Setup the repository driver.
-    tRepositoryDriver:configure(tRepo)
-
-    -- Add the driver to the resolver chain.
-    table.insert(atResolverChain, tRepositoryDriver)
-
-    -- Create an ID -> repository mapping.
-    atMap[strID] = tRepositoryDriver
   end
 
-  -- Use the new resolver chain and the mapping.
-  self.atResolverChain = atResolverChain
-  self.atRepositoryByID = atMap
+  if tResult==true then
+    -- Use the new resolver chain and the mapping.
+    self.atResolverChain = atResolverChain
+    self.atRepositoryByID = atMap
+  end
+
+  return tResult
 end
 
 
@@ -212,9 +226,9 @@ function ResolverChain:get_available_versions(strGroup, strModule, strArtifact)
     local strSourceID = tRepository:get_id()
 
     -- Get all available versions in this repository.
-    local tResult, strError = tRepository:get_available_versions(strGroup, strModule, strArtifact)
+    local tResult = tRepository:get_available_versions(strGroup, strModule, strArtifact)
     if tResult==nil then
-      print(string.format('Error: failed to scan repository "%s": %s', strSourceID, strError))
+      self.tLogger:warn('Error: failed to scan repository "%s".', strSourceID)
     else
       -- Loop over all versions found in this repository.
       for _, tVersion in pairs(tResult) do
@@ -238,7 +252,8 @@ end
 
 function ResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
-  local strMessage = ''
+
+  local strGMAV = string.format('G:%s M=%s A=%s V=%s', strGroup, strModule, strArtifact, tVersion:get())
 
   -- Check if the GA->V table has already the sources.
   local atGMAVSources = self:get_sources_by_gmav(strGroup, strModule, strArtifact, tVersion)
@@ -256,9 +271,9 @@ Do not store this in the GMA->V table as it would look like this is a complete d
     -- Get the repository with this ID.
     local tDriver = self:get_driver_by_id(strSourceID)
     if tDriver~=nil then
-      tResult, strMessage = tDriver:get_configuration(strGroup, strModule, strArtifact, tVersion)
+      tResult = tDriver:get_configuration(strGroup, strModule, strArtifact, tVersion)
       if tResult==nil then
-        print(string.format('Failed to get %s/%s/%s/%s from repository %s: %s', strGroup, strModule, strArtifact, tVersion:get(), strSourceID, strMessage))
+        self.tLogger:warn('Failed to get %s from repository %s.', strGMAV, strSourceID)
       else
         break
       end
@@ -266,17 +281,18 @@ Do not store this in the GMA->V table as it would look like this is a complete d
   end
 
   if tResult==nil then
-    strMessage = 'No valid configuration found in all available repositories.'
+    self.tLogger:info('No valid configuration found for %s in all available repositories.', strGMAV)
   end
 
-  return tResult, strMessage
+  return tResult
 end
 
 
 
 function ResolverChain:get_artifact(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
-  local strMessage = ''
+
+  local strGMAV = string.format('G:%s M=%s A=%s V=%s', strGroup, strModule, strArtifact, tVersion:get())
 
   -- Check if the GMA->V table has already the sources.
   local atGMAVSources = self:get_sources_by_gmav(strGroup, strModule, strArtifact, tVersion)
@@ -296,22 +312,30 @@ Do not store this in the GMA->V table as it would look like this is a complete d
   for _, strSourceID in pairs(atGMAVSources) do
     -- Get the repository with this ID.
     local tDriver = self:get_driver_by_id(strSourceID)
-    if tDriver~=nil then
-      tResult, strMessage = tDriver:get_artifact(strGroup, strModule, strArtifact, tVersion, strDepackFolder)
-      if tResult~=nil then
+    if tDriver==nil then
+      self.tLogger:warn('No driver found with the ID "%s".', strSourceID)
+    else
+      tResult = tDriver:get_artifact(strGroup, strModule, strArtifact, tVersion, strDepackFolder)
+      if tResult==nil then
+        self.tLogger:info('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
+      else
+        self.tLogger:info('Artifact %s found in repository "%s".', strGMAV, strSourceID)
         break
       end
     end
   end
 
-  return tResult, strMessage
+  if tResult==nil then
+    self.tLogger:warn('Artifact %s not found in all available repositories.', strGMAV)
+  end
+
+  return tResult
 end
 
 
 
 function ResolverChain:retrieve_artifacts(atArtifacts)
   local tResult = true
-  local strError = ''
 
   for _,tGMAV in pairs(atArtifacts) do
     local strGroup = tGMAV.strGroup
@@ -321,12 +345,12 @@ function ResolverChain:retrieve_artifacts(atArtifacts)
     local strVersion = tGMAV.tVersion:get()
 
     local strGMAV = string.format('%s-%s-%s-%s', strGroup, strModule, strArtifact, strVersion)
-    print(string.format('Retrieving %s', strGMAV))
+    self.tLogger:info('Retrieving %s', strGMAV)
 
     -- Copy the artifact to the local depack folder.
-    tResult, strError = self:get_artifact(strGroup, strModule, strArtifact, tVersion)
+    tResult = self:get_artifact(strGroup, strModule, strArtifact, tVersion)
     if tResult==nil then
-      strError = string.format('Failed to install %s: %s', strGMAV, strError)
+      self.tLogger:error(string.format('Failed to retrieve %s.', strGMAV))
       break
     else
       local strArtifactPath = tResult
@@ -336,7 +360,7 @@ function ResolverChain:retrieve_artifacts(atArtifacts)
     end
   end
 
-  return tResult, strError
+  return tResult
 end
 
 

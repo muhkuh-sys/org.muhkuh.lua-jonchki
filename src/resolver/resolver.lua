@@ -9,7 +9,7 @@ local Resolver = class()
 
 --- Initialize a new instance of the exact resolver.
 -- @param strID The ID identifies the resolver.
-function Resolver:_init(strID)
+function Resolver:_init(cLogger, strID)
   self.strID = strID
 
   -- The "penlight" module is used to parse the configuration file.
@@ -21,7 +21,7 @@ function Resolver:_init(strID)
   self.cResolverChain = nil
   self.atRepositoryByID = nil
 
-  self.cLogger = nil
+  self.tLogger = cLogger
 
   -- This is the state enumeration for a ressolve table entry.
   self.RT_Initialized = 0            -- The structure was initialized, no version picked, no resolving done.
@@ -57,12 +57,6 @@ end
 function Resolver:setResolverChain(cResolverChain)
   -- Store the chain.
   self.cResolverChain = cResolverChain
-end
-
-
-
-function Resolver:set_logger(cLogger)
-  self.cLogger = cLogger
 end
 
 
@@ -333,15 +327,15 @@ function Resolver:resolve_set_start_artifact(cArtifact)
   self:resolvtab_add_versions(tResolv, {cArtifact.tInfo.tVersion})
 
   -- Dump the initial resolve table.
-  self.cLogger:log_resolve_status(self, 'This is the initial resolve table with just the start artifact.')
+--  self.cLogger:log_resolve_status(self, 'This is the initial resolve table with just the start artifact.')
 
   -- Pick the version.
   self:resolvetab_pick_version(tResolv, cArtifact.tInfo.tVersion)
-  self.cLogger:log_resolve_status(self, 'The initial version was picked.')
+--  self.cLogger:log_resolve_status(self, 'The initial version was picked.')
 
   -- Add the configuration to the version.
   self:resolvetab_add_config_to_active_version(tResolv, cArtifact)
-  self.cLogger:log_resolve_status(self, 'Added configuration.')
+--  self.cLogger:log_resolve_status(self, 'Added configuration.')
 
   -- Get the available versions for all dependencies.
   self:resolvetab_get_dependency_versions(tResolv)
@@ -401,7 +395,7 @@ function Resolver:resolve_step(tResolv)
     -- Select a version based on the constraints.
     local tVersion, strMessage = self:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
     if tVersion==nil then
-      print(string.format('Failed to select a new version for %s/%s: %s', tResolv.strGroup, tResolv.strArtifact, strMessage))
+      self.tLogger:info('Failed to select a new version for %s/%s: %s', tResolv.strGroup, tResolv.strArtifact, strMessage)
       -- The item is now blocked.
       tResolv.eStatus = self.RT_Blocked
     else
@@ -418,10 +412,10 @@ function Resolver:resolve_step(tResolv)
     local strArtifact = tResolv.strArtifact
     local tVersion = tResolv.ptActiveVersion.tVersion
 
-    local tResult, strMessage = self.cResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
+    local tResult = self.cResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
     if tResult==nil then
       -- The configuration file could not be retrieved.
-      print(string.format('Failed to get the configuration file for %s/%s/%s/%s: %s', strGroup, strModule, strArtifact, tVersion:get(), strMessage))
+      self.tLogger:info('Failed to get the configuration file for %s/%s/%s/%s: %s', strGroup, strModule, strArtifact, tVersion:get(), strMessage)
 
       -- This item is now blocked.
       tResolv.eStatus = self.RT_Blocked
@@ -470,7 +464,7 @@ function Resolver:resolve_step(tResolv)
 
   end
 
-  self.cLogger:log_resolve_status(self, 'Step.')
+--  self.cLogger:log_resolve_status(self, 'Step.')
 
   return tStatus
 end

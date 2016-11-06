@@ -9,7 +9,8 @@ local RepositoryDriver = class()
 
 --- Initialize a new instance of a repository driver.
 -- @param strID The ID used in the the jonchkicfg.xml to reference this instance.
-function RepositoryDriver:_init(strID)
+function RepositoryDriver:_init(tLogger, strID)
+  self.tLogger = tLogger
   self.strID = strID
 
   -- The "penlight" module is used to parse the configuration file.

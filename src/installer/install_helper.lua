@@ -11,7 +11,9 @@ local InstallHelper = class()
 
 --- Initialize a new instance of the install class.
 -- @param strID The ID identifies the resolver.
-function InstallHelper:_init(cSystemConfiguration)
+function InstallHelper:_init(cLogger, cSystemConfiguration)
+  self.cLogger = cLogger
+
   -- Get the installation paths from the system configuration.
   self.install_base = cSystemConfiguration.tConfiguration.install_base
   self.install_lua_path = cSystemConfiguration.tConfiguration.install_lua_path
@@ -38,6 +40,7 @@ end
 function InstallHelper:setCwd(strCwd)
   -- Update the identifier. 
   self.strCwd = strCwd
+  self.cLogger:debug('Using "%s" as the current working folder.', strCwd)
 end
 
 
@@ -115,22 +118,22 @@ function InstallHelper:install(tSrc, strDst)
 
   -- Loop over all elements in the source list.
   for _, strSrc in pairs(astrSrc) do
-    print(string.format('Installing "%s"...', strSrc))
+    self.cLogger:info('Installing "%s"...', strSrc)
     -- Get the absolute path for the current source.
     local strSrcAbs = self.pl.path.abspath(strSrc, self.strCwd)
 
     -- Does the source exist?
     if self.pl.path.exists(strSrcAbs)~=strSrcAbs then
-      error(string.format('Error installing %s: the source path "%s" does not exist.', self.strGMAV, strSrcAbs))
+      error(string.format('The source path "%s" does not exist.', strSrcAbs))
     end
 
     -- Is the source a folder or a file.
     local fIsDir = self.pl.path.isdir(strSrcAbs)
     local fIsFile = self.pl.path.isfile(strSrcAbs)
     if (fIsDir==true) and (fIsFile==true) then
-      error(string.format('Error installing %s: "%s" is both a file and a directory.', self.strGMAV, strSrcAbs))
+      error(string.format('"%s" is both a file and a directory.', strSrcAbs))
     elseif (fIsDir==false) and (fIsFile==false) then
-      error(string.format('Error installing %s: "%s" is neither a file nor a directory.', self.strGMAV, strSrcAbs))
+      error(string.format('"%s" is neither a file nor a directory.', strSrcAbs))
     end
 
     if fIsFile==true then
@@ -153,20 +156,20 @@ function InstallHelper:install(tSrc, strDst)
       local strPackage = self.atInstalledFiles[strDstPath]
       if strPackage~=nil then
         -- Yes -> refuse to overwrite it.
-        error(string.format('Error installing %s. The file "%s" was already installed by the artifact %s.', self.strGMAV, strDstPath, strPackage))
+        error(string.format('The file "%s" was already installed by the artifact %s.', strDstPath, strPackage))
       end
       self.atInstalledFiles[strDstPath] = self.strGMAV
 
       -- Create the output folder.
       local tResult, strError = self.pl.dir.makepath(strDstDirname)
       if tResult~=true then
-        error(string.format('Error installing %s: Failed to create the output folder "%s": %s', self.strGMAV, strDstDirname, strError))
+        error(string.format('Failed to create the output folder "%s": %s', strDstDirname, strError))
       end
 
       -- Copy the file.
       local tResult, strError = self.copy(strSrcAbs, strDstPath)
       if tResult~=true then
-        error(string.format('Error installing %s: Failed to copy "%s" to "%s": %s', self.strGMAV, strSrcAbs, strDstPath, strError))
+        error(string.format('Failed to copy "%s" to "%s": %s', strSrcAbs, strDstPath, strError))
       end
     else
       -- Copy a complete directory.
@@ -185,7 +188,7 @@ function InstallHelper:install(tSrc, strDst)
         local strDstDir = self.pl.path.join(strDstDirname, strRootRel)
         local tResult, strError = self.pl.dir.makepath(strDstDir)
         if tResult~=true then
-          error(string.format('Error installing %s: Failed to create the output folder "%s": %s', self.strGMAV, strDstDir, strError))
+          error(string.format('Failed to create the output folder "%s": %s', strDstDir, strError))
         end
 
         -- Loop over all files and copy them.
@@ -199,7 +202,7 @@ function InstallHelper:install(tSrc, strDst)
           local strPackage = self.atInstalledFiles[strDstPath]
           if strPackage~=nil then
             -- Yes -> refuse to overwrite it.
-            error(string.format('Error installing %s. The file "%s" was already installed by the artifact %s.', self.strGMAV, strDstPath, strPackage))
+            error(string.format('The file "%s" was already installed by the artifact %s.', strDstPath, strPackage))
           end
           self.atInstalledFiles[strDstPath] = self.strGMAV
 
@@ -207,7 +210,7 @@ function InstallHelper:install(tSrc, strDst)
           print(string.format('copy "%s" -> "%s"', strSrcPath, strDstPath))
           local tResult, strError = self:copy(strSrcPath, strDstPath)
           if tResult~=true then
-            error(string.format('Error installing %s: Failed to copy "%s" to "%s": %s', self.strGMAV, strSrcPath, strDstPath, strError))
+            error(string.format('Failed to copy "%s" to "%s": %s', strSrcPath, strDstPath, strError))
           end
         end
       end

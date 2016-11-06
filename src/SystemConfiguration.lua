@@ -11,9 +11,11 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init()
+function SystemConfiguration:_init(cLogger)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
+
+  self.tLogger = cLogger
 
   -- There is no configuration yet.
   self.tConfiguration = nil
@@ -71,123 +73,135 @@ end
 
 
 function SystemConfiguration:parse_configuration(strConfigurationFilename)
+  -- Be pessimistic...
+  local tResult = nil
+
+  self.tLogger:info('Reading the system configuration from "%s"', strConfigurationFilename)
+
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
-    error('The SystemConfiguration class expects a filename as a parameter.')
-  end
+    self.tLogger:fatal('The SystemConfiguration class expects a filename as a parameter.')
+  else
+    -- Read the configuration file into a LUA table.
+    local tCfg,strError = self.pl.config.read(strConfigurationFilename)
+    if tCfg==nil then
+      self.tLogger:fatal('Failed to read the configuration file: %s', strError)
+    else
+      local atOptions = {
+        { key='work',                   required=true,  replacement=true,  default=nil },
+        { key='cache',                  required=false, replacement=false, default='${work}/cache' },
+        { key='cache_max_size',         required=false, replacement=false, default='512M' },
+        { key='depack',                 required=false, replacement=false, default='${work}/depack' },
+        { key='install_base',           required=false, replacement=true,  default='${work}/install' },
+        { key='install_lua_path',       required=false, replacement=false, default='${install_base}/lua' },
+        { key='install_lua_cpath',      required=false, replacement=false, default='${install_base}/lua_plugins' },
+        { key='install_shared_objects', required=false, replacement=false, default='${install_base}/shared_objects' },
+        { key='install_doc',            required=false, replacement=false, default='${install_base}/doc' }
+      }
 
-  -- Read the configuration file into a LUA table.
-  local tCfg,strError = self.pl.config.read(strConfigurationFilename)
-  if tCfg==nil then
-    error(string.format('Failed to read the configuration file: %s', strError))
-  end
+      -- Check if all required entries are present.
+      local atMissing = {}
+      for uiCnt,tAttr in ipairs(atOptions) do
+        local strKey = tAttr.key
+        if tAttr.required==true and tCfg[strKey]==nil then
+          table.insert(atMissing, strKey)
+        end
+      end
+      if #atMissing ~= 0 then
+        self.tLogger:fatal('Invalid configuration. The following required keys are not present: %s', table.concat(atMissing, ', '))
+      else
+        -- Loop over all configuration entries and check if they are valid.
+        local atUnknown = {}
+        for strKey,tValue in pairs(tCfg) do
+          local fFound = false
+          for uiCnt,tAttr in ipairs(atOptions) do
+            if tAttr.key==strKey then
+              fFound = true
+              break
+            end
+          end
+          if fFound==false then
+            table.insert(atUnknown. strKey)
+          end
+        end
+        if #atUnknown ~= 0 then
+          self.tLogger:warn('Warning: Ignoring unknown configuration entries: %s', table.concat(atUnknown, ', '))
+        end
 
-  local atOptions = {
-    { key='work',                   required=true,  replacement=true,  default=nil },
-    { key='cache',                  required=false, replacement=false, default='${work}/cache' },
-    { key='cache_max_size',         required=false, replacement=false, default='512M' },
-    { key='depack',                 required=false, replacement=false, default='${work}/depack' },
-    { key='install_base',           required=false, replacement=true,  default='${work}/install' },
-    { key='install_lua_path',       required=false, replacement=false, default='${install_base}/lua' },
-    { key='install_lua_cpath',      required=false, replacement=false, default='${install_base}/lua_plugins' },
-    { key='install_shared_objects', required=false, replacement=false, default='${install_base}/shared_objects' },
-    { key='install_doc',            required=false, replacement=false, default='${install_base}/doc' }
-  }
+        -- Collect all options in a new table.
+        local atConfiguration = {}
+        -- Collect all replacements in a new table.
+        local atReplacements = {}
 
-  -- Check if all required entries are present.
-  local atMissing = {}
-  for uiCnt,tAttr in ipairs(atOptions) do
-    local strKey = tAttr.key
-    if tAttr.required==true and tCfg[strKey]==nil then
-      table.insert(atMissing, strKey)
-    end
-  end
-  if #atMissing ~= 0 then
-    error(string.format('Invalid configuration. The following required keys are not present: %s', table.concat(atMissing, ', ')))
-  end
+        -- Parse all options.
+        for uiCnt,tAttr in ipairs(atOptions) do
+          -- Get the key.
+          local strKey = tAttr.key
+          -- Get the value.
+          local tValue = tCfg[strKey]
+          if tValue==nil then
+            -- Get the default value.
+            tValue = tAttr.default
+          end
 
-  -- Loop over all configuration entries and check if they are valid.
-  local atUnknown = {}
-  for strKey,tValue in pairs(tCfg) do
-    local fFound = false
-    for uiCnt,tAttr in ipairs(atOptions) do
-      if tAttr.key==strKey then
-        fFound = true
-        break
+          -- Replace.
+          local strValue = string.gsub(tValue, '%${([a-zA-Z0-9_]+)}', atReplacements)
+          atConfiguration[strKey] = strValue
+      
+          if tAttr.replacement==true then
+            atReplacements[strKey] = strValue
+          end
+        end
+
+        -- 'cache_max_size' must be a number.
+        local strValue = atConfiguration.cache_max_size
+        local ulValue = self:pretty_string_to_number(strValue)
+        if ulValue==nil then
+          self.tLogger:fatal('Invalid value for "cache_max_size": %s', strValue)
+        else
+          atConfiguration.cache_max_size = ulValue
+
+          -- Convert all paths to ablosute.
+          atConfiguration.work = self.pl.path.abspath(atConfiguration.work)
+          atConfiguration.depack = self.pl.path.abspath(atConfiguration.depack)
+          atConfiguration.install_base = self.pl.path.abspath(atConfiguration.install_base)
+          atConfiguration.install_lua_path = self.pl.path.abspath(atConfiguration.install_lua_path)
+          atConfiguration.install_lua_cpath = self.pl.path.abspath(atConfiguration.install_lua_cpath)
+          atConfiguration.install_shared_objects = self.pl.path.abspath(atConfiguration.install_shared_objects)
+          atConfiguration.install_doc = self.pl.path.abspath(atConfiguration.install_doc)
+
+          -- install_lua_path must be below install_base.
+          if self:is_path_child(atConfiguration.install_base, atConfiguration.install_lua_path)~=true then
+            self.tLogger:fatal("The install_lua_path is not below install_base!")
+          elseif self:is_path_child(atConfiguration.install_base, atConfiguration.install_lua_cpath)~=true then
+            self.tLogger:fatal("The install_lua_cpath is not below install_base!")
+          elseif self:is_path_child(atConfiguration.install_base, atConfiguration.install_shared_objects)~=true then
+            self.tLogger:fatal("The install_shared_objects is not below install_base!")
+          elseif self:is_path_child(atConfiguration.install_base, atConfiguration.install_doc)~=true then
+            self.tLogger:fatal("The install_doc is not below install_base!")
+          else
+            -- Store the configuration.
+            self.tConfiguration = atConfiguration
+
+            -- Success!
+            tResult = true
+
+            -- Show tht configuration in the debug log.
+            self.tLogger:debug('System configuration: %s', tostring(self))
+          end
+        end
       end
     end
-    if fFound==false then
-      table.insert(atUnknown. strKey)
-    end
-  end
-  if #atUnknown ~= 0 then
-    print(string.format('Warning: Ignoring unknown configuration entries: %s', table.concat(atUnknown, ', ')))
   end
 
-  -- Collect all options in a new table.
-  local atConfiguration = {}
-  -- Collect all replacements in a new table.
-  local atReplacements = {}
-
-  -- Parse all options.
-  for uiCnt,tAttr in ipairs(atOptions) do
-    -- Get the key.
-    local strKey = tAttr.key
-    -- Get the value.
-    local tValue = tCfg[strKey]
-    if tValue==nil then
-      -- Get the default value.
-      tValue = tAttr.default
-    end
-
-    -- Replace.
-    local strValue = string.gsub(tValue, '%${([a-zA-Z0-9_]+)}', atReplacements)
-    atConfiguration[strKey] = strValue
-
-    if tAttr.replacement==true then
-      atReplacements[strKey] = strValue
-    end
-  end
-
-  -- 'cache_max_size' must be a number.
-  local strValue = atConfiguration.cache_max_size
-  local ulValue = self:pretty_string_to_number(strValue)
-  if ulValue==nil then
-    error(string.format('Invalid value for "cache_max_size": %s', strValue))
-  end
-  atConfiguration.cache_max_size = ulValue
-
-  -- Convert all paths to ablosute.
-  atConfiguration.work = self.pl.path.abspath(atConfiguration.work)
-  atConfiguration.depack = self.pl.path.abspath(atConfiguration.depack)
-  atConfiguration.install_base = self.pl.path.abspath(atConfiguration.install_base)
-  atConfiguration.install_lua_path = self.pl.path.abspath(atConfiguration.install_lua_path)
-  atConfiguration.install_lua_cpath = self.pl.path.abspath(atConfiguration.install_lua_cpath)
-  atConfiguration.install_shared_objects = self.pl.path.abspath(atConfiguration.install_shared_objects)
-  atConfiguration.install_doc = self.pl.path.abspath(atConfiguration.install_doc)
-
-  -- install_lua_path must be below install_base.
-  if self:is_path_child(atConfiguration.install_base, atConfiguration.install_lua_path)~=true then
-    error("The install_lua_path is not below install_base!")
-  end
-  if self:is_path_child(atConfiguration.install_base, atConfiguration.install_lua_cpath)~=true then
-    error("The install_lua_cpath is not below install_base!")
-  end
-  if self:is_path_child(atConfiguration.install_base, atConfiguration.install_shared_objects)~=true then
-    error("The install_shared_objects is not below install_base!")
-  end
-  if self:is_path_child(atConfiguration.install_base, atConfiguration.install_doc)~=true then
-    error("The install_doc is not below install_base!")
-  end
-
-  -- Store the configuration.
-  self.tConfiguration = atConfiguration
+  return tResult
 end
 
 
 
 function SystemConfiguration:initialize_paths()
-  local tResult
+  -- Be optimistic!
+  local tResult = true
   local strError
 
   local atPaths = {
@@ -211,32 +225,40 @@ function SystemConfiguration:initialize_paths()
       -- The path does not exist yet. Try to create it.
       tResult, strError = self.pl.dir.makepath(strPath)
       if tResult~=true then
-        error(string.format('Failed to create the path "%s": %s', strPath, strError))
+        tResult = nil
+        self.tLogger:fatal('Failed to create the path "%s": %s', strPath, strError)
+        break
       end
 
     else
       -- The path already exists. It must be a folder.
       if self.pl.path.isdir(strPath)~=true then
-        error(string.format('The path "%s" is no directory!', strPath))
+        tResult = nil
+        self.tLogger:fatal('The path "%s" is no directory!', strPath)
+        break
       end
 
       -- Clear the path.
       if tAttr.fClear==true then
         tResult, strError = self.pl.dir.rmtree(strPath)
         if tResult~=true then
-          error(string.format('Failed to remove the path "%s": %s', strPath, strError))
+          tResult = nil
+          self.tLogger:fatal('Failed to remove the path "%s": %s', strPath, strError)
+          break
         end
 
         -- Create the path again.
         tResult, strError = self.pl.dir.makepath(strPath)
         if tResult~=true then
-          error(string.format('Failed to create the path "%s": %s', strPath, strError))
+          tResult = nil
+          self.tLogger:fatal('Failed to create the path "%s": %s', strPath, strError)
+          break
         end
       end
     end
   end
 
-  -- Clear the complete depack folder.
+  return tResult
 end
 
 
