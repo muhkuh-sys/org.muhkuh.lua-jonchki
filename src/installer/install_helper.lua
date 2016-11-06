@@ -54,7 +54,11 @@ end
 
 function InstallHelper:install(tSrc, strDst)
   -- The first argument must be an "Install" class.
-  if not(type(self)=='table' and type(self.is_a)=='function' and self:is_a(Install)==true) then
+  if not(type(self)=='table' and type(self.is_a)=='function' and self:is_a(InstallHelper)==true) then
+    self.cLogger:debug('Wrong self argument for the "install" method!')
+    self.cLogger:debug('type(self) = "%s".', type(self))
+    self.cLogger:debug('type(self.is_a) = "%s"', type(self.is_a))
+    self.cLogger:debug('self:is_a(InstallHelper) = %s', tostring(self:is_a(InstallHelper)))
     error('The "install" method was called without a proper "self" argument. Use "t:install(source, destination)" to call the function.')
   end
 
