@@ -211,7 +211,6 @@ function InstallHelper:install(tSrc, strDst)
           self.atInstalledFiles[strDstPath] = self.strGMAV
 
           -- Copy the file.
-          print(string.format('copy "%s" -> "%s"', strSrcPath, strDstPath))
           local tResult, strError = self:copy(strSrcPath, strDstPath)
           if tResult~=true then
             error(string.format('Failed to copy "%s" to "%s": %s', strSrcPath, strDstPath, strError))
@@ -227,6 +226,8 @@ end
 function InstallHelper:copy(strSrc, strDst)
   local tResult
   local strError
+
+  self.cLogger:debug('copy "%s" -> "%s"', strSrc, strDst)
 
   local tSrc, strError = io.open(strSrc, 'rb')
   if tSrc~=nil then
