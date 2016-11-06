@@ -1,7 +1,38 @@
 -- This test checks the Configuration class.
 
 -- Add the src folder to the search list.
-package.path = package.path .. ";src/?.lua;src/?/init.lua;lualogging/?.lua"
+package.path = package.path .. ";src/?.lua;src/?/init.lua;lualogging/?.lua;argparse/?.lua"
+
+local argparse = require 'argparse'
+local Logging = require 'logging'
+local pl = require'pl.import_into'()
+
+
+local atLogLevels = {
+  debug = Logging.DEBUG,
+  info = Logging.INFO,
+  warn = Logging.WARN,
+  error = Logging.ERROR,
+  fatal = Logging.FATAL
+}
+
+local tParser = argparse('jonchki', 'A dependency manager for LUA packages.')
+tParser:argument('input', 'Input file.')
+  :target('strInputFile')
+tParser:option('-v --verbose')
+  :description(string.format('Set the verbosity level. Possible values are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :default('warn')
+  :convert(atLogLevels)
+  :target('tLogLevel')
+tParser:option('-s --syscfg')
+  :description('Load the system configuration from FILE.')
+  :default('demo.cfg')
+  :target('strSystemConfigurationFile')
+tParser:option('-p --prjcfg')
+  :description('Load the project configuration from FILE.')
+  :default('jonchkicfg.xml')
+  :target('strProjectConfigurationFile')
+local tArgs = tParser:parse()
 
 
 -----------------------------------------------------------------------------
@@ -10,9 +41,8 @@ package.path = package.path .. ";src/?.lua;src/?/init.lua;lualogging/?.lua"
 --
 
 -- TODO: the logger type and level should depend on some command line options.
-local Logging = require 'logging'
 local cLogger = require 'logging.console'()
-cLogger:setLevel(Logging.DEBUG)
+cLogger:setLevel(tArgs.tLogLevel)
 
 
 -----------------------------------------------------------------------------
@@ -23,7 +53,7 @@ local SystemConfiguration = require 'SystemConfiguration'
 -- Create a configuration object.
 local cSysCfg = SystemConfiguration(cLogger)
 -- Read the settings from 'demo.cfg'.
-local tResult = cSysCfg:parse_configuration('demo.cfg')
+local tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
 if tResult==nil then
   cLogger:fatal('Failed to parse the system configuration!')
   os.exit(1)
@@ -42,7 +72,7 @@ end
 --
 local ProjectConfiguration = require 'ProjectConfiguration'
 local cPrjCfg = ProjectConfiguration(cLogger)
-local tResult = cPrjCfg:parse_configuration('jonchkicfg.xml')
+local tResult = cPrjCfg:parse_configuration(tArgs.strProjectConfigurationFile)
 if tResult==nil then
   cLogger:fatal('Failed to parse the project configuration!')
   os.exit(1)
@@ -64,7 +94,7 @@ cResolverChain:set_repositories(cPrjCfg.atRepositories)
 --
 local ArtifactConfiguration = require 'ArtifactConfiguration'
 local cArtifactCfg = ArtifactConfiguration(cLogger)
-cArtifactCfg:parse_configuration_file('org.muhkuh.tools-flasher_cli.xml')
+cArtifactCfg:parse_configuration_file(tArgs.strInputFile)
 
 -----------------------------------------------------------------------------
 --
