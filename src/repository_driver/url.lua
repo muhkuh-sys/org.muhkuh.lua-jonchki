@@ -158,12 +158,8 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
             local tVersion = self.Version()
             -- NOTE: the result of this operation is local as a failure just
             --       means that we got a bad match. 
-            local tParseResult, _ = tVersion:set(strVersion)
+            local tParseResult = tVersion:set(strVersion)
             if tParseResult==true then
-              if strVersion=='..' then
-                error('This is still not catched!')
-              end
-            
               -- Extract the versions from the link and compare them to the text version.
               -- NOTE: The link might have more matches as it can contain stuff like "lua51".
               for strVersionLink in string.gmatch(strLink, '[%d%.]+') do

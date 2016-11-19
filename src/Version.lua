@@ -26,7 +26,7 @@ end
 function Version:componentToNumber(strComponent)
   -- Be pessimistic.
   local tResult = nil
-  local strError = ''
+  local strError = nil
 
   -- Try to convert the component to a number.
   local uiNumber = tonumber(strComponent)
@@ -47,50 +47,49 @@ end
 
 
 function Version:convertStringToList(strVersion)
-  local fOk = true
-  local tResult = nil
+  local tResult = true
+  local strError = nil
   local auiComponents = {}
 
 
   -- Split the version string by dots.
   local astrComponents = self.pl.stringx.split(strVersion, '.')
+
   -- Convert all components to numbers.
   for _, strComponent in ipairs(astrComponents) do
-    local uiNumber, strError = self:componentToNumber(strComponent)
+    local uiNumber, strMsg = self:componentToNumber(strComponent)
     if uiNumber==nil then
-      fOk = false
-      tResult = strError
+      tResult = nil
+      strError = strMsg
       break
     else
       table.insert(auiComponents, uiNumber)
     end
   end
 
-  -- Does the list contain at least one version number?
-  if table.maxn(auiComponents)==0 then
-    fOk = false
-    tResult = string.format("Invalid version: the string '%s' contains no version components.", strVersion)
-  else
-    tResult = auiComponents
+  if tResult==true then
+    -- Does the list contain at least one version number?
+    if table.maxn(auiComponents)==0 then
+      tResult = nil
+      strError = string.format("Invalid version: the string '%s' contains no version components.", strVersion)
+    else
+      tResult = auiComponents
+    end
   end
 
-  return fOk, tResult
+  return tResult, strError
 end
 
 
 
 function Version:getCleanString(strVersion)
-  local fOk = true
-  local tResult = nil
-
-
-  fOk,tResult = self:convertStringToList(strVersion)
-  if fOk==true then
+  local tResult, strError = self:convertStringToList(strVersion)
+  if tResult~=nil then
     local strCleanVersion = table.concat(tResult, ".")
     tResult = strCleanVersion
   end
 
-  return fOk, tResult
+  return tResult, strError
 end
 
 
@@ -108,39 +107,37 @@ end
 
 
 function Version:set(tVersion)
-  local fOk = true
-  local strMessage = nil
+  local tResult
+  local strError
 
   -- A parameter of "nil" allows to clear the version.
   if type(tVersion)=='nil' then
     self.atVersion = nil
+    tResult = true
 
   elseif type(tVersion)=='string' then
-    local fOk, tResult = self:convertStringToList(tVersion)
-    if fOk~=true then
-      fOk = false
-      strMessage = tResult
-    else
+    tResult, strError = self:convertStringToList(tVersion)
+    if tResult~=nil then
       self.atVersion = tResult
+      tResult = true
     end
 
   elseif type(tVersion)=='table' then
     -- Is this a Version object or a plain version table?
     if type(tVersion.is_a)=='function' and tVersion:is_a(Version)==true then
       self.atVersion = tVersion.atVersion
+      tResult = true
     else
       local strVersion = table.concat(tVersion, '.')
-      local fOk, tResult = self:convertStringToList(strVersion)
-      if fOk~=true then
-        fOk = false
-        strMessage = tResult
-      else
+      tResult, strError = self:convertStringToList(strVersion)
+      if tResult~=nil then
         self.atVersion = tResult
+        tResult = true
       end
     end
   end
 
-  return fOk, strMessage
+  return tResult, strError
 end
 
 

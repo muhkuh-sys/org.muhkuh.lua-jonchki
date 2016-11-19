@@ -45,7 +45,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
     local strID = atAttributes['id']
     if strID==nil or strID=='' then
       aLxpAttr.tResult = nil
-      self.tLogger:fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
+      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
     else
       -- Is the ID already defined?
       local fIsDuplicate = false
@@ -57,13 +57,13 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
       end
       if fIsDuplicate==true then
         aLxpAttr.tResult = nil
-        self.tLogger:fatal('Error in line %d, col %d: the ID "%s" is already used.', iPosLine, iPosColumn, strID)
+        aLxpAttr.tLogger:fatal('Error in line %d, col %d: the ID "%s" is already used.', iPosLine, iPosColumn, strID)
       else
         tCurrentRepository.strID = strID
         local strType = atAttributes['type']
         if strType==nil or strType=='' then
           aLxpAttr.tResult = nil
-          self.tLogger:fatal('Error in line %d, col %d: missing "type".', iPosLine, iPosColumn)
+          aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "type".', iPosLine, iPosColumn)
         else
           tCurrentRepository.strType = strType
           local strCacheable = atAttributes['cacheable']
@@ -75,7 +75,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
           end
           if fCacheable==nil then
             aLxpAttr.tResult = nil
-            self.tLogger:fatal('Error in line %d, col %d: invalid value for "cacheable": "%s".', iPosLine, iPosColumn, strCacheable)
+            aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "cacheable": "%s".', iPosLine, iPosColumn, strCacheable)
           else
             tCurrentRepository.cacheable = fCacheable
             tCurrentRepository.strRoot = nil
@@ -181,7 +181,8 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
       tCurrentRepository = nil,
       atRepositories = {},
 
-      tResult = true
+      tResult = true,
+      tLogger = self.tLogger
     }
 
     local aLxpCallbacks = {}
