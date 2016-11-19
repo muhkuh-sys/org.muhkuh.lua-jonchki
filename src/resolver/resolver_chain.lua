@@ -1,6 +1,6 @@
 --- The resolver chain class.
--- @author cthelen@hilscher.com
--- @copyright 2016 Hilscher Gesellschaft für Systemautomation mbH
+-- @author doc_bacardi@users.sourceforge.net
+-- @copyright 2016 Christoph Thelen
 
 -- Create the configuration class.
 local class = require 'pl.class'
@@ -33,6 +33,7 @@ function ResolverChain:_init(cLogger, cSystemConfiguration, strID)
   -- Get all available repository drivers.
   local atRepositoryDriverClasses = {}
   table.insert(atRepositoryDriverClasses, require 'repository_driver.filesystem')
+  table.insert(atRepositoryDriverClasses, require 'repository_driver.url')
   self.atRepositoryDriverClasses = atRepositoryDriverClasses
 end
 

@@ -2,8 +2,8 @@
 -- The repository module provides an abstraction to a number of different
 -- repositories. The real work is done by drivers. This is the driver
 -- providing access to a repository on a filesystem.
--- @author cthelen@hilscher.com
--- @copyright 2016 Hilscher Gesellschaft für Systemautomation mbH
+-- @author doc_bacardi@users.sourceforge.net
+-- @copyright 2016 Christoph Thelen
 
 -- Create the class.
 local class = require 'pl.class'
@@ -13,7 +13,7 @@ local RepositoryDriverFilesystem = class(RepositoryDriver)
 
 
 function RepositoryDriverFilesystem:_init(tLogger, strID)
-  -- Set the ID of the repository driver.
+  -- Set the logger and the ID of the repository driver.
   self:super(tLogger, strID)
 
   -- Clear the patterns for the configuration and artifact.
@@ -211,7 +211,7 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
         tResult = self.Hash:check_sha1(strLocalFile, strShaRemote)
         if tResult~=true then
           tResult = nil
-          self.tLogger:error('The SHA1 sum of the configuration "%s" does not match.', strCfgPath)
+          self.tLogger:error('The SHA1 sum of the artifact "%s" does not match.', strArtifactPath)
         else
           tResult = strLocalFile
         end
