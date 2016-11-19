@@ -21,70 +21,27 @@ end
 -- The components of a version are separated by dots ("."). One component must
 -- be a positive integer.
 -- @param strComponent The string to be converted.
--- @return The function returns 2 values. If an error occured, it returns false and an error message as a string.
---         If the function succeeded it returns true and the converted number.
+-- @return If an error occured, it returns nil and an error message as a string.
+--         If the function succeeded it returns the converted number.
 function Version:componentToNumber(strComponent)
-  -- Expect success.
-  local fOk = true
-
-  -- This will be the number or the error message.
+  -- Be pessimistic.
   local tResult = nil
+  local strError = ''
 
   -- Try to convert the component to a number.
   local uiNumber = tonumber(strComponent)
   if uiNumber==nil then
     -- Failed to convert the component to a number.
-    fOk = false
-    tResult = string.format("Invalid version: '%s'. Component '%s' at offset %d is no number!", strVersion, strSub, iSearchPosition)
+    strError = string.format('"%s" is no number!', strComponent)
   elseif uiNumber<0 then
     -- The component is a negative number. This is invalid!
-    fOk = false
-    tResult = string.format("Invalid version: '%s'. Component '%s' at offset %d is negativ!", strVersion, strSub, iSearchPosition)
+    strError = string.format('"%s" is negativ!', strComponent)
   else
     -- The component is a positive integer.
     tResult = uiNumber
   end
 
-  return fOk, tResult
-end
-
-
-
-function Version:splitString(strData, strSeparator)
-  local fOk = true
-  local tResult = nil
-  local astrComponents = {}
-  local iSearchPosition = 1
-
-
-  repeat
-    -- Find the next separator.
-    local iStart,iEnd = string.find(strData, strSeparator, iSearchPosition, true)
-    if iStart~=nil then
-      -- There must be at least one char before the dot.
-      if iSearchPosition==iStart then
-        fOk = false
-        tResult = string.format("Nothing before the separator at position %d!", iSearchPosition)
-        break
-      end
-      -- Extract the string from the search start up to the separator.
-      local strSub = string.sub(strData, iSearchPosition, iStart-1)
-      table.insert(astrComponents, strSub)
-
-      iSearchPosition = iEnd + 1
-    end
-  until iStart==nil
-
-  if iSearchPosition>string.len(strData) then
-    fOk = false
-    tResult = "The string ends with a separator!"
-  else
-    local strSub = string.sub(strData, iSearchPosition)
-    table.insert(astrComponents, strSub)
-    tResult = astrComponents
-  end
-
-  return fOk, tResult
+  return tResult, strError
 end
 
 
@@ -96,24 +53,16 @@ function Version:convertStringToList(strVersion)
 
 
   -- Split the version string by dots.
-  fOk,tResult = self:splitString(strVersion, ".")
-  if fOk~=true then
-    fOk = false
-    tResult = string.format("Invalid version: '%s'. %s", strVersion, tResult)
-  else
-    local astrComponents = tResult
-
-    -- Convert all components to numbers.
-    for iCnt,strComponent in ipairs(astrComponents) do
-      local uiNumber
-      fOk,uiNumber = self:componentToNumber(strComponent)
-      if fOk~=true then
-        fOk = false
-        tResult = uiNumber
-        break
-      else
-        table.insert(auiComponents, uiNumber)
-      end
+  local astrComponents = self.pl.stringx.split(strVersion, '.')
+  -- Convert all components to numbers.
+  for _, strComponent in ipairs(astrComponents) do
+    local uiNumber, strError = self:componentToNumber(strComponent)
+    if uiNumber==nil then
+      fOk = false
+      tResult = strError
+      break
+    else
+      table.insert(auiComponents, uiNumber)
     end
   end
 
