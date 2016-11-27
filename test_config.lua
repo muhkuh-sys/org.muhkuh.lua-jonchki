@@ -115,12 +115,12 @@ else
   local tResult = cResolverChain:retrieve_artifacts(atArtifacts)
   if tResult==nil then
     cLogger:error('Failed to retrieve all artifacts.')
-  end
-
-  local Installer = require 'installer.installer'
-  local cInstaller = Installer(cLogger, cSysCfg)
-  local tResult = cInstaller:install_artifacts(atArtifacts)
-  if tResult==nil then
-    cLogger:error('Failed to install all artifacts.')
+  else
+    local Installer = require 'installer.installer'
+    local cInstaller = Installer(cLogger, cSysCfg)
+    local tResult = cInstaller:install_artifacts(atArtifacts)
+    if tResult==nil then
+      cLogger:error('Failed to install all artifacts.')
+    end
   end
 end
