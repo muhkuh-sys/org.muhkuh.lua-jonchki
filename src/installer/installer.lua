@@ -37,7 +37,7 @@ function Installer:depack_archive(strArtifactPath, strDepackPath)
     self.cLogger:error('Failed to open %s as a ZIP archive: %s', strArtifactPath, strError)
   else
     local tZip = tResult
-  
+
     -- Loop over all files in the archive.
     for tAttr in tZip:files() do
       local strZipFileName = tAttr.filename
@@ -47,7 +47,7 @@ function Installer:depack_archive(strArtifactPath, strDepackPath)
         -- Get the directory part of the filename.
         local strZipFolder = self.pl.path.dirname(strZipFileName)
         local strOutputFolder = self.pl.path.join(strDepackPath, strZipFolder)
-  
+
         -- The output folder must be below the depack folder.
         local strRel = self.pl.path.relpath(strDepackPath, strOutputFolder)
         if strRel~='' then
@@ -88,7 +88,7 @@ function Installer:depack_archive(strArtifactPath, strDepackPath)
         tFileDst:close()
       end
     end
-  
+
     tZip:close()
   end
 
@@ -128,13 +128,13 @@ function Installer:run_install_script(strDepackPath, cInstallHelper, strGMAV)
           self.cLogger:error('Failed to parse the install script "%s": %s', strInstallScriptFile, strError)
         else
           local fnInstall = tResult
-      
+
           -- Set the artifact's depack path as the current working folder.
           cInstallHelper:setCwd(strDepackPath)
-      
+
           -- Set the current artifact identification for error messages.
           cInstallHelper:setId(strGMAV)
-      
+
           -- Call the install script.
           tResult, strError = pcall(fnInstall, cInstallHelper)
           if tResult~=true then
