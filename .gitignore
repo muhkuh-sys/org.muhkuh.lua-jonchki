@@ -1,2 +1,5 @@
 # Ignore the local Eclipse settings.
 /.settings
+
+# Ignore the demo repository.
+/demo_repository
