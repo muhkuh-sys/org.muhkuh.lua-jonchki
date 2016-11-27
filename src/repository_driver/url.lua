@@ -66,7 +66,7 @@ end
 
 
 function RepositoryDriverUrl:get_url(strUrl)
-  local tResult = true
+  local tResult = nil
   local tCURL = self.curl.easy()
 
   tCURL:setopt_url(strUrl)
@@ -79,20 +79,16 @@ function RepositoryDriverUrl:get_url(strUrl)
 
   local tCallResult, strError = pcall(tCURL.perform, tCURL)
   if tCallResult~=true then
-    tResult = nil
     self.tLogger('Failed to retrieve URL "%s": %s', strUrl, strError)
   else
     local uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
-    if uiHttpResult~=200 then
-      tResult = nil
+    if uiHttpResult==200 then
+      tResult = table.concat(self.atDownloadData)
+    else
       self.tLogger('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
     end
   end
   tCURL:close()
-
-  if tResult == true then
-    tResult = table.concat(self.atDownloadData)
-  end
 
   return tResult
 end
@@ -114,12 +110,12 @@ function RepositoryDriverUrl:download_url(strUrl, strLocalFile)
     tCURL:setopt_progressfunction(self.curl_progress, self)
     local tCallResult, strError = pcall(tCURL.perform, tCURL)
     if tCallResult~=true then
-      tResult = nil
       self.tLogger('Failed to retrieve URL "%s": %s', strUrl, strError)
     else
       local uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
-      if uiHttpResult~=200 then
-        tResult = nil
+      if uiHttpResult==200 then
+        tResult = true
+      else
         self.tLogger('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
       end
     end
@@ -174,13 +170,13 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
           -- NOTE: The regular expression is not sufficient for a correct
           -- version string, as it accepts any mixture of numbers and dots.
           -- Stricter expressions did not work properly, so the version is
-          -- checked for a valid syntax later with the Version class.   
+          -- checked for a valid syntax later with the Version class.
           local strVersion = string.match(strText, '[%d%.]+')
           if strVersion~=nil then
             -- Parse the version with the Version class.
             local tVersion = self.Version()
             -- NOTE: the result of this operation is local as a failure just
-            --       means that we got a bad match. 
+            --       means that we got a bad match.
             local tParseResult = tVersion:set(strVersion)
             if tParseResult==true then
               -- Extract the versions from the link and compare them to the text version.
@@ -197,7 +193,7 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
         end
 
         tResult = atVersions
-      end        
+      end
 
     else
       -- Unknown protocol.
@@ -298,10 +294,10 @@ function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVer
   -- Download the file to the destination folder.
   local strLocalFile = self.pl.path.join(strDestinationFolder, strFileName)
   local strError
-  tResult, strError = self:download_url(strArtifactUrl, strLocalFile)
+  tResult = self:download_url(strArtifactUrl, strLocalFile)
   if tResult~=true then
     tResult = nil
-    self.tLogger:error('Failed to download the URL "%s" to the depack folder: %s', strArtifactUrl, strError)
+    self.tLogger:error('Failed to download the URL "%s" to the file %s', strArtifactUrl, strLocalFile)
   else
     -- Get tha SHA sum.
     tResult = self:get_sha_sum(strArtifactUrl)
