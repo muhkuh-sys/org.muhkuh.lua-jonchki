@@ -66,6 +66,7 @@ end
 
 
 function RepositoryDriverUrl:get_url(strUrl)
+  local tResult = true
   local tCURL = self.curl.easy()
 
   tCURL:setopt_url(strUrl)
@@ -76,10 +77,24 @@ function RepositoryDriverUrl:get_url(strUrl)
   tCURL:setopt_writefunction(self.curl_download, self)
   tCURL:setopt_progressfunction(self.curl_progress, self)
 
-  tCURL:perform()
+  local tCallResult, strError = pcall(tCURL.perform, tCURL)
+  if tCallResult~=true then
+    tResult = nil
+    self.tLogger('Failed to retrieve URL "%s": %s', strUrl, strError)
+  else
+    local uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
+    if uiHttpResult~=200 then
+      tResult = nil
+      self.tLogger('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
+    end
+  end
   tCURL:close()
 
-  return table.concat(self.atDownloadData)
+  if tResult == true then
+    tResult = table.concat(self.atDownloadData)
+  end
+
+  return tResult
 end
 
 
@@ -97,12 +112,20 @@ function RepositoryDriverUrl:download_url(strUrl, strLocalFile)
   else
     tCURL:setopt_writefunction(tFile)
     tCURL:setopt_progressfunction(self.curl_progress, self)
-    tCURL:perform()
+    local tCallResult, strError = pcall(tCURL.perform, tCURL)
+    if tCallResult~=true then
+      tResult = nil
+      self.tLogger('Failed to retrieve URL "%s": %s', strUrl, strError)
+    else
+      local uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
+      if uiHttpResult~=200 then
+        tResult = nil
+        self.tLogger('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
+      end
+    end
     tCURL:close()
 
     tFile:close()
-
-    tResult = true
   end
 
   return tResult
