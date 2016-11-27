@@ -96,7 +96,11 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         { key='install_lua_path',       required=false, replacement=false, default='${install_base}/lua' },
         { key='install_lua_cpath',      required=false, replacement=false, default='${install_base}/lua_plugins' },
         { key='install_shared_objects', required=false, replacement=false, default='${install_base}/shared_objects' },
-        { key='install_doc',            required=false, replacement=false, default='${install_base}/doc' }
+        { key='install_doc',            required=false, replacement=false, default='${install_base}/doc' },
+        { key='install_dev',            required=false, replacement=true,  default='${install_base}/dev' },
+        { key='install_dev_include',    required=false, replacement=false, default='${install_dev}/include' },
+        { key='install_dev_lib',        required=false, replacement=false, default='${install_dev}/lib' },
+        { key='install_dev_cmake',      required=false, replacement=false, default='${install_dev}/cmake' }
       }
 
       -- Check if all required entries are present.
@@ -147,7 +151,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
           -- Replace.
           local strValue = string.gsub(tValue, '%${([a-zA-Z0-9_]+)}', atReplacements)
           atConfiguration[strKey] = strValue
-      
+
           if tAttr.replacement==true then
             atReplacements[strKey] = strValue
           end
@@ -212,7 +216,11 @@ function SystemConfiguration:initialize_paths()
     { strKey='install_lua_path',       fClear=true },
     { strKey='install_lua_cpath',      fClear=true },
     { strKey='install_shared_objects', fClear=true },
-    { strKey='install_doc',            fClear=true }
+    { strKey='install_doc',            fClear=true },
+    { strKey='install_dev',            fClear=true },
+    { strKey='install_dev_include',    fClear=true },
+    { strKey='install_dev_lib',        fClear=true },
+    { strKey='install_dev_cmake',      fClear=true }
   }
 
   -- Check if all paths exists. Try to create them otherwise.
@@ -301,6 +309,23 @@ function SystemConfiguration:toxml(tXml)
 
   tXml:addtag('doc')
   tXml:text(self.tConfiguration.install_doc)
+  tXml:up()
+
+  tXml:addtag('dev')
+
+  tXml:addtag('include')
+  tXml:text(self.tConfiguration.install_dev_include)
+  tXml:up()
+
+  tXml:addtag('lib')
+  tXml:text(self.tConfiguration.install_dev_lib)
+  tXml:up()
+
+  tXml:addtag('cmake')
+  tXml:text(self.tConfiguration.install_dev_cmake)
+  tXml:up()
+
+  -- Leave the "dev" node.
   tXml:up()
 
   -- Leave the "install" node.
