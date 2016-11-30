@@ -11,11 +11,13 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLogger)
+function SystemConfiguration:_init(cLogger, fInstallDebugComponents)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
   self.tLogger = cLogger
+
+  self.fInstallDebugComponents = fInstallDebugComponents
 
   -- There is no configuration yet.
   self.tConfiguration = nil
@@ -63,11 +65,20 @@ end
 
 
 
-function SystemConfiguration:is_path_child(strPathRoot, strPathChild)
-  -- Get the relative path from the child to the root path.
-  local strPath = self.pl.path.relpath(strPathRoot, strPathChild)
-  -- If child is really below root, this must start with "..".
-  return string.sub(strPath, 1, 2)==".."
+function SystemConfiguration:is_path_child_or_equal(strPathRoot, strPathChild)
+  local tResult
+
+
+  if strPathRoot==strPathChild then
+    tResult = true
+  else
+    -- Get the relative path from the child to the root path.
+    local strPath = self.pl.path.relpath(strPathRoot, strPathChild)
+    -- If child is really below root, this must start with "..".
+    tResult = (string.sub(strPath, 1, 2) == "..")
+  end
+
+  return tResult
 end
 
 
@@ -170,20 +181,35 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
           atConfiguration.work = self.pl.path.abspath(atConfiguration.work)
           atConfiguration.depack = self.pl.path.abspath(atConfiguration.depack)
           atConfiguration.install_base = self.pl.path.abspath(atConfiguration.install_base)
+          atConfiguration.install_executables = self.pl.path.abspath(atConfiguration.install_executables)
+          atConfiguration.install_shared_objects = self.pl.path.abspath(atConfiguration.install_shared_objects)
           atConfiguration.install_lua_path = self.pl.path.abspath(atConfiguration.install_lua_path)
           atConfiguration.install_lua_cpath = self.pl.path.abspath(atConfiguration.install_lua_cpath)
-          atConfiguration.install_shared_objects = self.pl.path.abspath(atConfiguration.install_shared_objects)
           atConfiguration.install_doc = self.pl.path.abspath(atConfiguration.install_doc)
+          atConfiguration.install_dev = self.pl.path.abspath(atConfiguration.install_dev)
+          atConfiguration.install_dev_include = self.pl.path.abspath(atConfiguration.install_dev_include)
+          atConfiguration.install_dev_lib = self.pl.path.abspath(atConfiguration.install_dev_lib)
+          atConfiguration.install_dev_cmake = self.pl.path.abspath(atConfiguration.install_dev_cmake)
 
           -- install_lua_path must be below install_base.
-          if self:is_path_child(atConfiguration.install_base, atConfiguration.install_lua_path)~=true then
-            self.tLogger:fatal("The install_lua_path is not below install_base!")
-          elseif self:is_path_child(atConfiguration.install_base, atConfiguration.install_lua_cpath)~=true then
-            self.tLogger:fatal("The install_lua_cpath is not below install_base!")
-          elseif self:is_path_child(atConfiguration.install_base, atConfiguration.install_shared_objects)~=true then
-            self.tLogger:fatal("The install_shared_objects is not below install_base!")
-          elseif self:is_path_child(atConfiguration.install_base, atConfiguration.install_doc)~=true then
-            self.tLogger:fatal("The install_doc is not below install_base!")
+          if self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_lua_path)~=true then
+            self.tLogger:fatal("The path install_lua_path is not below install_base!")
+          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_lua_cpath)~=true then
+            self.tLogger:fatal("The path install_lua_cpath is not below install_base!")
+          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_executables)~=true then
+            self.tLogger:fatal("The path install_executables is not below install_base!")
+          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_shared_objects)~=true then
+            self.tLogger:fatal("The path install_shared_objects is not below install_base!")
+          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_doc)~=true then
+            self.tLogger:fatal("The path install_doc is not below install_base!")
+          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev)~=true then
+            self.tLogger:fatal("The path install_dev is not below install_base!")
+          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_include)~=true then
+            self.tLogger:fatal("The path install_dev_include is not below install_base!")
+          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_lib)~=true then
+            self.tLogger:fatal("The path install_dev_lib is not below install_base!")
+          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_cmake)~=true then
+            self.tLogger:fatal("The path install_dev_cmake is not below install_base!")
           else
             -- Store the configuration.
             self.tConfiguration = atConfiguration
@@ -209,21 +235,22 @@ function SystemConfiguration:initialize_paths()
   local tResult = true
   local strError
 
-  local atPaths = {
-    { strKey='work',                   fClear=false },
-    { strKey='cache',                  fClear=false },
-    { strKey='depack',                 fClear=true },
-    { strKey='install_base',           fClear=true },
-    { strKey='install_executables',    fClear=true },
-    { strKey='install_shared_objects', fClear=true },
-    { strKey='install_lua_path',       fClear=true },
-    { strKey='install_lua_cpath',      fClear=true },
-    { strKey='install_doc',            fClear=true },
-    { strKey='install_dev',            fClear=true },
-    { strKey='install_dev_include',    fClear=true },
-    { strKey='install_dev_lib',        fClear=true },
-    { strKey='install_dev_cmake',      fClear=true }
-  }
+  local atPaths = {}
+  table.insert(atPaths, { strKey='work',                   fClear=false })
+  table.insert(atPaths, { strKey='cache',                  fClear=false })
+  table.insert(atPaths, { strKey='depack',                 fClear=true })
+  table.insert(atPaths, { strKey='install_base',           fClear=true })
+  table.insert(atPaths, { strKey='install_executables',    fClear=true })
+  table.insert(atPaths, { strKey='install_shared_objects', fClear=true })
+  table.insert(atPaths, { strKey='install_lua_path',       fClear=true })
+  table.insert(atPaths, { strKey='install_lua_cpath',      fClear=true })
+  table.insert(atPaths, { strKey='install_doc',            fClear=true })
+  if self.fInstallDebugComponents==true then
+    table.insert(atPaths, { strKey='install_dev',            fClear=true })
+    table.insert(atPaths, { strKey='install_dev_include',    fClear=true })
+    table.insert(atPaths, { strKey='install_dev_lib',        fClear=true })
+    table.insert(atPaths, { strKey='install_dev_cmake',      fClear=true })
+  end
 
   -- Check if all paths exists. Try to create them otherwise.
   for _, tAttr in pairs(atPaths) do

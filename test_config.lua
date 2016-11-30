@@ -37,6 +37,10 @@ local atLogLevels = {
 local tParser = argparse('jonchki', 'A dependency manager for LUA packages.')
 tParser:argument('input', 'Input file.')
   :target('strInputFile')
+tParser:option('-d --debug_components')
+  :description('Install the debug components along with the rest of the package.')
+  :default(false)
+  :target('fInstallDebugComponents')
 tParser:option('-p --prjcfg')
   :description('Load the project configuration from FILE.')
   :argname('<FILE>')
@@ -91,7 +95,7 @@ local SystemConfiguration = require 'SystemConfiguration'
 -- Create a configuration object.
 local cSysCfg = SystemConfiguration(cLogger)
 -- Read the settings from 'demo.cfg'.
-local tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
+local tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallDebugComponents)
 if tResult==nil then
   cLogger:fatal('Failed to parse the system configuration!')
   os.exit(1)
@@ -162,7 +166,7 @@ else
   else
     local Installer = require 'installer.installer'
     local cInstaller = Installer(cLogger, cSysCfg)
-    local tResult = cInstaller:install_artifacts(atArtifacts, strTargetId)
+    local tResult = cInstaller:install_artifacts(atArtifacts, strTargetId, tArgs.fInstallDebugComponents)
     if tResult==nil then
       cLogger:fatal('Failed to install all artifacts.')
       os.exit(1)

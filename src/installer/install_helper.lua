@@ -11,23 +11,28 @@ local InstallHelper = class()
 
 --- Initialize a new instance of the install class.
 -- @param strID The ID identifies the resolver.
-function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId)
+function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstallDev)
   self.cLogger = cLogger
 
   -- Get the installation paths from the system configuration.
-  self.install_base = cSystemConfiguration.tConfiguration.install_base
-  self.install_executables = cSystemConfiguration.tConfiguration.install_executables
-  self.install_shared_objects = cSystemConfiguration.tConfiguration.install_shared_objects
-  self.install_lua_path = cSystemConfiguration.tConfiguration.install_lua_path
-  self.install_lua_cpath = cSystemConfiguration.tConfiguration.install_lua_cpath
-  self.install_doc = cSystemConfiguration.tConfiguration.install_doc
-  self.install_dev = cSystemConfiguration.tConfiguration.install_dev
-  self.install_dev_include = cSystemConfiguration.tConfiguration.install_dev_include
-  self.install_dev_lib = cSystemConfiguration.tConfiguration.install_dev_lib
-  self.install_dev_cmake = cSystemConfiguration.tConfiguration.install_dev_cmake
+  local atPaths = {}
+  atPaths.install_base = cSystemConfiguration.tConfiguration.install_base
+  atPaths.install_executables = cSystemConfiguration.tConfiguration.install_executables
+  atPaths.install_shared_objects = cSystemConfiguration.tConfiguration.install_shared_objects
+  atPaths.install_lua_path = cSystemConfiguration.tConfiguration.install_lua_path
+  atPaths.install_lua_cpath = cSystemConfiguration.tConfiguration.install_lua_cpath
+  atPaths.install_doc = cSystemConfiguration.tConfiguration.install_doc
+  atPaths.install_dev = cSystemConfiguration.tConfiguration.install_dev
+  atPaths.install_dev_include = cSystemConfiguration.tConfiguration.install_dev_include
+  atPaths.install_dev_lib = cSystemConfiguration.tConfiguration.install_dev_lib
+  atPaths.install_dev_cmake = cSystemConfiguration.tConfiguration.install_dev_cmake
+  self.atPaths = atPaths
 
   -- Copy the target ID.
   self.strTargetId = strTargetId
+
+  -- Copy the flag for installation of development components.
+  self.fInstallDev = fInstallDev
 
   -- The "penlight" module is used for various helpers.
   self.pl = require'pl.import_into'()
@@ -62,6 +67,16 @@ end
 
 function InstallHelper:get_platform()
   return self.strTargetId
+end
+
+
+
+function InstallHelper:install_dev(tSrc, strDst)
+  if self.fInstallDev==true then
+    self:install(tSrc, strDst)
+  else
+    self.cLogger:info('Not installing debug component "%s".', tostring(tSrc))
+  end
 end
 
 
@@ -104,18 +119,10 @@ function InstallHelper:install(tSrc, strDst)
   end
 
   -- Replace the ${} strings.
-  local atReplacements = {
-    ['install_base'] = self.install_base,
-    ['install_executables'] = self.install_executables,
-    ['install_shared_objects'] = self.install_shared_objects,
-    ['install_lua_path'] = self.install_lua_path,
-    ['install_lua_cpath'] = self.install_lua_cpath,
-    ['install_doc'] = self.install_doc,
-    ['install_dev'] = self.install_dev,
-    ['install_dev_include'] = self.install_dev_include,
-    ['install_dev_lib'] = self.install_dev_lib,
-    ['install_dev_cmake'] = self.install_dev_cmake
-  }
+  local atReplacements = {}
+  for strKey, strPath in pairs(self.atPaths) do
+    atReplacements[strKey] = strPath
+  end
   local strDst = string.gsub(strDst, '%${([a-zA-Z0-9_]+)}', atReplacements)
 
   -- The destination is treated as a directory...
