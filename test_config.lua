@@ -19,19 +19,27 @@ local atLogLevels = {
 local tParser = argparse('jonchki', 'A dependency manager for LUA packages.')
 tParser:argument('input', 'Input file.')
   :target('strInputFile')
+tParser:option('-p --prjcfg')
+  :description('Load the project configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkicfg.xml')
+  :target('strProjectConfigurationFile')
+tParser:option('-s --syscfg')
+  :description('Load the system configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkisys.cfg')
+  :target('strSystemConfigurationFile')
+tParser:option('-t --target')
+  :description('Create an installation for the target platform with the ID TARGET.')
+  :argname('<TARGET>')
+  :default(nil)
+  :target('strTargetId')
 tParser:option('-v --verbose')
-  :description(string.format('Set the verbosity level. Possible values are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :argname('<LEVEL>')
   :default('warn')
   :convert(atLogLevels)
   :target('tLogLevel')
-tParser:option('-s --syscfg')
-  :description('Load the system configuration from FILE.')
-  :default('jonchkisys.cfg')
-  :target('strSystemConfigurationFile')
-tParser:option('-p --prjcfg')
-  :description('Load the project configuration from FILE.')
-  :default('jonchkicfg.xml')
-  :target('strProjectConfigurationFile')
 local tArgs = tParser:parse()
 
 
@@ -43,6 +51,18 @@ local tArgs = tParser:parse()
 -- TODO: the logger type and level should depend on some command line options.
 local cLogger = require 'logging.console'()
 cLogger:setLevel(tArgs.tLogLevel)
+
+
+-----------------------------------------------------------------------------
+--
+-- Get the target ID.
+--
+local strTargetId = tArgs.strTargetId
+if strTargetId==nil then
+  -- Autodetect the current platform.
+  cLogger:fatal('Auto-detection of the current platform is not yet implemented.')
+  os.exit(1)
+end
 
 
 -----------------------------------------------------------------------------
@@ -124,7 +144,7 @@ else
   else
     local Installer = require 'installer.installer'
     local cInstaller = Installer(cLogger, cSysCfg)
-    local tResult = cInstaller:install_artifacts(atArtifacts)
+    local tResult = cInstaller:install_artifacts(atArtifacts, strTargetId)
     if tResult==nil then
       cLogger:fatal('Failed to install all artifacts.')
       os.exit(1)
