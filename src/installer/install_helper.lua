@@ -171,7 +171,7 @@ function InstallHelper:install(tSrc, strDst)
       end
 
       -- Copy the file.
-      local tResult, strError = self.copy(strSrcAbs, strDstPath)
+      local tResult, strError = self:copy(strSrcAbs, strDstPath)
       if tResult~=true then
         error(string.format('Failed to copy "%s" to "%s": %s', strSrcAbs, strDstPath, strError))
       end
