@@ -395,7 +395,7 @@ function Resolver:resolve_step(tResolv)
     -- Select a version based on the constraints.
     local tVersion, strMessage = self:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
     if tVersion==nil then
-      self.tLogger:info('Failed to select a new version for %s/%s: %s', tResolv.strGroup, tResolv.strArtifact, strMessage)
+      self.tLogger:error('Failed to select a new version for %s/%s/%s: %s', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact, strMessage)
       -- The item is now blocked.
       tResolv.eStatus = self.RT_Blocked
     else
