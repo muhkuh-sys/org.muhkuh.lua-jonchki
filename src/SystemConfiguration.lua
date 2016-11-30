@@ -93,9 +93,10 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         { key='cache_max_size',         required=false, replacement=false, default='512M' },
         { key='depack',                 required=false, replacement=false, default='${work}/depack' },
         { key='install_base',           required=false, replacement=true,  default='${work}/install' },
+        { key='install_executables',    required=false, replacement=false, default='${install_base}' },
+        { key='install_shared_objects', required=false, replacement=false, default='${install_base}' },
         { key='install_lua_path',       required=false, replacement=false, default='${install_base}/lua' },
         { key='install_lua_cpath',      required=false, replacement=false, default='${install_base}/lua_plugins' },
-        { key='install_shared_objects', required=false, replacement=false, default='${install_base}/shared_objects' },
         { key='install_doc',            required=false, replacement=false, default='${install_base}/doc' },
         { key='install_dev',            required=false, replacement=true,  default='${install_base}/dev' },
         { key='install_dev_include',    required=false, replacement=false, default='${install_dev}/include' },
@@ -213,9 +214,10 @@ function SystemConfiguration:initialize_paths()
     { strKey='cache',                  fClear=false },
     { strKey='depack',                 fClear=true },
     { strKey='install_base',           fClear=true },
+    { strKey='install_executables',    fClear=true },
+    { strKey='install_shared_objects', fClear=true },
     { strKey='install_lua_path',       fClear=true },
     { strKey='install_lua_cpath',      fClear=true },
-    { strKey='install_shared_objects', fClear=true },
     { strKey='install_doc',            fClear=true },
     { strKey='install_dev',            fClear=true },
     { strKey='install_dev_include',    fClear=true },
@@ -295,16 +297,20 @@ function SystemConfiguration:toxml(tXml)
   tXml:text(self.tConfiguration.install_base)
   tXml:up()
 
+  tXml:addtag('executables')
+  tXml:text(self.tConfiguration.install_executables)
+  tXml:up()
+
+  tXml:addtag('shared_objects')
+  tXml:text(self.tConfiguration.install_shared_objects)
+  tXml:up()
+
   tXml:addtag('lua_path')
   tXml:text(self.tConfiguration.install_lua_path)
   tXml:up()
 
   tXml:addtag('lua_cpath')
   tXml:text(self.tConfiguration.install_lua_cpath)
-  tXml:up()
-
-  tXml:addtag('shared_objects')
-  tXml:text(self.tConfiguration.install_shared_objects)
   tXml:up()
 
   tXml:addtag('doc')
