@@ -111,20 +111,26 @@ local tResolver = ResolverExact(cLogger, 'default-exact')
 tResolver:setResolverChain(cResolverChain)
 local tStatus = tResolver:resolve(cArtifactCfg)
 if tStatus~=true then
-  cLogger:error('Failed to resolve all dependencies.')
+  cLogger:fatal('Failed to resolve all dependencies.')
+  os.exit(1)
 else
   local atArtifacts = tResolver:get_all_dependencies()
 
   -- Download and depack all dependencies.
   local tResult = cResolverChain:retrieve_artifacts(atArtifacts)
   if tResult==nil then
-    cLogger:error('Failed to retrieve all artifacts.')
+    cLogger:fatal('Failed to retrieve all artifacts.')
+    os.exit(1)
   else
     local Installer = require 'installer.installer'
     local cInstaller = Installer(cLogger, cSysCfg)
     local tResult = cInstaller:install_artifacts(atArtifacts)
     if tResult==nil then
-      cLogger:error('Failed to install all artifacts.')
+      cLogger:fatal('Failed to install all artifacts.')
+      os.exit(1)
     end
   end
 end
+
+cLogger:info('All OK!')
+os.exit(0)
