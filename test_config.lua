@@ -1,7 +1,25 @@
 -- This test checks the Configuration class.
 
--- Add the src folder to the search list.
-package.path = package.path .. ";src/?.lua;src/?/init.lua;lualogging/?.lua;argparse/?.lua"
+------------------------------------------------------------------------------
+--
+-- Add some subfolders to the search list.
+--
+local strScriptPath = debug.getinfo(1, "S").source:sub(2)
+strScriptPath = string.gsub(strScriptPath, '\\', '/')
+local iLastSlash = nil
+for iCnt = string.len(strScriptPath), 1, -1 do
+  if string.sub(strScriptPath, iCnt, iCnt)=='/' then
+    iLastSlash = iCnt
+    break
+  end
+end
+if iLastSlash~=nil then
+  strScriptPath = string.sub(strScriptPath, 1, iLastSlash)
+end
+package.path = package.path .. ';' .. strScriptPath .. '/src/?.lua;' .. strScriptPath .. '/src/?/init.lua;' .. strScriptPath .. '/lualogging/?.lua;' .. strScriptPath .. '/argparse/?.lua'
+
+
+------------------------------------------------------------------------------
 
 local argparse = require 'argparse'
 local Logging = require 'logging'
