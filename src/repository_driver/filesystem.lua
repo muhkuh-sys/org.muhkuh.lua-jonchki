@@ -68,6 +68,7 @@ end
 
 
 function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, strArtifact)
+  self.tLogger:debug('Get available versions for %s/%s/%s.', strGroup, strModule, strArtifact)
   local tResult = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the versions path.
@@ -75,11 +76,14 @@ function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, 
 
     -- Append the version folder to the root.
     local strVersionPath = self.pl.path.join(self.strRoot, strVersions)
+    self.tLogger:debug('  Looking in path "%s"', strVersionPath)
 
     -- Continue only if the version folder exists.
     -- If the folder does not exist, there is no matching aritfact.
     local atVersions = {}
-    if self.pl.path.isdir(strVersionPath)==true then
+    if self.pl.path.isdir(strVersionPath)~=true then
+      self.tLogger:debug('The path "%s" does not exist.', strVersionPath)
+    else
       -- Get all subfolders in the version folder.
       -- NOTE: this function returns the absolute paths, not only the subfolder names.
       local atPaths = self.pl.dir.getdirectories(strVersionPath)
@@ -91,10 +95,14 @@ function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, 
         local fOk = tVersion:set(strSubfolder)
         if fOk==true then
           table.insert(atVersions, tVersion)
+          self.tLogger:debug('  Found version: %s', tVersion:get())
         end
       end
     end
 
+    if #atVersions == 0 then
+      self.tLogger:debug('  No versions found.')
+    end
     tResult = atVersions
   end
 
