@@ -229,9 +229,11 @@ function InstallHelper:copy(strSrc, strDst)
 
   self.cLogger:debug('copy "%s" -> "%s"', strSrc, strDst)
 
-  local tSrc, strError = io.open(strSrc, 'rb')
+  local tSrc
+  local tDst
+  tSrc, strError = io.open(strSrc, 'rb')
   if tSrc~=nil then
-    local tDst, strError = io.open(strDst, 'wb')
+    tDst, strError = io.open(strDst, 'wb')
     if tDst~=nil then
       repeat
         local strData = tSrc:read(4096)
