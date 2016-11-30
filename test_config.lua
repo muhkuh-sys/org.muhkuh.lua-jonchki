@@ -94,7 +94,11 @@ cResolverChain:set_repositories(cPrjCfg.atRepositories)
 --
 local ArtifactConfiguration = require 'ArtifactConfiguration'
 local cArtifactCfg = ArtifactConfiguration(cLogger)
-cArtifactCfg:parse_configuration_file(tArgs.strInputFile)
+local tResult = cArtifactCfg:parse_configuration_file(tArgs.strInputFile)
+if tResult~=true then
+  cLogger:fatal('Failed to parse the artifact configuration!')
+  os.exit(1)
+end
 
 -----------------------------------------------------------------------------
 --

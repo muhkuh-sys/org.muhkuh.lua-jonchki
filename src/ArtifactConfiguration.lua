@@ -208,13 +208,13 @@ function ArtifactConfiguration:parse_configuration_file(strConfigurationFilename
 
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
-    self.tLogger:error('The function "parse_configuration" expects a filename as a parameter.')
+    self.tLogger:error('The function "parse_configuration_file" expects a filename as a parameter.')
   else
     local strXmlText, strMsg = self.pl.utils.readfile(strConfigurationFilename, false)
     if strXmlText==nil then
       self.tLogger:error('Error reading the configuration file: %s', strMsg)
     else
-      tResult = self:parse_configuration(strXmlText)
+      tResult = self:parse_configuration(strXmlText, strConfigurationFilename)
     end
   end
 
@@ -223,7 +223,7 @@ end
 
 
 
-function ArtifactConfiguration:parse_configuration(strConfiguration)
+function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUrl)
   local tResult = nil
 
   local aLxpAttr = {
@@ -258,22 +258,21 @@ function ArtifactConfiguration:parse_configuration(strConfiguration)
   if tParseResult==nil then
     self.tLogger:error("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos)
   elseif aLxpAttr.tResult~=true then
-    self.tLogger:error('Failed to parse the configuration file "%s"', strConfiguration)
+    self.tLogger:error('Failed to parse the configuration file "%s"', strSourceUrl)
   else
     self.tVersion = aLxpCallbacks.userdata.tVersion
     self.tInfo = aLxpCallbacks.userdata.tInfo
     self.atDependencies = aLxpCallbacks.userdata.atDependencies
 
-    local tResult = true
-    if self.tVersion==nil then
-      tResult = false
-      self.tLogger:error('Failed to parse the artifact configuration "%s": No Version found!', strConfiguration)
-    end
-    if self.tInfo==nil then
-      tResult = false
-      self.tLogger:error('Failed to parse the artifact configuration "%s": No Info block found!', strConfiguration)
-    end
+    -- Check if all required components are present.
     -- NOTE: the dependency block is optional.
+    if self.tVersion==nil then
+      self.tLogger:error('Failed to parse the artifact configuration "%s": No Version found!', strConfiguration)
+    elseif self.tInfo==nil then
+      self.tLogger:error('Failed to parse the artifact configuration "%s": No Info block found!', strConfiguration)
+    else
+      tResult = true
+    end
   end
 
   return tResult

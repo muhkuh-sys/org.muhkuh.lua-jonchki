@@ -121,7 +121,7 @@ function RepositoryDriverFilesystem:get_sha_sum(strMainFile)
   local strShaRaw, strMsg = self.pl.utils.readfile(strShaPath, false)
   if strShaRaw==nil then
     tResult = nil
-    self.tLogger.error('Failed to read the SHA file "%s": %s', strShaPath, strMsg)
+    self.tLogger:error('Failed to read the SHA file "%s": %s', strShaPath, strMsg)
   else
     -- Extract the SHA sum.
     local strMatch = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
@@ -173,10 +173,11 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
             tResult = nil
             self.tLogger:error('The SHA1 sum of the configuration "%s" does not match.', strCfgPath)
           else
-            local cA = self.ArtifactConfiguration()
-            cA:parse_configuration(strCfg)
-  
-            tResult = cA
+            local cA = self.ArtifactConfiguration(self.tLogger)
+            tResult = cA:parse_configuration(strCfg, strCfgPath)
+            if tResult==true then
+              tResult = cA
+            end
           end
         end
       end

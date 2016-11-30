@@ -236,7 +236,7 @@ end
 
 function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
-  
+
   -- Replace the artifact placeholder in the configuration path.
   local strCfgPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strConfig)
 
@@ -261,15 +261,15 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
       else
         -- Compare the SHA1 sum from the repository and the local.
         if strShaRemote~=strShaLocal then
-          tResult = nil
           self.tLogger:error('The SHA1 sum of the configuration "%s" does not match.', strCfgUrl)
           self.tLogger:error('The local SHA1 sum is  %s .', strShaLocal)
           self.tLogger:error('The remote SHA1 sum is %s .', strShaRemote)
         else
-          local cA = self.ArtifactConfiguration()
-          cA:parse_configuration(strCfgData)
-
-          tResult = cA
+          local cA = self.ArtifactConfiguration(self.tLogger)
+          local tParseResult = cA:parse_configuration(strCfgData, strCfgUrl)
+          if tParseResult==true then
+            tResult = cA
+          end
         end
       end
     end
