@@ -85,7 +85,7 @@ function RepositoryDriverUrl:get_url(strUrl)
     if uiHttpResult==200 then
       tResult = table.concat(self.atDownloadData)
     else
-      self.tLogger('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
+      self.tLogger:error('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
     end
   end
   tCURL:close()
@@ -154,9 +154,9 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
 
       -- Get the page and extract the versions from the links.
       self.tLogger:debug('Get versions from URL "%s".', strUrlVersions)
-      tResult, strError = self:get_url(strUrlVersions)
+      tResult = self:get_url(strUrlVersions)
       if tResult==nil then
-        self.tLogger:warn('Failed to get available versions for %s: %s', strGMA, strError)
+        self.tLogger:warn('Failed to get available versions for %s.', strGMA)
       else
         local strHtmlPage = tResult
         local atVersions = {}
@@ -214,10 +214,10 @@ function RepositoryDriverUrl:get_sha_sum(strMainFile)
 
   -- Get tha SHA sum.
   self.tLogger:debug('Get the SHA sum from URL "%s".', strShaUrl)
-  local strShaRaw, strMsg = self:get_url(strShaUrl)
+  local strShaRaw = self:get_url(strShaUrl)
   if strShaRaw==nil then
     tResult = nil
-    self.tLogger.error('Failed to get the SHA file "%s": %s', strShaUrl, strMsg)
+    self.tLogger:error('Failed to get the SHA file "%s": %s', strShaUrl)
   else
     -- Extract the SHA sum.
     local strMatch = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
@@ -245,9 +245,9 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
 
   -- Get the complete file.
   self.tLogger:debug('Get the configuration from URL "%s".', strCfgUrl)
-  local strCfgData, strError = self:get_url(strCfgUrl)
+  local strCfgData = self:get_url(strCfgUrl)
   if strCfgData==nil then
-    self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgUrl, strError)
+    self.tLogger:error('Failed to read the configuration file "%s".', strCfgUrl)
   else
     -- Get tha SHA sum.
     local strShaRemote = self:get_sha_sum(strCfgUrl)
