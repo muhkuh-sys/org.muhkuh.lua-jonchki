@@ -217,7 +217,7 @@ function RepositoryDriverUrl:get_sha_sum(strMainFile)
   local strShaRaw = self:get_url(strShaUrl)
   if strShaRaw==nil then
     tResult = nil
-    self.tLogger:error('Failed to get the SHA file "%s": %s', strShaUrl)
+    self.tLogger:error('Failed to get the SHA file "%s".', strShaUrl)
   else
     -- Extract the SHA sum.
     local strMatch = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
