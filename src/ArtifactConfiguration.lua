@@ -26,6 +26,7 @@ function ArtifactConfiguration:_init(tLogger)
   -- There is no configuration yet.
   self.tVersion = nil
   self.tInfo = nil
+  self.atBuildDependencies = nil
   self.atDependencies = nil
 end
 
@@ -130,7 +131,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       tInfo.strAuthorUrl = strAuthorUrl
     end
 
-  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies/dependency' then
+  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/build-dependencies/dependency' then
     local tDependency = {}
     
     local strGroup = atAttributes['group']
@@ -166,6 +167,46 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       aLxpAttr.tLogger:error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
     end
     tDependency.tVersion = tVersion
+
+    table.insert(aLxpAttr.atBuildDependencies, tDependency)
+  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies/dependency' then
+    local tDependency = {}
+
+    local strGroup = atAttributes['group']
+    if strGroup==nil or strGroup=='' then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
+    end
+    tDependency.strGroup = strGroup
+
+    local strModule = atAttributes['module']
+    if strModule==nil or strModule=='' then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
+    end
+    tDependency.strModule = strModule
+
+    local strArtifact = atAttributes['artifact']
+    if strArtifact==nil or strArtifact=='' then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
+    end
+    tDependency.strArtifact = strArtifact
+
+    -- The version attribute is optional. If it is not present, the version
+    -- is taken from the build-dependencies.
+    local strVersion = atAttributes['version']
+    if strVersion==nil or strVersion=='' then
+      tDependency.tVersion = nil
+    else
+      local tVersion = aLxpAttr.Version()
+      local tResult, strError = tVersion:set(strVersion)
+      if tResult~=true then
+        aLxpAttr.tResult = nil
+        aLxpAttr.tLogger:error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
+      end
+      tDependency.tVersion = tVersion
+    end
 
     table.insert(aLxpAttr.atDependencies, tDependency)
   end
@@ -234,6 +275,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
     Version = self.Version,
     tVersion = nil,
     tInfo = nil,
+    atBuildDependencies = {},
     atDependencies = {},
 
     tResult = true,
@@ -262,6 +304,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
   else
     self.tVersion = aLxpCallbacks.userdata.tVersion
     self.tInfo = aLxpCallbacks.userdata.tInfo
+    self.atBuildDependencies = aLxpCallbacks.userdata.atBuildDependencies
     self.atDependencies = aLxpCallbacks.userdata.atDependencies
 
     -- Check if all required components are present.
@@ -272,6 +315,27 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
       self.tLogger:error('Failed to parse the artifact configuration "%s": No Info block found!', strConfiguration)
     else
       tResult = true
+
+      -- Check if all depedencies have version numbers.
+      for _,tDependency in pairs(self.atDependencies) do
+        -- Does this dependency have a version number?
+        if tDependency.tVersion==nil then
+          -- No, the dependency has no version number. Look for the artifact
+          -- in the build dependencies.
+          local fFound = false
+          for _,tBuildDependency in pairs(self.atBuildDependencies) do
+            if tBuildDependency.strGroup==tDependency.strGroup and tBuildDependency.strModule==tDependency.strModule and tBuildDependency.strArtifact==tDependency.strArtifact then
+              tDependency.tVersion = tBuildDependency.tVersion
+              fFound = true
+              break
+            end
+          end
+          if fFound == false then
+            self.tLogger:error('Failed to parse the artifact configuration "%s": The dependency G:%s,M:%s,A:%s has no version, which is only allowed if it is present in the build-dependencies - but it is not!', strConfiguration)
+            tResult = false
+          end
+        end
+      end
     end
   end
 
