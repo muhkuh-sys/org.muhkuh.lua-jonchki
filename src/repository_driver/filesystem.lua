@@ -120,13 +120,11 @@ function RepositoryDriverFilesystem:get_sha_sum(strMainFile)
   -- Get tha SHA sum.
   local strShaRaw, strMsg = self.pl.utils.readfile(strShaPath, false)
   if strShaRaw==nil then
-    tResult = nil
     self.tLogger:error('Failed to read the SHA file "%s": %s', strShaPath, strMsg)
   else
     -- Extract the SHA sum.
     local strMatch = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
     if strMatch==nil then
-      tResult = nil
       self.tLogger.error('The SHA1 file "%s" does not contain a valid hash.', strShaPath)
     else
       tResult = strMatch
@@ -143,10 +141,10 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
   local tResult = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the configuration path.
-    local strCfg = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strConfig)
+    local strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strConfig)
 
     -- Append the version folder to the root.
-    local strCfgPath = self.pl.path.join(self.strRoot, strCfg)
+    local strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
 
     -- Get the complete file.
     local strCfg, strMsg = self.pl.utils.readfile(strCfgPath, false)
@@ -194,10 +192,10 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
   local tResult = self:exists()
   if tResult==true then
     -- Construct the artifact path.
-    local strArtifact = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strArtifact)
+    local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strArtifact)
 
     -- Append the version folder to the root.
-    local strArtifactPath = self.pl.path.join(self.strRoot, strArtifact)
+    local strArtifactPath = self.pl.path.join(self.strRoot, strArtifactSubdirectory)
     -- Get the file name.
     local _, strFileName = self.pl.path.splitpath(strArtifactPath)
 

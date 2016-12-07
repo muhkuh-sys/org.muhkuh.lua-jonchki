@@ -41,7 +41,7 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstal
   self.atInstalledFiles = {}
 
   -- This is an identifier string which can be used in error messages.
-  -- It is set with the "setId" method. 
+  -- It is set with the "setId" method.
   self.strGMAV = ''
 
   -- The current working folder is the source path if the installation. Here the artifact ZIP is depacked.

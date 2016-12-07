@@ -131,7 +131,6 @@ end
 
 function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArtifact)
   local tResult = nil
-  local strError = ''
 
   -- Combine the group, module and artifact to a string for the logger messages.
   local strGMA = string.format('G:%s/M:%s/A:%s', strGroup, strModule, strArtifact)
@@ -163,9 +162,6 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
 
         -- Extract all links.
         for strLink, strText in string.gmatch(strHtmlPage, '<a[^>]+href="([^"]+)"[^>]*>([^<]+)</a>') do
-          -- Found a valid version?
-          local fFound = false
-
           -- Extract the version from the text.
           -- NOTE: The regular expression is not sufficient for a correct
           -- version string, as it accepts any mixture of numbers and dots.
@@ -216,13 +212,11 @@ function RepositoryDriverUrl:get_sha_sum(strMainFile)
   self.tLogger:debug('Get the SHA sum from URL "%s".', strShaUrl)
   local strShaRaw = self:get_url(strShaUrl)
   if strShaRaw==nil then
-    tResult = nil
     self.tLogger:error('Failed to get the SHA file "%s".', strShaUrl)
   else
     -- Extract the SHA sum.
     local strMatch = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
     if strMatch==nil then
-      tResult = nil
       self.tLogger.error('The SHA1 file "%s" does not contain a valid hash.', strShaUrl)
     else
       tResult = strMatch
@@ -281,7 +275,7 @@ end
 
 
 function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVersion, strDestinationFolder)
-  local tResult = nil
+  local tResult
 
   -- Construct the artifact path.
   local strArtifactPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strArtifact)
@@ -293,7 +287,6 @@ function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVer
 
   -- Download the file to the destination folder.
   local strLocalFile = self.pl.path.join(strDestinationFolder, strFileName)
-  local strError
   tResult = self:download_url(strArtifactUrl, strLocalFile)
   if tResult~=true then
     tResult = nil

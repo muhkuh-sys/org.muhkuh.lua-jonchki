@@ -85,18 +85,16 @@ end
 
 
 function ResolverExact:select_version_by_constraints(atVersions, strConstraint)
-  local fResult = true
   local tResult = nil
-  local strMessage = ''
 
   -- In "exact" mode there must be an exact version number.
   -- Try to parse the constraint as a version.
   local tVersion = self.Version()
-  fResult, strMessage = tVersion:set(strConstraint)
+  local fResult, strMessage = tVersion:set(strConstraint)
   if fResult==true then
     -- Look for the exact version string.
     local fFound = false
-    for tV, atVers in pairs(atVersions) do
+    for tV, _ in pairs(atVersions) do
       if tV:get()==strConstraint then
         fFound = true
         break
@@ -130,7 +128,7 @@ end
 
 
 --- Return the complete configuration as a string.
--- @return The configuration as a string. 
+-- @return The configuration as a string.
 function ResolverExact:__tostring()
   local strRepr = string.format('ResolverExact(id="%s")', self.strID)
 

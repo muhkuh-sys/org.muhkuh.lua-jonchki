@@ -27,7 +27,7 @@ end
 
 
 function Installer:depack_archive(strArtifactPath, strDepackPath)
-  local tResult = true
+  local tResult
   local strError
 
   self.cLogger:info('Depacking artifact archive "%s" to "%s".', strArtifactPath, strDepackPath)
@@ -98,8 +98,7 @@ end
 
 
 function Installer:run_install_script(strInstallScriptFile, strDepackPath, cInstallHelper, strGMAV)
-  local tResult = true
-  local strError = ''
+  local tResult
 
   -- Get the path to the installation script.
   self.cLogger:info('Running the install script "%s".', strInstallScriptFile)
@@ -114,6 +113,7 @@ function Installer:run_install_script(strInstallScriptFile, strDepackPath, cInst
       self.cLogger:error('The install script "%s" is no file.', strInstallScriptFile)
     else
       -- Call the install script.
+      local strError
       tResult, strError = self.pl.utils.readfile(strInstallScriptFile, false)
       if tResult==nil then
         tResult = nil
@@ -165,7 +165,6 @@ function Installer:install_artifacts(atArtifacts, strTargetId, fInstallDev, strF
     local strGroup = tGMAV.strGroup
     local strModule = tGMAV.strModule
     local strArtifact = tGMAV.strArtifact
-    local tVersion = tGMAV.tVersion
     local strVersion = tGMAV.tVersion:get()
     local strArtifactPath = tGMAV.strArtifactPath
 

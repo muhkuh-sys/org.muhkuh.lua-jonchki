@@ -68,7 +68,7 @@ end
 
 
 --- Return the complete configuration as a string.
--- @return The configuration as a string. 
+-- @return The configuration as a string.
 function RepositoryDriver:__tostring()
   local strRepr = string.format('RepositoryDriver(id="%s")', self.strID)
 

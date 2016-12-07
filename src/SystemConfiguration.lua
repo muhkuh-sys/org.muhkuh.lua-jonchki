@@ -117,7 +117,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
 
       -- Check if all required entries are present.
       local atMissing = {}
-      for uiCnt,tAttr in ipairs(atOptions) do
+      for _,tAttr in ipairs(atOptions) do
         local strKey = tAttr.key
         if tAttr.required==true and tCfg[strKey]==nil then
           table.insert(atMissing, strKey)
@@ -128,9 +128,9 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
       else
         -- Loop over all configuration entries and check if they are valid.
         local atUnknown = {}
-        for strKey,tValue in pairs(tCfg) do
+        for strKey,_ in pairs(tCfg) do
           local fFound = false
-          for uiCnt,tAttr in ipairs(atOptions) do
+          for _,tAttr in ipairs(atOptions) do
             if tAttr.key==strKey then
               fFound = true
               break
@@ -150,7 +150,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         local atReplacements = {}
 
         -- Parse all options.
-        for uiCnt,tAttr in ipairs(atOptions) do
+        for _,tAttr in ipairs(atOptions) do
           -- Get the key.
           local strKey = tAttr.key
           -- Get the value.
@@ -371,9 +371,9 @@ end
 
 
 --- Return the complete configuration as a string.
--- @return The configuration as a string. 
+-- @return The configuration as a string.
 function SystemConfiguration:__tostring()
-  local strCfg = nil
+  local strCfg
 
   if self.tConfiguration==nil then
     strCfg = 'SystemConfiguration()'

@@ -34,8 +34,7 @@ end
 -- @param strName The name of the new element.
 function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttributes)
   local aLxpAttr = tParser:getcallbacks().userdata
-  local iPosLine, iPosColumn, iPosAbs = tParser:pos()
-  local tCurrentRepository = aLxpAttr.tCurrentRepository
+  local iPosLine, iPosColumn = tParser:pos()
 
   table.insert(aLxpAttr.atCurrentPath, strName)
   aLxpAttr.strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
@@ -49,7 +48,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
     else
       -- Is the ID already defined?
       local fIsDuplicate = false
-      for uiCnt, tRepo in pairs(aLxpAttr.atRepositories) do
+      for _, tRepo in pairs(aLxpAttr.atRepositories) do
         if tRepo.strID==strID then
           fIsDuplicate = true
           break
@@ -100,7 +99,7 @@ end
 -- @param strName The name of the closed element.
 function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
   local aLxpAttr = tParser:getcallbacks().userdata
-  local iPosLine, iPosColumn, iPosAbs = tParser:pos()
+  local iPosLine, iPosColumn = tParser:pos()
   local tCurrentRepository = aLxpAttr.tCurrentRepository
 
   if aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository" then
@@ -126,7 +125,7 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
     end
     if #astrMissing ~= 0 then
       aLxpAttr.tResult = nil
-      self.tLogger:fatal('Error in line %d, col %d: missing items: %s', iPosLine, iPosColumn, table.concat(astrMissing))
+      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing items: %s', iPosLine, iPosColumn, table.concat(astrMissing))
     else
       -- All data is present.
       table.insert(aLxpAttr.atRepositories, tCurrentRepository)
@@ -271,9 +270,9 @@ end
 
 
 --- Return the complete configuration as a string.
--- @return The configuration as a string. 
+-- @return The configuration as a string.
 function ProjectConfiguration:__tostring()
-  local strCfg = nil
+  local strCfg
 
   if self.atRepositories==nil then
     strCfg = 'ProjectConfiguration()'
