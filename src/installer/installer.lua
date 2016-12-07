@@ -155,11 +155,11 @@ end
 
 
 
-function Installer:install_artifacts(atArtifacts, strTargetId, fInstallDev, strFinalizerScript)
+function Installer:install_artifacts(atArtifacts, strTargetId, fInstallBuildDependencies, strFinalizerScript)
   local tResult = true
 
   -- Create the installation helper.
-  local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, strTargetId, fInstallDev)
+  local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, strTargetId, fInstallBuildDependencies)
 
   for _,tGMAV in pairs(atArtifacts) do
     local strGroup = tGMAV.strGroup

@@ -11,13 +11,13 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLogger, fInstallDebugComponents)
+function SystemConfiguration:_init(cLogger, fInstallBuildDependencies)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
   self.tLogger = cLogger
 
-  self.fInstallDebugComponents = fInstallDebugComponents
+  self.fInstallBuildDependencies = fInstallBuildDependencies
 
   -- There is no configuration yet.
   self.tConfiguration = nil
@@ -245,7 +245,7 @@ function SystemConfiguration:initialize_paths()
   table.insert(atPaths, { strKey='install_lua_path',       fClear=true })
   table.insert(atPaths, { strKey='install_lua_cpath',      fClear=true })
   table.insert(atPaths, { strKey='install_doc',            fClear=true })
-  if self.fInstallDebugComponents==true then
+  if self.fInstallBuildDependencies==true then
     table.insert(atPaths, { strKey='install_dev',            fClear=true })
     table.insert(atPaths, { strKey='install_dev_include',    fClear=true })
     table.insert(atPaths, { strKey='install_dev_lib',        fClear=true })

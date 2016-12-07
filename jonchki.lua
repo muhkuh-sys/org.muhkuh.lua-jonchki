@@ -35,10 +35,10 @@ local atLogLevels = {
 local tParser = argparse('jonchki', 'A dependency manager for LUA packages.')
 tParser:argument('input', 'Input file.')
   :target('strInputFile')
-tParser:option('-d --debug_components')
-  :description('Install the debug components along with the rest of the package.')
+tParser:option('-b --build-dependencies')
+  :description('Install the build dependencies.')
   :default(false)
-  :target('fInstallDebugComponents')
+  :target('fInstallBuildDependencies')
 tParser:option('-f --finalizer')
   :description('Run the installer script SCRIPT as a finalizer.')
   :argname('<SCRIPT>')
@@ -98,7 +98,7 @@ local SystemConfiguration = require 'SystemConfiguration'
 -- Create a configuration object.
 local cSysCfg = SystemConfiguration(cLogger)
 -- Read the settings from 'demo.cfg'.
-local tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallDebugComponents)
+local tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies)
 if tResult==nil then
   cLogger:fatal('Failed to parse the system configuration!')
   os.exit(1)
@@ -169,7 +169,7 @@ else
   else
     local Installer = require 'installer.installer'
     local cInstaller = Installer(cLogger, cSysCfg)
-    local tResult = cInstaller:install_artifacts(atArtifacts, strTargetId, tArgs.fInstallDebugComponents, tArgs.strFinalizerScript)
+    local tResult = cInstaller:install_artifacts(atArtifacts, strTargetId, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
     if tResult==nil then
       cLogger:fatal('Failed to install all artifacts.')
       os.exit(1)

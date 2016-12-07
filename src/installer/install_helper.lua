@@ -11,7 +11,7 @@ local InstallHelper = class()
 
 --- Initialize a new instance of the install class.
 -- @param strID The ID identifies the resolver.
-function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstallDev)
+function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstallBuildDependencies)
   self.cLogger = cLogger
 
   -- Get the installation paths from the system configuration.
@@ -32,7 +32,7 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstal
   self.strTargetId = strTargetId
 
   -- Copy the flag for installation of development components.
-  self.fInstallDev = fInstallDev
+  self.fInstallBuildDependencies = fInstallBuildDependencies
 
   -- The "penlight" module is used for various helpers.
   self.pl = require'pl.import_into'()
@@ -101,7 +101,7 @@ end
 
 
 function InstallHelper:install_dev(tSrc, strDst)
-  if self.fInstallDev==true then
+  if self.fInstallBuildDependencies==true then
     self:install(tSrc, strDst)
   else
     self.cLogger:info('Not installing debug component "%s".', tostring(tSrc))
