@@ -15,18 +15,18 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstal
   self.cLogger = cLogger
 
   -- Get the installation paths from the system configuration.
-  local atPaths = {}
-  atPaths.install_base = cSystemConfiguration.tConfiguration.install_base
-  atPaths.install_executables = cSystemConfiguration.tConfiguration.install_executables
-  atPaths.install_shared_objects = cSystemConfiguration.tConfiguration.install_shared_objects
-  atPaths.install_lua_path = cSystemConfiguration.tConfiguration.install_lua_path
-  atPaths.install_lua_cpath = cSystemConfiguration.tConfiguration.install_lua_cpath
-  atPaths.install_doc = cSystemConfiguration.tConfiguration.install_doc
-  atPaths.install_dev = cSystemConfiguration.tConfiguration.install_dev
-  atPaths.install_dev_include = cSystemConfiguration.tConfiguration.install_dev_include
-  atPaths.install_dev_lib = cSystemConfiguration.tConfiguration.install_dev_lib
-  atPaths.install_dev_cmake = cSystemConfiguration.tConfiguration.install_dev_cmake
-  self.atPaths = atPaths
+  local atReplacements = {}
+  atReplacements.install_base = cSystemConfiguration.tConfiguration.install_base
+  atReplacements.install_executables = cSystemConfiguration.tConfiguration.install_executables
+  atReplacements.install_shared_objects = cSystemConfiguration.tConfiguration.install_shared_objects
+  atReplacements.install_lua_path = cSystemConfiguration.tConfiguration.install_lua_path
+  atReplacements.install_lua_cpath = cSystemConfiguration.tConfiguration.install_lua_cpath
+  atReplacements.install_doc = cSystemConfiguration.tConfiguration.install_doc
+  atReplacements.install_dev = cSystemConfiguration.tConfiguration.install_dev
+  atReplacements.install_dev_include = cSystemConfiguration.tConfiguration.install_dev_include
+  atReplacements.install_dev_lib = cSystemConfiguration.tConfiguration.install_dev_lib
+  atReplacements.install_dev_cmake = cSystemConfiguration.tConfiguration.install_dev_cmake
+  self.atReplacements = atReplacements
 
   -- Copy the target ID.
   self.strTargetId = strTargetId
@@ -46,6 +46,26 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstal
 
   -- The current working folder is the source path if the installation. Here the artifact ZIP is depacked.
   self.strCwd = ''
+end
+
+
+
+function InstallHelper:add_replacement(tKey, tValue)
+  local tResult = nil
+
+
+  local strKey = tostring(tKey)
+  local strValue = tostring(tValue)
+  local strOldValue = self.atReplacements[strKey]
+  if strOldValue~=nil and strOldValue~=strValue then
+    self.cLogger:error('Refusing to replace the key "%s". Old value: "%s", rejected value: "%s".', strKey, strOldValue, strValue)
+  else
+    self.cLogger:debug('Add replacement variable "%s" = "%s".', strKey, strValue)
+    self.atReplacements[strKey] = strValue
+    tResult = true
+  end
+
+  return tResult
 end
 
 
@@ -103,7 +123,7 @@ function InstallHelper:install(tSrc, strDst)
   end
   -- Loop over all elements and check their type.
   local astrErrors = {}
-  for uiCnt, tValue in pairs(astrSrc) do
+  for uiCnt, tValue in ipairs(astrSrc) do
     local strType = type(tValue)
     if strType~='string' then
       table.insert(astrErrors, tostring(uiCnt))
@@ -120,10 +140,13 @@ function InstallHelper:install(tSrc, strDst)
 
   -- Replace the ${} strings.
   local atReplacements = {}
-  for strKey, strPath in pairs(self.atPaths) do
-    atReplacements[strKey] = strPath
+  for strKey, strValue in pairs(self.atReplacements) do
+    atReplacements[strKey] = strValue
   end
-  local strDst = string.gsub(strDst, '%${([a-zA-Z0-9_]+)}', atReplacements)
+  for uiCnt, strValue in ipairs(astrSrc) do
+    astrSrc[uiCnt] = string.gsub(strValue, '%${([a-zA-Z0-9_%.-]+)}', atReplacements)
+  end
+  local strDst = string.gsub(strDst, '%${([a-zA-Z0-9_%.-]+)}', atReplacements)
 
   -- The destination is treated as a directory...
   --   if it ends with a slash or

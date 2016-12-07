@@ -97,12 +97,11 @@ end
 
 
 
-function Installer:run_install_script(strDepackPath, cInstallHelper, strGMAV)
+function Installer:run_install_script(strInstallScriptFile, strDepackPath, cInstallHelper, strGMAV)
   local tResult = true
   local strError = ''
 
   -- Get the path to the installation script.
-  local strInstallScriptFile = self.pl.path.join(strDepackPath, 'install.lua')
   self.cLogger:info('Running the install script "%s".', strInstallScriptFile)
   -- Check if the file exists.
   if self.pl.path.exists(strInstallScriptFile)~=strInstallScriptFile then
@@ -156,9 +155,8 @@ end
 
 
 
-function Installer:install_artifacts(atArtifacts, strTargetId, fInstallDev)
+function Installer:install_artifacts(atArtifacts, strTargetId, fInstallDev, strFinalizerScript)
   local tResult = true
-  local strError = ''
 
   -- Create the installation helper.
   local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, strTargetId, fInstallDev)
@@ -184,28 +182,66 @@ function Installer:install_artifacts(atArtifacts, strTargetId, fInstallDev)
       self.cLogger:error('The unique depack path %s already exists.', strDepackPath)
       break
     else
+      local strError
       tResult, strError = self.pl.dir.makepath(strDepackPath)
       if tResult~=true then
         tResult = nil
         self.cLogger:error('Failed to create the depack path for %s: %s', strGMAV, strError)
         break
       else
-        tResult = self:depack_archive(strArtifactPath, strDepackPath)
-        if tResult==nil then
-          self.cLogger:error('Error depacking %s .', strGMAV)
+        -- Add the depack path and the version to the replacement list.
+        local strVariableArtifactPath = string.format('artifact_path_%s.%s.%s', strGroup, strModule, strArtifact)
+        tResult = cInstallHelper:add_replacement(strVariableArtifactPath, strArtifactPath)
+        if tResult~=true then
+          self.cLogger:error('Failed to add the artifact path variable for %s.', strGMAV)
           break
-        end
+        else
+          local strVariableNameDepackPath = string.format('depack_path_%s.%s.%s', strGroup, strModule, strArtifact)
+          tResult = cInstallHelper:add_replacement(strVariableNameDepackPath, strDepackPath)
+          if tResult~=true then
+            self.cLogger:error('Failed to add the depack path variable for %s.', strGMAV)
+            break
+          else
+            local strVariableNameVersion = string.format('version_%s.%s.%s', strGroup, strModule, strArtifact)
+            tResult = cInstallHelper:add_replacement(strVariableNameVersion, strVersion)
+            if tResult~=true then
+              self.cLogger:error('Failed to add the version variable for %s.', strGMAV)
+              break
+            else
+              tResult = self:depack_archive(strArtifactPath, strDepackPath)
+              if tResult==nil then
+                self.cLogger:error('Error depacking %s .', strGMAV)
+                break
+              end
 
-        tResult = self:run_install_script(strDepackPath, cInstallHelper, strGMAV)
-        if tResult==nil then
-          self.cLogger:error('Error installing %s .', strGMAV)
-          break
+              local strInstallScriptFile = self.pl.path.join(strDepackPath, 'install.lua')
+              tResult = self:run_install_script(strInstallScriptFile, strDepackPath, cInstallHelper, strGMAV)
+              if tResult==nil then
+                self.cLogger:error('Error installing %s .', strGMAV)
+                break
+              end
+            end
+          end
         end
       end
     end
   end
 
-  return tResult, strError
+  if tResult==true then
+    if strFinalizerScript~=nil then
+      -- Get the absolute path for the finalizer script.
+      local strFinalizerScriptAbs = self.pl.path.abspath(strFinalizerScript)
+      -- Get the path component of the finalizer script.
+      local strWorkingPath = self.pl.path.dirname(strFinalizerScriptAbs)
+      self.cLogger:info('Run the finalizer script "%s".', strFinalizerScriptAbs)
+      tResult = self:run_install_script(strFinalizerScriptAbs, strWorkingPath, cInstallHelper, 'finalizer script')
+      if tResult==nil then
+        self.cLogger:error('Error running the finalizer script.')
+      end
+    end
+  end
+
+  return tResult
 end
 
 return Installer

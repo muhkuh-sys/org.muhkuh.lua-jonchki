@@ -41,6 +41,11 @@ tParser:option('-d --debug_components')
   :description('Install the debug components along with the rest of the package.')
   :default(false)
   :target('fInstallDebugComponents')
+tParser:option('-f --finalizer')
+  :description('Run the installer script SCRIPT as a finalizer.')
+  :argname('<SCRIPT>')
+  :default(nil)
+  :target('strFinalizerScript')
 tParser:option('-p --prjcfg')
   :description('Load the project configuration from FILE.')
   :argname('<FILE>')
@@ -166,7 +171,7 @@ else
   else
     local Installer = require 'installer.installer'
     local cInstaller = Installer(cLogger, cSysCfg)
-    local tResult = cInstaller:install_artifacts(atArtifacts, strTargetId, tArgs.fInstallDebugComponents)
+    local tResult = cInstaller:install_artifacts(atArtifacts, strTargetId, tArgs.fInstallDebugComponents, tArgs.strFinalizerScript)
     if tResult==nil then
       cLogger:fatal('Failed to install all artifacts.')
       os.exit(1)
