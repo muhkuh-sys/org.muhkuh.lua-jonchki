@@ -94,6 +94,12 @@ end
 
 
 
+function InstallHelper:replace_template(strPath)
+  return string.gsub(strPath, '%${([a-zA-Z0-9_%.-]+)}', self.atReplacements)
+end
+
+
+
 function InstallHelper:install_dev(tSrc, strDst)
   if self.fInstallDev==true then
     self:install(tSrc, strDst)
@@ -142,14 +148,10 @@ function InstallHelper:install(tSrc, strDst)
   end
 
   -- Replace the ${} strings.
-  local atReplacements = {}
-  for strKey, strValue in pairs(self.atReplacements) do
-    atReplacements[strKey] = strValue
-  end
   for uiCnt, strValue in ipairs(astrSrc) do
-    astrSrc[uiCnt] = string.gsub(strValue, '%${([a-zA-Z0-9_%.-]+)}', atReplacements)
+    astrSrc[uiCnt] = self:replace_template(strValue)
   end
-  local strDst = string.gsub(strDst, '%${([a-zA-Z0-9_%.-]+)}', atReplacements)
+  local strDst = self:replace_template(strDst)
 
   -- The destination is treated as a directory...
   --   if it ends with a slash or
