@@ -1,5 +1,3 @@
--- This test checks the Configuration class.
-
 ------------------------------------------------------------------------------
 --
 -- Add some subfolders to the search list.
