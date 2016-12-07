@@ -37,6 +37,9 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstal
   -- The "penlight" module is used for various helpers.
   self.pl = require'pl.import_into'()
 
+  -- The "luazip" module is used to create new archives.
+  self.zip = require 'zip'
+
   -- This is the list of installed files for the complete installation procedure (i.e. over all packages).
   self.atInstalledFiles = {}
 
