@@ -415,7 +415,7 @@ function Resolver:resolve_step(tResolv)
     local tResult = self.cResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
     if tResult==nil then
       -- The configuration file could not be retrieved.
-      self.tLogger:info('Failed to get the configuration file for %s/%s/%s/%s: %s', strGroup, strModule, strArtifact, tVersion:get(), strMessage)
+      self.tLogger:info('Failed to get the configuration file for %s/%s/%s/%s.', strGroup, strModule, strArtifact, tVersion:get())
 
       -- This item is now blocked.
       tResolv.eStatus = self.RT_Blocked
