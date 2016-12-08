@@ -10,8 +10,8 @@ local ResolverExact = class(Resolver)
 
 --- Initialize a new instance of the exact resolver.
 -- @param strID The ID identifies the resolver.
-function ResolverExact:_init(cLogger, strID)
-  self:super(cLogger, strID)
+function ResolverExact:_init(cLogger, strID, fInstallBuildDependencies)
+  self:super(cLogger, strID, fInstallBuildDependencies)
 
   -- This is a GA->V map of all used artifacts. It is used to check if each GA pair has the same version.
   self.atEnforcement = {}

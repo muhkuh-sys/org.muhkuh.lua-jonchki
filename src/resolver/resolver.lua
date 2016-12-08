@@ -9,7 +9,7 @@ local Resolver = class()
 
 --- Initialize a new instance of the exact resolver.
 -- @param strID The ID identifies the resolver.
-function Resolver:_init(cLogger, strID)
+function Resolver:_init(cLogger, strID, fInstallBuildDependencies)
   self.strID = strID
 
   -- The "penlight" module is used to parse the configuration file.
@@ -22,6 +22,8 @@ function Resolver:_init(cLogger, strID)
   self.atRepositoryByID = nil
 
   self.tLogger = cLogger
+
+  self.fInstallBuildDependencies = fInstallBuildDependencies
 
   -- This is the state enumeration for a ressolve table entry.
   self.RT_Initialized = 0            -- The structure was initialized, no version picked, no resolving done.
@@ -200,7 +202,13 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
     atV.ptBlockingDependency = nil
 
     -- Loop over all dependencies.
-    for _,tDependency in pairs(cA.atDependencies) do
+    local atDependencies
+    if self.fInstallBuildDependencies==true then
+      atDependencies = cA.atBuildDependencies
+    else
+      atDependencies = cA.atDependencies
+    end
+    for _,tDependency in pairs(atDependencies) do
       local strGroup = tDependency.strGroup
       local strModule = tDependency.strModule
       local strArtifact = tDependency.strArtifact
