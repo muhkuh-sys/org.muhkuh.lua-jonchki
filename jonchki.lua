@@ -35,7 +35,7 @@ local atLogLevels = {
 local tParser = argparse('jonchki', 'A dependency manager for LUA packages.')
 tParser:argument('input', 'Input file.')
   :target('strInputFile')
-tParser:option('-b --build-dependencies')
+tParser:flag('-b --build-dependencies')
   :description('Install the build dependencies.')
   :default(false)
   :target('fInstallBuildDependencies')
