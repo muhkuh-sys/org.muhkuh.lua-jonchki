@@ -294,11 +294,13 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
   local tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse(strConfiguration)
   if tParseResult~=nil then
     tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse()
+    if tParseResult~=nil then
+      tParser:close()
+    end
   end
-  tParser:close()
 
   if tParseResult==nil then
-    self.tLogger:error("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos)
+    self.tLogger:error('Failed to parse the artifact configuration "%s": %s in line %d, column %d, position %d.', strSourceUrl, strMsg, uiLine, uiCol, uiPos)
   elseif aLxpAttr.tResult~=true then
     self.tLogger:error('Failed to parse the configuration file "%s"', strSourceUrl)
   else
