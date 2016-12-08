@@ -16,7 +16,9 @@ function RepositoryDriverUrl:_init(tLogger, strID)
   -- Set the logger and the ID of the repository driver.
   self:super(tLogger, strID)
 
-  self.curl = require 'lcurl'
+  -- Get an available curl module.
+  self:__get_any_curl()
+
   self.Version = require 'Version'
 
   -- Clear the URLs for the configuration and artifact.
@@ -26,6 +28,35 @@ function RepositoryDriverUrl:_init(tLogger, strID)
   self.strArtifact = nil
 
   self.atDownloadData = nil
+end
+
+
+
+function RepositoryDriverUrl:__get_any_curl()
+  local curl
+  local tResult
+
+  -- Prefer the modern lcurl.
+  tResult, curl = pcall(require, 'lcurl')
+  if tResult==true then
+    -- TODO: get the version somehow.
+    self.tLogger:info('Found new lcurl.')
+    self.curl = curl
+    self.get_url = self.get_url_lcurlv3
+    self.download_url = self.download_url_lcurlv3
+  else
+
+    -- If lcurl is not available, fall back to "lua-curl".
+    tResult, curl = pcall(require, 'curl')
+    if tResult==true then
+      self.tLogger:info('Found old curl.')
+      self.curl = curl
+      self.get_url = self.get_url_curlold
+      self.download_url = self.download_url_curlold
+    else
+      error('Neither lcurl nor lua-curl is available.')
+    end
+  end
 end
 
 
@@ -50,7 +81,7 @@ end
 
 
 
-function RepositoryDriverUrl:curl_progress(ulDlTotal, ulDlNow, ulUpTotal, ulUpNow)
+function RepositoryDriverUrl:curl_progress(ulDlTotal, ulDlNow)
   print('curl_progress', self)
   print(string.format('%d%% (%d/%d)', ulDlTotal/ulDlNow*100, ulDlNow, ulDlTotal))
   return true
@@ -65,7 +96,7 @@ end
 
 
 
-function RepositoryDriverUrl:get_url(strUrl)
+function RepositoryDriverUrl:get_url_lcurlv3(strUrl)
   local tResult = nil
   local tCURL = self.curl.easy()
 
@@ -95,7 +126,7 @@ end
 
 
 
-function RepositoryDriverUrl:download_url(strUrl, strLocalFile)
+function RepositoryDriverUrl:download_url_lcurlv3(strUrl, strLocalFile)
   local tResult = nil
   local tCURL = self.curl.easy()
 
@@ -110,17 +141,98 @@ function RepositoryDriverUrl:download_url(strUrl, strLocalFile)
     tCURL:setopt_progressfunction(self.curl_progress, self)
     local tCallResult, strError = pcall(tCURL.perform, tCURL)
     if tCallResult~=true then
-      self.tLogger('Failed to retrieve URL "%s": %s', strUrl, strError)
+      self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
     else
       local uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
       if uiHttpResult==200 then
         tResult = true
       else
-        self.tLogger('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
+        self.tLogger:error('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
       end
     end
     tCURL:close()
 
+    tFile:close()
+  end
+
+  return tResult
+end
+
+
+
+function RepositoryDriverUrl:get_url_curlold(strUrl)
+  local tResult = nil
+
+  -- Collect the received data in a table.
+  local atChunks = {}
+  local sizTotal = 0
+
+  local function local_download(aucBuffer)
+    table.insert(atChunks, aucBuffer)
+    local sizNew = string.len(aucBuffer)
+    sizTotal = sizTotal + sizNew
+    print(string.format('Dl %d.', sizTotal))
+    return sizNew
+  end
+
+  local tCURL = self.curl.easy_init()
+
+  tCURL:setopt(self.curl.OPT_FOLLOWLOCATION, 1)
+  tCURL:setopt(self.curl.OPT_URL, strUrl)
+
+  tCURL:setopt(self.curl.OPT_WRITEFUNCTION, local_download)
+
+  local tCallResult, strError, abc = pcall(tCURL.perform, tCURL)
+  if tCallResult~=true then
+    self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
+  else
+    if tCURL.close~=nil then
+      tCURL:close()
+    end
+
+    tResult = table.concat(atChunks)
+  end
+
+  return tResult
+end
+
+
+
+function RepositoryDriverUrl:download_url_curlold(strUrl, strLocalFile)
+  local tResult = nil
+  local tCURL = self.curl.easy_init()
+  local tFile
+  local sizTotal = 0
+
+  local function local_download(aucBuffer)
+    tFile:write(aucBuffer)
+    local sizNew = string.len(aucBuffer)
+    sizTotal = sizTotal + sizNew
+    print(string.format('Dl %d.', sizTotal)) 
+    return sizNew
+  end
+
+  tCURL:setopt(self.curl.OPT_FOLLOWLOCATION, 1)
+  tCURL:setopt(self.curl.OPT_URL, strUrl)
+
+  tCURL:setopt(self.curl.OPT_WRITEFUNCTION, local_download)
+
+  -- Write the received data to a file.
+  local strError
+  tFile, strError = io.open(strLocalFile, 'wb')
+  if tFile==nil then
+    self.tLogger:error('Failed to open "%s" for writing: %s', strLocalFile, strError)
+  else
+    local tCallResult, strError = pcall(tCURL.perform, tCURL)
+    if tCallResult~=true then
+      self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
+    else
+      if tCURL.close~=nil then
+        tCURL:close()
+      end
+      tResult = true
+    end
+    
     tFile:close()
   end
 
