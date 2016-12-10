@@ -11,7 +11,7 @@ local InstallHelper = class()
 
 --- Initialize a new instance of the install class.
 -- @param strID The ID identifies the resolver.
-function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstallBuildDependencies)
+function InstallHelper:_init(cLogger, cSystemConfiguration, cPlatform, fInstallBuildDependencies)
   self.cLogger = cLogger
 
   -- Get the installation paths from the system configuration.
@@ -26,10 +26,10 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, strTargetId, fInstal
   atReplacements.install_dev_include = cSystemConfiguration.tConfiguration.install_dev_include
   atReplacements.install_dev_lib = cSystemConfiguration.tConfiguration.install_dev_lib
   atReplacements.install_dev_cmake = cSystemConfiguration.tConfiguration.install_dev_cmake
+  atReplacements.platform_cpu_architecture = cPlatform:get_cpu_architecture()
+  atReplacements.platform_distribution_id = cPlatform:get_distribution_id()
+  atReplacements.platform_distribution_version = cPlatform:get_distribution_version()
   self.atReplacements = atReplacements
-
-  -- Copy the target ID.
-  self.strTargetId = strTargetId
 
   -- Copy the flag for installation of development components.
   self.fInstallBuildDependencies = fInstallBuildDependencies
@@ -89,7 +89,25 @@ end
 
 
 function InstallHelper:get_platform()
-  return self.strTargetId
+  return self.atReplacements.platform_distribution_id, self.atReplacements.platform_distribution_version, self.atReplacements.platform_cpu_architecture
+end
+
+
+
+function InstallHelper:get_platform_cpu_architecture()
+  return self.atReplacements.platform_cpu_architecture
+end
+
+
+
+function InstallHelper:get_platform_distribution_id()
+  return self.atReplacements.platform_distribution_id
+end
+
+
+
+function InstallHelper:get_platform_distribution_version()
+  return self.atReplacements.platform_distribution_version
 end
 
 

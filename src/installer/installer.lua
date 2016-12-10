@@ -155,11 +155,11 @@ end
 
 
 
-function Installer:install_artifacts(atArtifacts, strTargetId, fInstallBuildDependencies, strFinalizerScript)
+function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDependencies, strFinalizerScript)
   local tResult = true
 
   -- Create the installation helper.
-  local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, strTargetId, fInstallBuildDependencies)
+  local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, cPlatform, fInstallBuildDependencies)
 
   for _,tGMAV in pairs(atArtifacts) do
     local strGroup = tGMAV.strGroup
@@ -169,7 +169,7 @@ function Installer:install_artifacts(atArtifacts, strTargetId, fInstallBuildDepe
     local strArtifactPath = tGMAV.strArtifactPath
 
     local strGMAV = string.format('%s-%s-%s-%s', strGroup, strModule, strArtifact, strVersion)
-    self.cLogger:info('Installing %s for target %s', strGMAV, strTargetId)
+    self.cLogger:info('Installing %s for target %s', strGMAV, tostring(cPlatform))
 
     -- Create a unique temporary path for the artifact.
     local strGroupPath = self.pl.stringx.replace(strGroup, '.', self.pl.path.sep)

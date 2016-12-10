@@ -54,11 +54,21 @@ tParser:option('-s --syscfg')
   :argname('<FILE>')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
-tParser:option('-t --target')
-  :description('Create an installation for the target platform with the ID TARGET.')
-  :argname('<TARGET>')
+tParser:option('--cpu-architecture')
+  :description('Set the CPU architecture for the installation to ARCH. The default is to autodetect it.')
+  :argname('<ARCH>')
   :default(nil)
-  :target('strTargetId')
+  :target('strCpuArchitecture')
+tParser:option('--distribution-id')
+  :description('Set the distribution id for the installation to ID. The default is to autodetect it.')
+  :argname('<ID>')
+  :default(nil)
+  :target('strDistributionId')
+tParser:option('--distribution-version')
+  :description('Set the distribution version for the installation to VERSION. The default is to autodetect it.')
+  :argname('<VERSION>')
+  :default(nil)
+  :target('strDistributionVersion')
 tParser:option('-v --verbose')
   :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
   :argname('<LEVEL>')
@@ -82,10 +92,32 @@ cLogger:setLevel(tArgs.tLogLevel)
 --
 -- Get the target ID.
 --
-local strTargetId = tArgs.strTargetId
-if strTargetId==nil then
-  -- Autodetect the current platform.
-  cLogger:fatal('Auto-detection of the current platform is not yet implemented.')
+local strCpuArchitecture = tArgs.strCpuArchitecture
+local strDistributionId = tArgs.strDistributionId
+local strDistributionVersion = tArgs.strDistributionVersion
+local Platform = require 'platform.platform'
+local cPlatform = Platform(cLogger)
+
+-- If at least one value is not set, we need auto-detection.
+if strCpuArchitecture==nil or strDistributionId==nil or strDistributionVersion==nil then
+  cPlatform:detect()
+end
+
+-- Override the initial values (empty or from the detection)
+if strCpuArchitecture~=nil then
+  cPlatform:override_cpu_architecture(strCpuArchitecture)
+end
+if strDistributionId~=nil then
+  cPlatform:override_distribution_id(strDistributionId)
+end
+if strDistributionVersion~=nil then
+  cPlatform:override_distribution_version(strDistributionVersion)
+end
+
+local fPlatformInfoIsValid = cPlatform:is_valid()
+if fPlatformInfoIsValid~=true then
+  -- The platform information is not valid.
+  cLogger:fatal('The platform information is not valid!')
   os.exit(1)
 end
 
@@ -169,7 +201,7 @@ else
   else
     local Installer = require 'installer.installer'
     local cInstaller = Installer(cLogger, cSysCfg)
-    local tResult = cInstaller:install_artifacts(atArtifacts, strTargetId, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
+    local tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
     if tResult==nil then
       cLogger:fatal('Failed to install all artifacts.')
       os.exit(1)
