@@ -39,6 +39,35 @@ function Resolver:_init(cLogger, strID, fInstallBuildDependencies)
   self.V_Blocked = 2
 
   self:clear_resolve_tables()
+
+  -- Add all policies.
+  -- TODO: for now there is only one policy, but as soon as there are more, there shound be something dynamic here.
+  local atPolicies = {}
+  local strPolicy = 'resolver.policies.policy001'
+  local cPolicy = require(strPolicy)
+  local tPolicy = cPolicy(cLogger)
+  local strPolicyID = tPolicy:get_id()
+  if strPolicyID==nil then
+    cLogger:error('Ignoring policy from "%s". No ID set.', strPolicy)
+  elseif atPolicies[strPolicyID]~=nil then
+    cLogger:error('Ignoring policy from "%s". The ID "%s" is already used.', strPolicy, strPolicyID)
+  else
+    cLogger:info('Adding policy "%s" from "%s".', strPolicyID, strPolicy)
+    atPolicies[strPolicyID] = tPolicy
+  end
+  self.atPolicies = atPolicies
+
+  -- Set the default policy list.
+  -- TODO: this should be defined by the project configuration.
+  local atPolicyList = {}
+  local strPolicyID = '001'
+  local tPolicy = self.atPolicies[strPolicyID]
+  if tPolicy==nil then
+    cLogger:fatal('Policy "%s" not found!', strPolicyID)
+  else
+    table.insert(atPolicyList, tPolicy)
+  end
+  self.atPolicyList = atPolicyList
 end
 
 
@@ -400,10 +429,27 @@ function Resolver:resolve_step(tResolv)
 
   local tStatus = tResolv.eStatus
   if tStatus==self.RT_Initialized then
+    -- Use the global policy list by default.
+    local atPolicyList = self.atPolicyList
+    -- TODO: Check if another policy list than the default one should be used for this G/M/A combination.
+
     -- Select a version based on the constraints.
-    local tVersion, strMessage = self:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
+    -- Loop over all policies until a version was found.
+    local tVersion
+    for _, tPolicy in ipairs(atPolicyList) do
+      local strID = tPolicy:get_id()
+      local strMessage
+      tVersion, strMessage = tPolicy:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
+      if tVersion==nil then
+        self.tLogger:debug('No available version found for %s/%s/%s with policy "%s": %s', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact, strID, strMessage)
+      else
+        self.tLogger:debug('Select version %s for %s/%s/%s with policy "%s".', tVersion:get(), tResolv.strGroup, tResolv.strModule, tResolv.strArtifact, strID)
+        break
+      end
+    end
+
     if tVersion==nil then
-      self.tLogger:error('Failed to select a new version for %s/%s/%s: %s', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact, strMessage)
+      self.tLogger:error('Failed to select a new version for %s/%s/%s .', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact)
       -- The item is now blocked.
       tResolv.eStatus = self.RT_Blocked
     else
@@ -479,8 +525,14 @@ end
 
 
 
-function Resolver:resolve_loop(tResolv)
+function Resolver:resolve(cArtifact)
   local fIsDone
+
+  -- Start with clean resolver tables.
+  self:clear_resolve_tables()
+
+  -- Write the artifact to the resolve table.
+  self:resolve_set_start_artifact(cArtifact)
 
   repeat
     -- Execute one resolve step.

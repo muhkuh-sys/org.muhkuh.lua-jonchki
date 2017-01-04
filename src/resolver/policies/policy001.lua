@@ -1,17 +1,17 @@
---- A resolver which accepts exact matches only.
--- @author cthelen@hilscher.com
--- @copyright 2016 Hilscher Gesellschaft für Systemautomation mbH
+--- Policy 001
+-- Policy 001 only accepts exact matches.
+-- @author doc_bacardi@users.sourceforge.net
+-- @copyright 2017 Christoph Thelen
 
 -- Create the configuration class.
 local class = require 'pl.class'
-local Resolver = require 'resolver.resolver'
-local ResolverExact = class(Resolver)
+local Policy = require 'resolver.policies.policy'
+local Policy001 = class(Policy)
 
 
---- Initialize a new instance of the exact resolver.
--- @param strID The ID identifies the resolver.
-function ResolverExact:_init(cLogger, strID, fInstallBuildDependencies)
-  self:super(cLogger, strID, fInstallBuildDependencies)
+--- Initialize a new instance of a Policy001.
+function Policy001:_init(cLogger)
+  self:super(cLogger, '001')
 
   -- This is a GA->V map of all used artifacts. It is used to check if each GA pair has the same version.
   self.atEnforcement = {}
@@ -19,7 +19,7 @@ end
 
 
 
-function ResolverExact:add_enforcement(cArtifact, cArtifactParent)
+function Policy001:add_enforcement(cArtifact, cArtifactParent)
   local tResult = nil
   local tContinue = nil
 
@@ -64,27 +64,7 @@ end
 
 
 
-function ResolverExact:resolve_process_artifact(cArtifact, cArtifactParent, strSourceID)
-  -- Add the current artifact to the GA->V table.
-  self:add_to_ga_v(cArtifact.tInfo.strGroup, cArtifact.tInfo.strModule, cArtifact.tInfo.strArtifact, cArtifact.tInfo.tVersion, strSourceID)
-
-  -- Add the current version to the enforcement table
-  local tResult,tContinue = self:add_enforcement(cArtifact, cArtifactParent)
-  if tResult~=true then
-    error('Failed to process artifact')
-  end
-
-  if tContinue==true then
-    -- Loop over all dependencies.
-    for _,tDependency in pairs(cArtifact.atDependencies) do
-      self:search_artifact(tDependency)
-    end
-  end
-end
-
-
-
-function ResolverExact:select_version_by_constraints(atVersions, strConstraint)
+function Policy001:select_version_by_constraints(atVersions, strConstraint)
   local tResult = nil
 
   -- In "exact" mode there must be an exact version number.
@@ -111,29 +91,4 @@ function ResolverExact:select_version_by_constraints(atVersions, strConstraint)
   return tResult, strMessage
 end
 
-
-
-function ResolverExact:resolve(cArtifact)
-  -- Start with clean resolver tables.
-  self:clear_resolve_tables()
-  self.atEnforcement = {}
-
-  -- Write the artifact to the resolve table.
-  self:resolve_set_start_artifact(cArtifact)
-
-  -- Resolve until done or an error occurs.
-  return self:resolve_loop()
-end
-
-
-
---- Return the complete configuration as a string.
--- @return The configuration as a string.
-function ResolverExact:__tostring()
-  local strRepr = string.format('ResolverExact(id="%s")', self.strID)
-
-  return strRepr
-end
-
-
-return ResolverExact
+return Policy001

@@ -179,10 +179,10 @@ end
 
 -----------------------------------------------------------------------------
 --
--- Create the exact resolver.
+-- Create the resolver.
 --
-local ResolverExact = require 'resolver.exact'
-local tResolver = ResolverExact(cLogger, 'default-exact', tArgs.fInstallBuildDependencies)
+local Resolver = require 'resolver.resolver'
+local tResolver = Resolver(cLogger, 'default', tArgs.fInstallBuildDependencies)
 
 -- Resolve all dependencies.
 tResolver:setResolverChain(cResolverChain)
