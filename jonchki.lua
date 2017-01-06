@@ -183,28 +183,34 @@ end
 --
 local Resolver = require 'resolver.resolver'
 local tResolver = Resolver(cLogger, 'default', tArgs.fInstallBuildDependencies)
-
--- Resolve all dependencies.
-tResolver:setResolverChain(cResolverChain)
-local tStatus = tResolver:resolve(cArtifactCfg)
-if tStatus~=true then
-  cLogger:fatal('Failed to resolve all dependencies.')
+-- Create all policy lists.
+local tResult = tResolver:load_policies()
+if tResult~=true then
+  cLogger:fatal('Failed to create all policy lists.')
   os.exit(1)
 else
-  local atArtifacts = tResolver:get_all_dependencies()
-
-  -- Download and depack all dependencies.
-  local tResult = cResolverChain:retrieve_artifacts(atArtifacts)
-  if tResult==nil then
-    cLogger:fatal('Failed to retrieve all artifacts.')
+  -- Resolve all dependencies.
+  tResolver:setResolverChain(cResolverChain)
+  local tStatus = tResolver:resolve(cArtifactCfg)
+  if tStatus~=true then
+    cLogger:fatal('Failed to resolve all dependencies.')
     os.exit(1)
   else
-    local Installer = require 'installer.installer'
-    local cInstaller = Installer(cLogger, cSysCfg)
-    local tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
+    local atArtifacts = tResolver:get_all_dependencies()
+  
+    -- Download and depack all dependencies.
+    local tResult = cResolverChain:retrieve_artifacts(atArtifacts)
     if tResult==nil then
-      cLogger:fatal('Failed to install all artifacts.')
+      cLogger:fatal('Failed to retrieve all artifacts.')
       os.exit(1)
+    else
+      local Installer = require 'installer.installer'
+      local cInstaller = Installer(cLogger, cSysCfg)
+      local tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
+      if tResult==nil then
+        cLogger:fatal('Failed to install all artifacts.')
+        os.exit(1)
+      end
     end
   end
 end

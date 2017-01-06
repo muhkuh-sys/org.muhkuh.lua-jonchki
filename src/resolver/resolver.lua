@@ -40,34 +40,88 @@ function Resolver:_init(cLogger, strID, fInstallBuildDependencies)
 
   self:clear_resolve_tables()
 
-  -- Add all policies.
-  -- TODO: for now there is only one policy, but as soon as there are more, there shound be something dynamic here.
-  local atPolicies = {}
-  local strPolicy = 'resolver.policies.policy001'
-  local cPolicy = require(strPolicy)
-  local tPolicy = cPolicy(cLogger)
-  local strPolicyID = tPolicy:get_id()
-  if strPolicyID==nil then
-    cLogger:error('Ignoring policy from "%s". No ID set.', strPolicy)
-  elseif atPolicies[strPolicyID]~=nil then
-    cLogger:error('Ignoring policy from "%s". The ID "%s" is already used.', strPolicy, strPolicyID)
-  else
-    cLogger:info('Adding policy "%s" from "%s".', strPolicyID, strPolicy)
-    atPolicies[strPolicyID] = tPolicy
-  end
-  self.atPolicies = atPolicies
+  self.atPolicies = {}
+  self.atPolicyDefaultList = {}
+  self.atPolicyOverrides = {}
+end
 
-  -- Set the default policy list.
-  -- TODO: this should be defined by the project configuration.
-  local atPolicyList = {}
-  local strPolicyID = '001'
-  local tPolicy = self.atPolicies[strPolicyID]
-  if tPolicy==nil then
-    cLogger:fatal('Policy "%s" not found!', strPolicyID)
-  else
-    table.insert(atPolicyList, tPolicy)
+
+
+function Resolver:load_policies()
+  -- This is a list of the policies to load. The entries are appended to
+  -- "resolver.policies.policy", so that "001" results in
+  -- "resolver.policies.policy001".
+  -- Note that the entries here must not match the ID of a class.
+  local astrPolicyClassID = {
+    '001'
+  }
+
+  -- This table will hold all loaded policies in the form ID -> policy class .
+  local atPolicies = {}
+
+  local fResult = true
+  for _, strPolicyClassID in ipairs(astrPolicyClassID) do
+    -- Create the complete class name.
+    local strPolicy = string.format('resolver.policies.policy%s', strPolicyClassID)
+    -- Get the class.
+    local cPolicy = require(strPolicy)
+    -- Create an instance of the class.
+    local tPolicy = cPolicy(self.tLogger)
+    -- Get the ID from the instance.
+    local strPolicyID = tPolicy:get_id()
+    -- The class must have an ID. Empty IDs are not good.
+    if strPolicyID==nil then
+      self.tLogger:fatal('Failed to load policy from "%s". No ID set.', strPolicy)
+      fResult = nil
+
+    -- The ID is used to identify the class, so it has to be unique.
+    elseif atPolicies[strPolicyID]~=nil then
+      self.tLogger:fatal('Failed to load policy from "%s". The ID "%s" is already used.', strPolicy, strPolicyID)
+      fResult = nil
+
+    else
+      self.tLogger:info('Adding policy "%s" from "%s".', strPolicyID, strPolicy)
+      atPolicies[strPolicyID] = tPolicy
+    end
   end
-  self.atPolicyList = atPolicyList
+
+  if fResult==true then
+    self.atPolicies = atPolicies
+
+    -- Set the default policy list.
+    -- TODO: this should be defined by the project configuration.
+    local atDefaultPolicies = {
+      '001'
+    }
+    local atPolicyDefaultList = self:create_policy_list(atDefaultPolicies)
+    if atPolicyDefaultList==nil then
+      fResult = nil
+
+    else
+      self.atPolicyDefaultList = atPolicyDefaultList
+    end
+  end
+
+  return fResult
+end
+
+
+
+function Resolver:create_policy_list(astrPolicyIDs)
+  local atPolicyList = {}
+
+  for _, strPolicyID in ipairs(astrPolicyIDs) do
+    local tPolicy = self.atPolicies[strPolicyID]
+    if tPolicy==nil then
+      cLogger:fatal('Policy "%s" not found!', strPolicyID)
+      break
+
+    else
+      table.insert(atPolicyList, tPolicy)
+    end
+  end
+
+  return atPolicyList
 end
 
 
@@ -348,8 +402,8 @@ end
 
 
 function Resolver:resolve_set_start_artifact(cArtifact)
-  -- Start writing dumps with 000.
-  self.uiResolveTabDumpCounter = 0
+  -- Count the resolve steps.
+  self.uiResolveStepCounter = 0
 
   -- Write the artifact to the resolve table.
   local tResolv = self:resolvtab_create_entry(cArtifact.tInfo.strGroup, cArtifact.tInfo.strModule, cArtifact.tInfo.strArtifact, nil)
@@ -424,32 +478,55 @@ end
 
 
 function Resolver:resolve_step(tResolv)
-  -- If no parameter was given, start at the root of the tree.
-  local tResolv = tResolv or self.atResolvTab
+  -- If no parameter was given, start at the root of the tree and print the step counter.
+  if tResolv==nil then
+    tResolv = self.atResolvTab
+
+    -- Increase the step counter.
+    local uiResolveStepCounter = self.uiResolveStepCounter
+    uiResolveStepCounter = uiResolveStepCounter + 1
+    self.uiResolveStepCounter = uiResolveStepCounter
+
+    -- Print the counter.
+    self.tLogger:debug('[RESOLVE] **************')
+    self.tLogger:debug('[RESOLVE] *  Step %03d  *', uiResolveStepCounter)
+    self.tLogger:debug('[RESOLVE] **************')
+  end
+
+  local strGMA = string.format('%s/%s/%s', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact)
 
   local tStatus = tResolv.eStatus
   if tStatus==self.RT_Initialized then
-    -- Use the global policy list by default.
-    local atPolicyList = self.atPolicyList
-    -- TODO: Check if another policy list than the default one should be used for this G/M/A combination.
+    self.tLogger:debug('[RESOLVE] Select a version for %s', strGMA)
 
-    -- Select a version based on the constraints.
+    -- Check if another policy list than the default one should be used for this G/M/A combination.
+    local atPolicyList = self.atPolicyOverrides[strGMA]
+    if atPolicyList==nil then
+      atPolicyList = self.atPolicyDefaultList
+      self.tLogger:debug('[RESOLVE] Using the default policy list.')
+    else
+      self.tLogger:debug('[RESOLVE] Overriding the default policy list.')
+    end
+
+    -- Select a version based on the policies.
     -- Loop over all policies until a version was found.
     local tVersion
     for _, tPolicy in ipairs(atPolicyList) do
       local strID = tPolicy:get_id()
+      self.tLogger:debug('[RESOLVE] Trying policy "%s".', strID)
+
       local strMessage
       tVersion, strMessage = tPolicy:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
       if tVersion==nil then
-        self.tLogger:debug('No available version found for %s/%s/%s with policy "%s": %s', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact, strID, strMessage)
+        self.tLogger:debug('[RESOLVE] No available version found for %s with policy "%s": %s', strGMA, strID, strMessage)
       else
-        self.tLogger:debug('Select version %s for %s/%s/%s with policy "%s".', tVersion:get(), tResolv.strGroup, tResolv.strModule, tResolv.strArtifact, strID)
+        self.tLogger:debug('[RESOLVE] Select version %s for %s with policy "%s".', tVersion:get(), strGMA, strID)
         break
       end
     end
 
     if tVersion==nil then
-      self.tLogger:error('Failed to select a new version for %s/%s/%s .', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact)
+      self.tLogger:error('[RESOLVE] Failed to select a new version for %s . The item is now blocked.', strGMA)
       -- The item is now blocked.
       tResolv.eStatus = self.RT_Blocked
     else
@@ -466,10 +543,12 @@ function Resolver:resolve_step(tResolv)
     local strArtifact = tResolv.strArtifact
     local tVersion = tResolv.ptActiveVersion.tVersion
 
+    self.tLogger:debug('[RESOLVE] Get the configuration for %s/%s', strGMA, tVersion:get())
+
     local tResult = self.cResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
     if tResult==nil then
       -- The configuration file could not be retrieved.
-      self.tLogger:info('Failed to get the configuration file for %s/%s/%s/%s.', strGroup, strModule, strArtifact, tVersion:get())
+      self.tLogger:info('Failed to get the configuration file for %s/%s.', strGMA, tVersion:get())
 
       -- This item is now blocked.
       tResolv.eStatus = self.RT_Blocked
@@ -482,12 +561,18 @@ function Resolver:resolve_step(tResolv)
 
     end
   elseif tStatus==self.RT_GetDependencyVersions then
+    local tVersion = tResolv.ptActiveVersion.tVersion
+    self.tLogger:debug('[RESOLVE] Get the available versions for the dependencies for %s/%s', strGMA, tVersion:get())
+
     self:resolvetab_get_dependency_versions(tResolv)
 
     -- Update the status.
     tStatus = tResolv.eStatus
 
   elseif tStatus==self.RT_ResolvingDependencies then
+    local tVersion = tResolv.ptActiveVersion.tVersion
+    self.tLogger:debug('[RESOLVE] Resolve the dependencies for %s/%s', strGMA, tVersion:get())
+
     -- Loop over all dependencies.
     -- Set the default status to "resolved". This is good for empty lists.
     local tCombinedStatus = self.RT_Resolved
@@ -517,8 +602,6 @@ function Resolver:resolve_step(tResolv)
     -- Pass this up.
 
   end
-
---  self.cLogger:log_resolve_status(self, 'Step.')
 
   return tStatus
 end
