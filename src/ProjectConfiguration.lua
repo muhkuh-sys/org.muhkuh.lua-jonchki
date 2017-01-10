@@ -1,8 +1,8 @@
 --- The project configuration handler.
 -- The configuration handler provides read-only access to the settings from
 -- a configuration file.
--- @author cthelen@hilscher.com
--- @copyright 2016 Hilscher Gesellschaft für Systemautomation mbH
+-- @author doc_bacardi@users.sourceforge.net
+-- @copyright 2017 Christoph Thelen
 
 
 -- Create the configuration class.
@@ -23,6 +23,11 @@ function ProjectConfiguration:_init(cLogger)
 
   -- There is no configuration yet.
   self.atRepositories = nil
+
+  -- No default policy list.
+  self.atPolicyListDefault = nil
+  -- No overrides.
+  self.atPolicyListOverrides = nil
 end
 
 
@@ -87,6 +92,47 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
         end
       end
     end
+
+  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/policies/default/policy" then
+    local strID = atAttributes['id']
+    if strID==nil or strID=='' then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
+    else
+      table.insert(aLxpAttr.atPolicyListDefault, strID)
+    end
+
+  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/policies/override" then
+    local strGroup = atAttributes['group']
+    if strGroup==nil or strGroup=='' then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
+    else
+      local strModule = atAttributes['module']
+      if strModule==nil or strModule=='' then
+        aLxpAttr.tResult = nil
+        aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
+      else
+        local strArtifact = atAttributes['artifact']
+        if strArtifact==nil or strArtifact=='' then
+          aLxpAttr.tResult = nil
+          aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
+        else
+          local strItem = string.format('%s/%s/%s', strGroup, strModule, strArtifact)
+          aLxpAttr.strCurrentPolicyOverrideItem = strItem
+          aLxpAttr.atCurrentPolicyOverrides = {}
+        end
+      end
+    end
+
+  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/policies/override/policy" then
+    local strID = atAttributes['id']
+    if strID==nil or strID=='' then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
+    else
+      table.insert(aLxpAttr.atCurrentPolicyOverrides, strID)
+    end
   end
 end
 
@@ -131,6 +177,33 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
       table.insert(aLxpAttr.atRepositories, tCurrentRepository)
       aLxpAttr.tCurrentRepository = nil
     end
+
+  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/policies/default" then
+    -- The default list must not be empty.
+    if #aLxpAttr.atPolicyListDefault == 0 then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLogger:fatal('Error in line %d, col %d: the default policies must not be empty', iPosLine, iPosColumn)
+    end
+
+  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/policies/override" then
+    -- Add the new override to the list.
+    -- The override must not be empty.
+    if #aLxpAttr.atCurrentPolicyOverrides == 0 then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLogger:fatal('Error in line %d, col %d: the overrides policies must not be empty', iPosLine, iPosColumn)
+    else
+      local strCurrentPolicyOverrideItem = aLxpAttr.strCurrentPolicyOverrideItem
+      if aLxpAttr.atPolicyListOverrides[strCurrentPolicyOverrideItem] ~= nil then
+        aLxpAttr.tResult = nil
+        aLxpAttr.tLogger:fatal('Error in line %d, col %d: overriding %s more than once', iPosLine, iPosColumn, strCurrentPolicyOverrideItem)        
+      else
+        aLxpAttr.atPolicyListOverrides[strCurrentPolicyOverrideItem] = aLxpAttr.atCurrentPolicyOverrides
+      end
+    end
+
+    aLxpAttr.atCurrentPolicyOverrides = nil
+    aLxpAttr.strCurrentPolicyOverrideItem = nil
+
   end
 
   table.remove(aLxpAttr.atCurrentPath)
@@ -180,6 +253,12 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
       tCurrentRepository = nil,
       atRepositories = {},
 
+      atPolicyListDefault = {},
+
+      strCurrentPolicyOverrideItem = nil,
+      atCurrentPolicyOverrides = nil,
+      atPolicyListOverrides = {},
+
       tResult = true,
       tLogger = self.tLogger
     }
@@ -211,7 +290,14 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
       elseif aLxpAttr.tResult==nil then
         tResult = nil
       else
-        self.atRepositories = aLxpCallbacks.userdata.atRepositories
+        -- Set the default policy list to "001" if it was not specified yet.
+        if #aLxpAttr.atPolicyListDefault == 0 then
+          table.insert(aLxpAttr.atPolicyListDefault, '001')
+        end
+
+        self.atRepositories = aLxpAttr.atRepositories
+        self.atPolicyListDefault = aLxpAttr.atPolicyListDefault
+        self.atPolicyListOverrides = aLxpAttr.atPolicyListOverrides
       end
     end
   end

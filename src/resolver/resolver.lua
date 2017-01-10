@@ -1,6 +1,6 @@
 --- The resolver base class.
--- @author cthelen@hilscher.com
--- @copyright 2016 Hilscher Gesellschaft für Systemautomation mbH
+-- @author doc_bacardi@users.sourceforge.net
+-- @copyright 2017 Christoph Thelen
 
 -- Create the configuration class.
 local class = require 'pl.class'
@@ -47,7 +47,7 @@ end
 
 
 
-function Resolver:load_policies()
+function Resolver:load_policies(cProjectConfiguration)
   -- This is a list of the policies to load. The entries are appended to
   -- "resolver.policies.policy", so that "001" results in
   -- "resolver.policies.policy001".
@@ -89,16 +89,24 @@ function Resolver:load_policies()
     self.atPolicies = atPolicies
 
     -- Set the default policy list.
-    -- TODO: this should be defined by the project configuration.
-    local atDefaultPolicies = {
-      '001'
-    }
-    local atPolicyDefaultList = self:create_policy_list(atDefaultPolicies)
+    local atPolicyDefaultList = self:create_policy_list(cProjectConfiguration.atPolicyListDefault)
     if atPolicyDefaultList==nil then
       fResult = nil
 
     else
       self.atPolicyDefaultList = atPolicyDefaultList
+
+      -- Parse the overrides here. They are defined in the project configuration.
+      for strItem, atOverrides in pairs(cProjectConfiguration.atPolicyListOverrides) do
+        local atPolicyList = self:create_policy_list(atOverrides)
+        if atPolicyList==nil then
+          fResult = nil
+          break
+
+        else
+          self.atPolicyOverrides[strItem] = atPolicyList
+        end
+      end
     end
   end
 
@@ -113,7 +121,8 @@ function Resolver:create_policy_list(astrPolicyIDs)
   for _, strPolicyID in ipairs(astrPolicyIDs) do
     local tPolicy = self.atPolicies[strPolicyID]
     if tPolicy==nil then
-      cLogger:fatal('Policy "%s" not found!', strPolicyID)
+      self.tLogger:fatal('Policy "%s" not found!', strPolicyID)
+      atPolicyList = nil
       break
 
     else

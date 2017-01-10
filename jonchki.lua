@@ -184,7 +184,7 @@ end
 local Resolver = require 'resolver.resolver'
 local tResolver = Resolver(cLogger, 'default', tArgs.fInstallBuildDependencies)
 -- Create all policy lists.
-local tResult = tResolver:load_policies()
+local tResult = tResolver:load_policies(cPrjCfg)
 if tResult~=true then
   cLogger:fatal('Failed to create all policy lists.')
   os.exit(1)

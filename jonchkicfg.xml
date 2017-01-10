@@ -1,4 +1,12 @@
 <jonchkicfg>
+	<policies>
+		<default>
+			<policy id="001"/>
+		</default>
+		<override group="org.lua" module="lua" artifact="lua5.1">
+			<policy id="001"/>
+		</override>
+	</policies>
 	<repositories>
 <!--
 		<repository id="test" type="file" cacheable="false">
