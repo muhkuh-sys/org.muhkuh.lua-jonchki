@@ -14,7 +14,7 @@ end
 if iLastSlash~=nil then
   strScriptPath = string.sub(strScriptPath, 1, iLastSlash)
 end
-package.path = package.path .. ';' .. strScriptPath .. '/src/?.lua;' .. strScriptPath .. '/src/?/init.lua;' .. strScriptPath .. '/lualogging/?.lua;' .. strScriptPath .. '/argparse/?.lua'
+package.path = package.path .. ';' .. strScriptPath .. '/src/?.lua;' .. strScriptPath .. '/src/?/init.lua;' .. strScriptPath .. '/lualogging/?.lua;' .. strScriptPath .. '/argparse/?.lua;' .. strScriptPath .. '/penlight/?.lua'
 
 
 ------------------------------------------------------------------------------
