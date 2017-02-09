@@ -147,7 +147,8 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
     local strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
 
     -- Get the complete file.
-    local strCfg, strMsg = self.pl.utils.readfile(strCfgPath, false)
+    -- Read it as binary to prevent the conversion of the linefeed. This would give a wrong hash sum.
+    local strCfg, strMsg = self.pl.utils.readfile(strCfgPath, true)
     if strCfg==nil then
       tResult = nil
       self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgPath, strMsg)
