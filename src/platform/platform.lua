@@ -137,18 +137,18 @@ function Platform:detect()
     -- This is windows.
 
     -- Detect the CPU architecture.
-    self.strCpuArchitecture = self.__windows_get_cpu_architecture_env()
+    self.strCpuArchitecture = self:__windows_get_cpu_architecture_env()
 
     -- Get the version with the 'ver' command.
-    self.strDistributionId, self.strDistributionVersion = self.__windows_get_distribution_ver()
+    self.strDistributionId, self.strDistributionVersion = self:__windows_get_distribution_ver()
   else
     -- This is a Linux.
 
     -- Detect the CPU architecture.
-    self.strCpuArchitecture = self.__linux_get_cpu_architecture_lscpu()
+    self.strCpuArchitecture = self:__linux_get_cpu_architecture_lscpu()
 
     -- Detect the distribution.
-    self.strDistributionId, self.strDistributionVersion = self.__linux_detect_distribution_etc_lsb_release()
+    self.strDistributionId, self.strDistributionVersion = self:__linux_detect_distribution_etc_lsb_release()
   end
 end
 
