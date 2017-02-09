@@ -31,7 +31,7 @@ end
 
 function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersion, strTemplate)
   -- Convert the group to a list of folders.
-  local strGroup = self.pl.stringx.replace(strGroup, '.', self.pl.path.sep)
+  local strGroup = self.pl.stringx.replace(strGroup, '.', '/')
 
   -- Get the version string if there is a version object.
   local strVersion = nil
