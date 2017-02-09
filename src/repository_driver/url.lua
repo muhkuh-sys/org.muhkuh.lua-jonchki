@@ -110,7 +110,7 @@ function RepositoryDriverUrl:get_url_lcurlv3(strUrl)
 
   local tCallResult, strError = pcall(tCURL.perform, tCURL)
   if tCallResult~=true then
-    self.tLogger('Failed to retrieve URL "%s": %s', strUrl, strError)
+    self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
   else
     local uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
     if uiHttpResult==200 then
