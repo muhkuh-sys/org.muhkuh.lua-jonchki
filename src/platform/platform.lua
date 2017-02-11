@@ -71,6 +71,12 @@ end
 
 function Platform:__linux_get_cpu_architecture_lscpu()
   local strCpuArchitecture
+  local astrReplacements = {
+    ['i386'] = 'x86',
+    ['i486'] = 'x86',
+    ['i586'] = 'x86',
+    ['i686'] = 'x86'
+  }
 
   -- The detection needs the popen function.
   if io.popen==nil then
@@ -85,6 +91,11 @@ function Platform:__linux_get_cpu_architecture_lscpu()
         local tMatch = string.match(strLine, 'Architecture: *([^ ]+)')
         if tMatch~=nil then
           strCpuArchitecture = tMatch
+          -- Replace the CPU architectures found in the list.
+          local strReplacement = astrReplacements[strCpuArchitecture]
+          if strReplacement~=nil then
+            strCpuArchitecture = strReplacement
+          end
           break
         end
       end
@@ -207,7 +218,7 @@ end
 
 
 --- Return the complete platform information as a string.
--- @return The platform information as a string. 
+-- @return The platform information as a string.
 function Platform:__tostring()
   local strDistributionId = self.strDistributionId or '???'
   local strDistributionVersion = self.strDistributionVersion or '???'
