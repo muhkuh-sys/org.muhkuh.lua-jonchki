@@ -101,6 +101,7 @@ local cPlatform = Platform(cLogger)
 -- If at least one value is not set, we need auto-detection.
 if strCpuArchitecture==nil or strDistributionId==nil or strDistributionVersion==nil then
   cPlatform:detect()
+  cLogger:info('Detected platform: %s', tostring(cPlatform))
 end
 
 -- Override the initial values (empty or from the detection)
