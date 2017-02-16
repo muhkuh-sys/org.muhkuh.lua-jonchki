@@ -90,10 +90,10 @@ function ResolverChain:set_repositories(atRepositories)
         self.tLogger:fatal('Could not find a repository driver for the type "%s".', tRepo.strType)
         break
       end
-  
+
       -- Create a driver instance.
       local tRepositoryDriver = tRepositoryDriverClass(self.tLogger, strID)
-  
+
       -- Setup the repository driver.
       tResult = tRepositoryDriver:configure(tRepo)
       if tResult~=true then
@@ -101,10 +101,10 @@ function ResolverChain:set_repositories(atRepositories)
         self.tLogger:fatal('Failed to setup repository driver "%s".', strID)
         break
       end
-  
+
       -- Add the driver to the resolver chain.
       table.insert(atResolverChain, tRepositoryDriver)
-  
+
       -- Create an ID -> repository mapping.
       atMap[strID] = tRepositoryDriver
     end
