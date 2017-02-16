@@ -33,10 +33,10 @@ end
 
 
 function RepositoryDriverFilesystem:configure(atSettings)
-  self.strRoot = atSettings.strRoot
-  self.strVersions = atSettings.strVersions
-  self.strConfig = atSettings.strConfig
-  self.strArtifact = atSettings.strArtifact
+  self.strRoot = self.pl.path.expanduser(atSettings.strRoot)
+  self.strVersions = self.pl.path.expanduser(atSettings.strVersions)
+  self.strConfig = self.pl.path.expanduser(atSettings.strConfig)
+  self.strArtifact = self.pl.path.expanduser(atSettings.strArtifact)
 
   self.tLogger:debug(tostring(self))
 
