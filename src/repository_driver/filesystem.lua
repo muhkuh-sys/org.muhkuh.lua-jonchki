@@ -33,7 +33,10 @@ end
 
 
 function RepositoryDriverFilesystem:configure(atSettings)
-  self.strRoot = self.pl.path.expanduser(atSettings.strRoot)
+  -- Replace "~" with the users home folder and make an absolute path from the root.
+  self.strRoot = self.pl.path.abspath(self.pl.path.expanduser(atSettings.strRoot))
+  -- Replace "~" with the users home folder for the other settings, but do not
+  -- change it to absolute paths. It will be appended to the root.
   self.strVersions = self.pl.path.expanduser(atSettings.strVersions)
   self.strConfig = self.pl.path.expanduser(atSettings.strConfig)
   self.strArtifact = self.pl.path.expanduser(atSettings.strArtifact)
