@@ -333,7 +333,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
             end
           end
           if fFound == false then
-            self.tLogger:error('Failed to parse the artifact configuration "%s": The dependency G:%s,M:%s,A:%s has no version, which is only allowed if it is present in the build-dependencies - but it is not!', strConfiguration)
+            self.tLogger:error('Failed to parse the artifact configuration "%s": The dependency G:%s,M:%s,A:%s has no version, which is only allowed if it is present in the build-dependencies - but it is not!', strConfiguration, tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
             tResult = false
           end
         end
