@@ -329,7 +329,7 @@ function RepositoryDriverUrl:get_sha_sum(strMainFile)
     -- Extract the SHA sum.
     local strMatch = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
     if strMatch==nil then
-      self.tLogger.error('The SHA1 file "%s" does not contain a valid hash.', strShaUrl)
+      self.tLogger:error('The SHA1 file "%s" does not contain a valid hash.', strShaUrl)
     else
       tResult = strMatch
     end
