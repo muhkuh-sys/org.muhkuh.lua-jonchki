@@ -29,7 +29,7 @@ end
 
 
 
-function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersion, strTemplate)
+function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersion, strExtension, strTemplate)
   -- Convert the group to a list of folders.
   local strSlashGroup = self.pl.stringx.replace(strGroup, '.', '/')
 
@@ -45,7 +45,8 @@ function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersio
     ['group'] = strSlashGroup,
     ['module'] = strModule,
     ['artifact'] = strArtifact,
-    ['version'] = strVersion
+    ['version'] = strVersion,
+    ['extension'] = strExtension
   }
 
   -- Replace the keywords.

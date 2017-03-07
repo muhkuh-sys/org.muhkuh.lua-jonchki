@@ -75,9 +75,10 @@ function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, 
   local tResult = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the versions path.
-    local strVersions = self:replace_path(strGroup, strModule, strArtifact, nil, self.strVersions)
+    local strVersions = self:replace_path(strGroup, strModule, strArtifact, nil, nil, self.strVersions)
 
     -- Append the version folder to the root.
+    -- FIXME: First check if the path is already absolute. In this case do not append the root folder.
     local strVersionPath = self.pl.path.join(self.strRoot, strVersions)
     self.tLogger:debug('  Looking in path "%s"', strVersionPath)
 
@@ -114,11 +115,8 @@ end
 
 
 
-function RepositoryDriverFilesystem:get_sha_sum(strMainFile)
+function RepositoryDriverFilesystem:get_sha_sum(strShaPath)
   local tResult = nil
-
-  -- Get the SHA1 path.
-  local strShaPath = strMainFile .. '.sha1'
 
   -- Get tha SHA sum.
   local strShaRaw, strMsg = self.pl.utils.readfile(strShaPath, false)
@@ -144,10 +142,13 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
   local tResult = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the configuration path.
-    local strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strConfig)
+    local strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml', self.strConfig)
+    local strShaSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml.sha1', self.strConfig)
 
     -- Append the version folder to the root.
+    -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
     local strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
+    local strShaPath = self.pl.path.join(self.strRoot, strShaSubdirectory)
 
     -- Get the complete file.
     -- Read it as binary to prevent the conversion of the linefeed. This would give a wrong hash sum.
@@ -157,7 +158,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
       self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgPath, strMsg)
     else
       -- Get tha SHA sum.
-      tResult = self:get_sha_sum(strCfgPath)
+      tResult = self:get_sha_sum(strShaPath)
       if tResult==nil then
         self.tLogger:error('Failed to get the SHA sum of "%s".', strCfgPath)
       else
@@ -196,10 +197,14 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
   local tResult = self:exists()
   if tResult==true then
     -- Construct the artifact path.
-    local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strArtifact)
+    local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'zip', self.strArtifact)
+    local strShaSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'zip.sha1', self.strArtifact)
 
     -- Append the version folder to the root.
+    -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
     local strArtifactPath = self.pl.path.join(self.strRoot, strArtifactSubdirectory)
+    local strShaPath = self.pl.path.join(self.strRoot, strShaSubdirectory)
+
     -- Get the file name.
     local _, strFileName = self.pl.path.splitpath(strArtifactPath)
 
@@ -212,7 +217,7 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
       self.tLogger:error('Failed to copy the artifact to the depack folder: %s', strError)
     else
       -- Get tha SHA sum.
-      tResult = self:get_sha_sum(strArtifactPath)
+      tResult = self:get_sha_sum(strShaPath)
       if tResult==nil then
         self.tLogger:error('Failed to get the SHA sum of "%s".', strArtifactPath)
       else

@@ -248,7 +248,7 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
   local strGMA = string.format('G:%s/M:%s/A:%s', strGroup, strModule, strArtifact)
 
   -- Replace the artifact placeholder in the versions path.
-  local strPathVersions = self:replace_path(strGroup, strModule, strArtifact, nil, self.strVersions)
+  local strPathVersions = self:replace_path(strGroup, strModule, strArtifact, nil, nil, self.strVersions)
 
   -- Append the version folder to the root.
   local strUrlVersions = string.format('%s/%s', self.strRoot, strPathVersions)
@@ -314,11 +314,8 @@ end
 
 
 
-function RepositoryDriverUrl:get_sha_sum(strMainFile)
+function RepositoryDriverUrl:get_sha_sum(strShaUrl)
   local tResult = nil
-
-  -- Get the SHA1 URL.
-  local strShaUrl = string.format('%s.sha1', strMainFile)
 
   -- Get tha SHA sum.
   self.tLogger:debug('Get the SHA sum from URL "%s".', strShaUrl)
@@ -344,10 +341,13 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
   local tResult = nil
 
   -- Replace the artifact placeholder in the configuration path.
-  local strCfgPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strConfig)
+  local strCfgPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml', self.strConfig)
+  local strShaPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml.sha1', self.strConfig)
 
   -- Append the version folder to the root.
+  -- FIXME: First check if the URLs are already absolute. In this case do not append the root folder.
   local strCfgUrl = string.format('%s/%s', self.strRoot, strCfgPath)
+  local strShaUrl = string.format('%s/%s', self.strRoot, strShaPath)
 
   -- Get the complete file.
   self.tLogger:debug('Get the configuration from URL "%s".', strCfgUrl)
@@ -356,7 +356,7 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
     self.tLogger:error('Failed to read the configuration file "%s".', strCfgUrl)
   else
     -- Get tha SHA sum.
-    local strShaRemote = self:get_sha_sum(strCfgUrl)
+    local strShaRemote = self:get_sha_sum(strShaUrl)
     if strShaRemote==nil then
       self.tLogger:error('Failed to get the SHA sum of "%s".', strCfgUrl)
     else
@@ -390,10 +390,14 @@ function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVer
   local tResult
 
   -- Construct the artifact path.
-  local strArtifactPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, self.strArtifact)
+  local strArtifactPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'zip', self.strArtifact)
+  local strShaPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'zip.sha1', self.strArtifact)
 
   -- Append the version folder to the root.
+  -- FIXME: First check if the URLs are already absolute. In this case do not append the root folder.
   local strArtifactUrl = string.format('%s/%s', self.strRoot, strArtifactPath)
+  local strShaUrl = string.format('%s/%s', self.strRoot, strShaPath)
+
   -- Get the file name.
   local _, strFileName = self.pl.path.splitpath(strArtifactUrl)
 
@@ -405,7 +409,7 @@ function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVer
     self.tLogger:error('Failed to download the URL "%s" to the file %s', strArtifactUrl, strLocalFile)
   else
     -- Get tha SHA sum.
-    tResult = self:get_sha_sum(strArtifactUrl)
+    tResult = self:get_sha_sum(strShaUrl)
     if tResult==nil then
       self.tLogger:error('Failed to get the SHA sum of "%s".', strArtifactUrl)
     else
