@@ -16,7 +16,7 @@ end
 
 
 
-function hash:check_sha1(strPath, strSha1)
+function hash:get_sha1_file(strPath)
   local tResult = nil
   local strError = nil
 
@@ -41,16 +41,7 @@ function hash:check_sha1(strPath, strSha1)
     local strHashBin = tState:hash_end()
 
     -- Convert the binary hash into a string.
-    local strHashHex = self:bin_to_hex(strHashBin)
-
-    local strHashExpected = string.lower(strSha1)
-    if strHashExpected==strHashHex then
-      tResult = true
-      strError = nil
-    else
-      tResult = nil
-      strError = string.format("The hash does not match!\nExpected: %s\nRead:    %s", strHashExpected, strHashHex)
-    end
+    tResult = self:bin_to_hex(strHashBin)
   end
 
   return tResult, strError

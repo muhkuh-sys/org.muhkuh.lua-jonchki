@@ -219,10 +219,15 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
         local strShaRemote = tResult
 
         -- Compare the SHA sums.
-        tResult = self.Hash:check_sha1(strLocalFile, strShaRemote)
-        if tResult~=true then
+        local strShaLocal, strError = self.Hash:get_sha1_file(strLocalFile)
+        if strShaLocal==nil then
+          tResult = nil
+          self.tLogger:error('Failed to get the SHA1 sum of the file "%s": %s', strLocalFile, strError)
+        elseif strShaLocal~=strShaRemote then
           tResult = nil
           self.tLogger:error('The SHA1 sum of the artifact "%s" does not match.', strArtifactPath)
+          self.tLogger:error('The locally generated SHA1 sum of the received file is %s .', strShaLocal)
+          self.tLogger:error('The SHA1 sum read from the remote "*.sha1" file is %s .', strShaRemote)
         else
           tResult = strLocalFile
         end

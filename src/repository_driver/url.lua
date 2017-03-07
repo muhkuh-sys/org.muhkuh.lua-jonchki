@@ -368,8 +368,8 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
         -- Compare the SHA1 sum from the repository and the local.
         if strShaRemote~=strShaLocal then
           self.tLogger:error('The SHA1 sum of the configuration "%s" does not match.', strCfgUrl)
-          self.tLogger:error('The local SHA1 sum is  %s .', strShaLocal)
-          self.tLogger:error('The remote SHA1 sum is %s .', strShaRemote)
+          self.tLogger:error('The locally generated SHA1 sum of the received file is %s .', strShaLocal)
+          self.tLogger:error('The SHA1 sum read from the remote "*.sha1" file is %s .', strShaRemote)
         else
           local cA = self.ArtifactConfiguration(self.tLogger)
           local tParseResult = cA:parse_configuration(strCfgData, strCfgUrl)
@@ -411,11 +411,16 @@ function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVer
     else
       local strShaRemote = tResult
 
-      -- Compare the SHA sums.
-      tResult = self.Hash:check_sha1(strLocalFile, strShaRemote)
-      if tResult~=true then
+      -- Get the SHA1 sum of the local file.
+      local strShaLocal, strError = self.Hash:get_sha1_file(strLocalFile)
+      if strShaLocal==nil then
+        tResult = nil
+        self.tLogger:error('Failed to get the SHA1 sum of the file "%s": %s', strLocalFile, strError)
+      elseif strShaLocal~=strShaRemote then
         tResult = nil
         self.tLogger:error('The SHA1 sum of the artifact "%s" does not match.', strArtifactUrl)
+        self.tLogger:error('The locally generated SHA1 sum of the received file is %s .', strShaLocal)
+        self.tLogger:error('The SHA1 sum read from the remote "*.sha1" file is %s .', strShaRemote)
       else
         tResult = strLocalFile
       end
