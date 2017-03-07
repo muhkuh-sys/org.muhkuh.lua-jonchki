@@ -31,7 +31,7 @@ end
 
 function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersion, strTemplate)
   -- Convert the group to a list of folders.
-  local strGroup = self.pl.stringx.replace(strGroup, '.', '/')
+  local strSlashGroup = self.pl.stringx.replace(strGroup, '.', '/')
 
   -- Get the version string if there is a version object.
   local strVersion = nil
@@ -41,7 +41,8 @@ function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersio
 
   -- Construct the replace table.
   local atReplace = {
-    ['group'] = strGroup,
+    ['dotgroup'] = strGroup,
+    ['group'] = strSlashGroup,
     ['module'] = strModule,
     ['artifact'] = strArtifact,
     ['version'] = strVersion
