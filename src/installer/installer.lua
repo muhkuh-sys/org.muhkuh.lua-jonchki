@@ -161,12 +161,13 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
   -- Create the installation helper.
   local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, cPlatform, fInstallBuildDependencies)
 
-  for _,tGMAV in pairs(atArtifacts) do
-    local strGroup = tGMAV.strGroup
-    local strModule = tGMAV.strModule
-    local strArtifact = tGMAV.strArtifact
-    local strVersion = tGMAV.tVersion:get()
-    local strArtifactPath = tGMAV.strArtifactPath
+  for _,tAttr in pairs(atArtifacts) do
+    local tInfo = tAttr.cArtifact.tInfo
+    local strGroup = tInfo.strGroup
+    local strModule = tInfo.strModule
+    local strArtifact = tInfo.strArtifact
+    local strVersion = tInfo.tVersion:get()
+    local strArtifactPath = tAttr.strArtifactPath
 
     local strGMAV = string.format('%s-%s-%s-%s', strGroup, strModule, strArtifact, strVersion)
     self.cLogger:info('Installing %s for target %s', strGMAV, tostring(cPlatform))

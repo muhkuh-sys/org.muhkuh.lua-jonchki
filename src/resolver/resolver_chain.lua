@@ -30,6 +30,9 @@ function ResolverChain:_init(cLogger, cSystemConfiguration, strID)
   -- Create a new GA->V table.
   self.atGMA_V = {}
 
+  -- No cache set yet.
+  self.cCache = nil
+
   -- Get all available repository drivers.
   local atRepositoryDriverClasses = {}
   table.insert(atRepositoryDriverClasses, require 'repository_driver.filesystem')
@@ -60,6 +63,17 @@ function ResolverChain:get_driver_by_id(strID)
   local tRepositoryDriver = self.atRepositoryByID[strID]
 
   return tRepositoryDriver
+end
+
+
+
+function ResolverChain:set_cache(cCache)
+  if self.cCache~=nil then
+    self.tLogger:warn('Removing cache "%s" from resolver chain "%s".', self.cCache.strID, self.strID)
+  end
+
+  self.tLogger:debug('Use cache "%s" with resolver chain "%s".', cCache.strID, self.strID)
+  self.cCache = cCache
 end
 
 
@@ -290,13 +304,14 @@ end
 
 
 
-function ResolverChain:get_artifact(strGroup, strModule, strArtifact, tVersion)
+function ResolverChain:get_artifact(cArtifact)
   local tResult = nil
 
-  local strGMAV = string.format('G:%s M=%s A=%s V=%s', strGroup, strModule, strArtifact, tVersion:get())
+  local tInfo = cArtifact.tInfo
+  local strGMAV = string.format('G:%s M=%s A=%s V=%s', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get())
 
   -- Check if the GMA->V table has already the sources.
-  local atGMAVSources = self:get_sources_by_gmav(strGroup, strModule, strArtifact, tVersion)
+  local atGMAVSources = self:get_sources_by_gmav(tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion)
   if atGMAVSources==nil then
     -- No GMA->V entries present.
     error('Continue here')
@@ -316,7 +331,7 @@ Do not store this in the GMA->V table as it would look like this is a complete d
     if tDriver==nil then
       self.tLogger:warn('No driver found with the ID "%s".', strSourceID)
     else
-      tResult = tDriver:get_artifact(strGroup, strModule, strArtifact, tVersion, strDepackFolder)
+      tResult = tDriver:get_artifact(tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion, strDepackFolder)
       if tResult==nil then
         self.tLogger:info('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
       else
@@ -338,18 +353,13 @@ end
 function ResolverChain:retrieve_artifacts(atArtifacts)
   local tResult = true
 
-  for _,tGMAV in pairs(atArtifacts) do
-    local strGroup = tGMAV.strGroup
-    local strModule = tGMAV.strModule
-    local strArtifact = tGMAV.strArtifact
-    local tVersion = tGMAV.tVersion
-    local strVersion = tGMAV.tVersion:get()
-
-    local strGMAV = string.format('%s-%s-%s-%s', strGroup, strModule, strArtifact, strVersion)
+  for _,tAttr in pairs(atArtifacts) do
+    local tInfo = tAttr.cArtifact.tInfo
+    local strGMAV = string.format('%s-%s-%s-%s', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get())
     self.tLogger:info('Retrieving %s', strGMAV)
 
     -- Copy the artifact to the local depack folder.
-    tResult = self:get_artifact(strGroup, strModule, strArtifact, tVersion)
+    tResult = self:get_artifact(tAttr.cArtifact)
     if tResult==nil then
       self.tLogger:error(string.format('Failed to retrieve %s.', strGMAV))
       break
@@ -357,7 +367,7 @@ function ResolverChain:retrieve_artifacts(atArtifacts)
       local strArtifactPath = tResult
 
       -- Add the artifact path to the attributes.
-      tGMAV.strArtifactPath = strArtifactPath
+      tAttr.strArtifactPath = strArtifactPath
     end
   end
 

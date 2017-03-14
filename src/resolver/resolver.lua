@@ -663,40 +663,38 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, fIsRoot)
     error('No active version!')
   end
 
+  -- Get the artifact configuration.
+  local cArtifact = atV.cArtifact
+
   -- Do not add the root artifact.
   if fIsRoot==false then
-    -- Get the group, artifact and version.
-    local strGroup = tResolv.strGroup
-    local strModule = tResolv.strModule
-    local strArtifact = tResolv.strArtifact
-    local tVersion = atV.tVersion
-    local strVersion = tVersion:get()
-
     -- Is the GMA already in the list?
     local fNotThereYet = true
+    local tInfo = cArtifact.tInfo
     for _, tAttr in pairs(atArtifacts) do
-      -- Yes, there is an entry. Now check the version.
-      if strGroup==tAttr.strGroup and strModule==tAttr.strModule and strArtifact==tAttr.strArtifact then
+      local tInfoCnt = tAttr.cArtifact.tInfo
+      -- Compare the group, module and artifact.
+      if tInfo.strGroup==tInfoCnt.strGroup and tInfo.strModule==tInfoCnt.strModule and tInfo.strArtifact==tInfoCnt.strArtifact then
+        -- Get the current version.
+        local strCurrentVersion = tInfo.tVersion:get()
         -- Get the entries version.
-        local strEntryVersion = tAttr.tVersion:get()
+        local strEntryVersion = tInfoCnt.tVersion:get()
         -- Compare the version.
-        if strVersion==strEntryVersion then
+        if strCurrentVersion==strEntryVersion then
           fNotThereYet = false
         else
           -- The version differs.
-          error(string.format('More than one version found for %s/%s: %s and %s .', strGroup, strArtifact, strVersion, strEntryVersion))
+          error(string.format('More than one version found for %s/%s/%s: %s and %s .', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.strCurrentVersion, strEntryVersion))
         end
       end
     end
 
     if fNotThereYet==true then
-      local atGMAV = {
-        ['strGroup'] = strGroup,
-        ['strModule'] = strModule,
-        ['strArtifact'] = strArtifact,
-        ['tVersion'] = tVersion
+      local tAttr = {
+        ['cArtifact'] = cArtifact,
+        ['strArtifactPath'] = nil
       }
-      table.insert(atArtifacts, atGMAV)
+      table.insert(atArtifacts, tAttr)
     end
   end
 
