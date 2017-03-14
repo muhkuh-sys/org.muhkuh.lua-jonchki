@@ -23,6 +23,10 @@ function ArtifactConfiguration:_init(tLogger)
   -- Get the logger object from the system configuration.
   self.tLogger = tLogger
 
+  -- Save the complete source to be able to reproduce the file.
+  self.strSource = nil
+  self.strSourceUrl = nil
+
   -- There is no configuration yet.
   self.tVersion = nil
   self.tInfo = nil
@@ -266,6 +270,11 @@ end
 
 function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUrl)
   local tResult = nil
+
+
+  -- Save the complete source and the source URL.
+  self.strSource = strConfiguration
+  self.strSourceUrl = strSourceUrl
 
   local aLxpAttr = {
     -- Start at root ("/").
