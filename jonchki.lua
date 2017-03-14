@@ -159,10 +159,25 @@ end
 
 -----------------------------------------------------------------------------
 --
+-- Create the cache.
+-- Set the cache ID to "main".
+--
+local Cache = require 'cache.cache'
+local cCache = Cache(cLogger, 'main')
+tResult = cCache:configure(cSysCfg.tConfiguration.cache)
+if tResult==nil then
+  cLogger:fatal('Failed to open the cache!')
+  os.exit(1)
+end
+
+
+-----------------------------------------------------------------------------
+--
 -- Create the resolver chain.
 --
 local ResolverChain = require 'resolver.resolver_chain'
 local cResolverChain = ResolverChain(cLogger, cSysCfg, 'default')
+cResolverChain:set_cache(cCache)
 cResolverChain:set_repositories(cPrjCfg.atRepositories)
 
 
