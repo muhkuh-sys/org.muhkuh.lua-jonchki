@@ -22,6 +22,7 @@ function RepositoryDriverUrl:_init(tLogger, strID)
   self.Version = require 'Version'
 
   -- Clear the URLs for the configuration and artifact.
+  self.fCacheable = nil
   self.strRoot = nil
   self.strVersions = nil
   self.strConfig = nil
@@ -69,6 +70,7 @@ end
 
 
 function RepositoryDriverUrl:configure(atSettings)
+  self.fCacheable = atSettings.cacheable
   self.strRoot = atSettings.strRoot
   self.strVersions = atSettings.strVersions
   self.strConfig = atSettings.strConfig
@@ -440,6 +442,7 @@ function RepositoryDriverUrl:__tostring()
   local tRepr = {}
   table.insert(tRepr, 'RepositoryDriverUrl(')
   table.insert(tRepr, string.format('\tid = "%s"', self.strID))
+  table.insert(tRepr, string.format('\tcacheable = "%s"', tostring(self.fCacheable)))
   table.insert(tRepr, string.format('\troot = "%s"', self.strRoot))
   table.insert(tRepr, string.format('\tversions = "%s"', self.strVersions))
   table.insert(tRepr, string.format('\tconfig = "%s"', self.strConfig))

@@ -17,6 +17,7 @@ function RepositoryDriverFilesystem:_init(tLogger, strID)
   self:super(tLogger, strID)
 
   -- Clear the patterns for the configuration and artifact.
+  self.fCacheable = nil
   self.strRoot = nil
   self.strVersions = nil
   self.strConfig = nil
@@ -33,6 +34,7 @@ end
 
 
 function RepositoryDriverFilesystem:configure(atSettings)
+  self.fCacheable = atSettings.cacheable
   -- Replace "~" with the users home folder and make an absolute path from the root.
   self.strRoot = self.pl.path.abspath(self.pl.path.expanduser(atSettings.strRoot))
   -- Replace "~" with the users home folder for the other settings, but do not
@@ -249,6 +251,7 @@ function RepositoryDriverFilesystem:__tostring()
   local tRepr = {}
   table.insert(tRepr, 'RepositoryDriverFilesystem(')
   table.insert(tRepr, string.format('\tid = "%s"', self.strID))
+  table.insert(tRepr, string.format('\tcacheable = "%s"', tostring(self.fCacheable)))
   table.insert(tRepr, string.format('\troot = "%s"', self.strRoot))
   table.insert(tRepr, string.format('\tversions = "%s"', self.strVersions))
   table.insert(tRepr, string.format('\tconfig = "%s"', self.strConfig))
