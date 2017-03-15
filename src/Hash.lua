@@ -62,24 +62,51 @@ end
 
 
 
-function hash:check_sha1_string(strData, strSha1)
-  local fOk = true
-  local tResult = nil
+function hash:check_string(strData, strHash)
+  local fOk = nil
 
 
-  -- Convert the binary hash into a string.
-  local strHash = self:get_sha1_string(strData)
+  -- FIXME: For now assume the hash is SHA1. Use identifier instead.
 
-  local strHashExpected = string.lower(strSha1)
-  if strHashExpected==strHashHex then
+  -- Create the SHA1 hash for the data.
+  local strHashData = self:get_sha1_string(strData)
+
+  -- Convert the expected hash to lowercase.
+  local strHashExpected = string.lower(strHash)
+  if strHashExpected==strHashData then
     fOk = true
-    tResult = nil
   else
     fOk = false
-    tResult = string.format("The hash does not match!\nExpected: %s\nRead:    %s", strHashExpected, strHashHex)
+    -- TODO: write both hashes to the logger.
   end
 
-  return fOk,tResult
+  return fOk
+end
+
+
+
+function hash:check_file(strPath, strHash)
+  local fOk = nil
+
+
+  -- FIXME: For now assume the hash is SHA1. Use identifier instead.
+
+  -- Create the SHA1 hash for the data.
+  local strHashData = self:get_sha1_file(strPath)
+  if strHashData==nil then
+    -- FIXME: write an error message to the logger.
+  else
+    -- Convert the expected hash to lowercase.
+    local strHashExpected = string.lower(strHash)
+    if strHashExpected==strHashData then
+      fOk = true
+    else
+      fOk = false
+      -- TODO: write both hashes to the logger.
+    end
+  end
+
+  return fOk
 end
 
 

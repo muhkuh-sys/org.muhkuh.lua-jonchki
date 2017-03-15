@@ -16,7 +16,10 @@ function Cache:_init(tLogger, strID)
   -- The "penlight" module is always useful.
   self.pl = require'pl.import_into'()
 
-  self.artifact = require 'ArtifactConfiguration'
+  -- Get the hash abstraction.
+  self.hash = require 'Hash'
+
+  self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.date = require 'date'
   self.sqlite3 = require 'luasql.sqlite3'
 
@@ -24,6 +27,10 @@ function Cache:_init(tLogger, strID)
   self.strLogID = string.format('[Cache "%s"]', strID)
 
   self.tSQLEnv = self.sqlite3.sqlite3()
+  self.tSQLDatabase = nil
+
+  -- Initialize the path template string.
+  self.strPathTemplate = nil
 end
 
 
@@ -107,13 +114,13 @@ end
 
 
 
---- Scan the repository.
+--- Rebuild the complete cache database.
 -- Scan one folder of the repository. Sum up all file sizes and collect the
 -- ages of each entry.
 -- @param tSQLDatabase The database handle.
 -- @return In case of an error the function returns nil.
 --         If the function succeeded it returns true.
-function Cache:_scan_repo(tSQLDatabase)
+function Cache:_rebuild_complete_cache(tSQLDatabase)
   -- Be optimistic.
   local tResult = true
 
@@ -128,10 +135,12 @@ function Cache:_scan_repo(tSQLDatabase)
       -- Is this a configuration file?
       if strExtension=='xml' then
         -- Try to parse the file as a configuration.
-        local cArtifact = self.artifact()
+        local cArtifact = self.ArtifactConfiguration()
         local tResult = cArtifact:parse_configuration_file(strFullPath)
         if tResult==true then
           self.tLogger:debug('Found configuration file "%s".', strFullPath)
+          
+          -- TODO: Add it to the database.
         else
           self.tLogger:warning('%s Ignoring file "%s". It is no valid artifact configuration.', self.strLogID)
         end
@@ -162,6 +171,9 @@ function Cache:configure(strRepositoryRootPath)
   elseif self.pl.path.isdir(strAbsRepositoryRootPath)~=true then
     self.tLogger:error('%s The repository root path "%s" is no directory.', self.strLogID, strAbsRepositoryRootPath)
   else
+    -- Create the path template string.
+    self.strPathTemplate = self.pl.path.join(strAbsRepositoryRootPath, '[group]/[module]/[version]/[artifact]-[version].[extension]')
+
     -- Append the database name to the path.
     local strDb = self.pl.path.join(strAbsRepositoryRootPath, self.strDatabaseName)
 
@@ -173,14 +185,18 @@ function Cache:configure(strRepositoryRootPath)
       self.tLogger:error('%s Failed to open the database "%s": %s', self.strLogID, strDb, strError)
     else
       -- Construct the "CREATE" statement for the "cache" table.
-      local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strConfigurationPath TEXT NOT NULL, strConfigurationHashPath TEXT NOT NULL, iConfigurationSize INTEGER NOT NULL, strArtifactPath TEXT NOT NULL, strArtifactHashPath TEXT NOT NULL, iArtifactSize INTEGER NOT NULL, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL, strSourceUrl TEXT_NOT_NULL)'
+      local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strConfigurationPath TEXT NOT NULL, strConfigurationHashPath TEXT NOT NULL, iConfigurationSize INTEGER NOT NULL, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
       tResult = self:_sql_create_table(tSQLDatabase, 'cache', strCreateStatement)
       if tResult==nil then
         tSQLDatabase:close()
         self.tLogger:error('%s Failed to create the table.', self.strLogID)
       elseif tResult==true then
         self.tLogger:debug('%s Rebuild the cache information.', self.strLogID)
-        tResult = self:_scan_repo(tSQLDatabase)
+        tResult = self:_rebuild_complete_cache(tSQLDatabase)
+      end
+
+      if tResult~=nil then
+        self.tSQLDatabase = tSQLDatabase
       end
     end
   end
@@ -246,5 +262,466 @@ else
 	end
 end
 --]]
+
+
+
+function Cache:_replace_path(cArtifact, strExtension)
+  local tInfo = cArtifact.tInfo
+
+  -- Convert the group to a list of folders.
+  local strSlashGroup = self.pl.stringx.replace(tInfo.strGroup, '.', '/')
+
+  -- Get the version string if there is a version object.
+  local strVersion = nil
+  if tInfo.tVersion~=nil then
+    strVersion = tInfo.tVersion:get()
+  end
+
+  -- Construct the replace table.
+  local atReplace = {
+    ['dotgroup'] = tInfo.strGroup,
+    ['group'] = strSlashGroup,
+    ['module'] = tInfo.strModule,
+    ['artifact'] = tInfo.strArtifact,
+    ['version'] = strVersion,
+    ['extension'] = strExtension
+  }
+
+  -- Replace the keywords.
+  return string.gsub(self.strPathTemplate, '%[(%w+)%]', atReplace)
+end
+
+
+
+function Cache:_get_configuration_paths(cArtifact)
+  local strPathConfiguration = self:_replace_path(cArtifact, 'xml')
+  local strPathConfigurationHash = self:_replace_path(cArtifact, 'xml.sha1')
+
+  return strPathConfiguration, strPathConfigurationHash
+end
+
+
+
+function Cache:_get_artifact_paths(cArtifact)
+  local strPathArtifact = self:_replace_path(cArtifact, 'zip')
+  local strPathArtifactHash = self:_replace_path(cArtifact, 'zip.sha1')
+
+  return strPathArtifact, strPathArtifactHash
+end
+
+
+
+-- Search for the GMAV in the database.
+-- @return nil for an error, false if nothing was found, a number on success.
+function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  local tResult = nil
+  local atAttr = nil
+
+
+  local tSQLDatabase = self.tSQLDatabase
+  if tSQLDatabase==nil then
+    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+  else
+    local strVersion = tVersion:get()
+    local strQuery = string.format('SELECT * FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s" AND strVersion="%s"', strGroup, strModule, strArtifact, strVersion)
+    local tCursor, strError = tSQLDatabase:execute(strQuery)
+    if tCursor==nil then
+      self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
+    else
+      repeat
+        local atData = tCursor:fetch({}, 'a')
+        if atData~=nil then
+          if atAttr~=nil then
+            self.tLogger:error('%s The cache database is broken. It has multiple entries for %s/%s/%s/%s.', self.strLogID, strGroup, strModule, strArtifact, strVersion)
+            -- TODO: rebuild the cache here with tResult = self:_rebuild_complete_cache(tSQLDatabase)
+            break
+          else
+            atAttr = atData
+          end
+        end
+      until atData==nil
+
+      -- Close the cursor.
+      tCursor:close()
+
+      -- Found exactly one match?
+      if atAttr==nil then
+        -- Nothing found. This is no error.
+        tResult = false
+      else
+        -- Exactly one match found. Return the ID.
+        tResult = true
+      end
+    end
+  end
+
+  return tResult, atAttr
+end
+
+
+
+function Cache:_database_add_configuration(cArtifact)
+  local tResult = nil
+
+
+  local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
+
+  local tSQLDatabase = self.tSQLDatabase
+  if tSQLDatabase==nil then
+    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+  else
+    local tInfo = cArtifact.tInfo
+    local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
+    
+    local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize)
+    
+    local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+    if tSqlResult==nil then
+      self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+    else
+      tSQLDatabase:commit()
+      tResult = true
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:_database_add_artifact(cArtifact)
+  local tResult = nil
+
+
+  -- Get the paths.
+  local strPathArtifact, strPathArtifactHash = self:_get_artifact_paths(cArtifact)
+  local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
+
+  local tSQLDatabase = self.tSQLDatabase
+  if tSQLDatabase==nil then
+    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+  else
+    local tInfo = cArtifact.tInfo
+    local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
+    local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
+    
+    local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strArtifactPath, strArtifactHashPath, iArtifactSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strPathArtifact, strPathArtifactHash, iArtifactFileSize)
+    
+    local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+    if tSqlResult==nil then
+      self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+    else
+      tSQLDatabase:commit()
+      tResult = true
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:_database_update_artifact(atAttr, cArtifact)
+  local tResult = nil
+
+
+  -- Get the paths.
+  local strPathArtifact, strPathArtifactHash = self:_get_artifact_paths(cArtifact)
+
+  local tSQLDatabase = self.tSQLDatabase
+  if tSQLDatabase==nil then
+    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+  else
+    local iId = atAttr.iId
+    local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
+
+    local strQuery = string.format('UPDATE cache SET strArtifactPath="%s", strArtifactHashPath="%s", iArtifactSize=%d, iLastUsedDate=strftime("%%s","now") WHERE iId=%d', strPathArtifact, strPathArtifactHash, iArtifactFileSize, iId)
+
+    local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+    if tSqlResult==nil then
+      self.tLogger:error('%s Failed to update an entry in the cache: %s', self.strLogID, strError)
+    else
+      tSQLDatabase:commit()
+      tResult = true
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
+  local tResult = nil
+  local strError
+  
+
+  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+
+  -- Search the artifact in the cache database.
+  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  if fFound==nil then
+    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+  elseif fFound==false then
+    self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAV)
+  else
+    self.tLogger:debug('%s Found the configuration for artifact %s in the cache.', self.strLogID, strGMAV)
+
+    -- Read the contents of the configuration file.
+    local strConfiguration
+    strConfiguration, strError = self.pl.utils.readfile(atAttr.strConfigurationPath, false)
+    if strConfiguration==nil then
+      self.tLogger:error('%s Failed to read the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
+    else
+      -- Read the contents of the hash file.
+      local strHash
+      strHash, strError = self.pl.utils.readfile(atAttr.strConfigurationHashPath, false)
+      if strHash==nil then
+        self.tLogger:error('%s Failed to read the hash for the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
+      else
+        -- Verify the the hash.
+        local fHashOk = self.hash:check_string(strConfiguration, strHash)
+        if fHashOk~=true then
+          self.tLogger:error('%s The hash of the configuration for artifact %s does not match the expected hash.', self.strLogID, strGMAV)
+          -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
+        else
+          -- Parse the configuration.
+          local cA = self.ArtifactConfiguration(self.tLogger)
+          local tParseResult = cA:parse_configuration(strConfiguration, atAttr.strConfigurationPath)
+          if tParseResult==true then
+            tResult = cA
+          end
+        end
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:get_artifact(cArtifact, strDestinationFolder)
+  local tResult = nil
+  
+
+  local tInfo = cArtifact.tInfo
+  local strGroup = tInfo.strGroup
+  local strModule = tInfo.strModule
+  local strArtifact = tInfo.strArtifact
+  local tVersion = tInfo.tVersion
+  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+
+  -- Search the artifact in the cache database.
+  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  if fFound==nil then
+    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+  elseif fFound==false then
+    self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAV)
+  elseif atAttr.strArtifactPath==nil then
+    self.tLogger:debug('%s The cache entry for %s has only the configuration, but not the artifact.', self.strLogID, strGMAV)
+  else
+    self.tLogger:debug('%s Found the artifact %s in the cache.', self.strLogID, strGMAV)
+
+    -- Read the contents of the hash file.
+    local strHash, strError = self.pl.utils.readfile(atAttr.strArtifactHashPath, false)
+    if strHash==nil then
+      self.tLogger:error('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAV, strError)
+    else
+      local strCachePath = atAttr.strArtifactPath
+
+      -- Get the destination path.
+      local _, strFileName = self.pl.path.splitpath(strCachePath)
+      local strLocalPath = self.pl.path.join(strDestinationFolder, strFileName)
+
+      -- Copy the file to the destination folder.
+      local fCopyResult
+      fCopyResult, strError = self.pl.file.copy(strCachePath, strLocalPath)
+      if fCopyResult~=true then
+        self.tLogger:error('%s Failed to copy the artifact to the depack folder: %s', self.strLogID, strError)
+      else
+        -- Verify the the artifact hash.
+        -- NOTE: Do this in the depack folder.
+        local fHashOk = self.hash:check_file(strLocalPath, strHash)
+        if fHashOk~=true then
+          self.tLogger:error('%s The hash of the artifact %s in the depack folder does not match the expected hash.', self.strLogID, strGMAV)
+          -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
+        else
+          -- All OK, return the path of the artifact in the depack folder.
+          tResult = strLocalPath
+        end
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:_cachefs_write_configuration(cArtifact)
+  local tResult = nil
+  local strError
+
+
+  -- Get the paths.
+  local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
+
+  -- Create the output folder.
+  local strPath = self.pl.path.splitpath(strPathConfiguration)
+  if strPath=='' then
+    tResult = true
+  else
+    tResult, strError = self.pl.dir.makepath(strPath)
+    if tResult~=true then
+      self.tLogger:error('%s Failed to create the path "%s": %s', self.strLogID, strPath, strError)
+    end
+  end
+
+  if tResult==true then
+    -- Write the configuration.
+    self.tLogger:debug('%s Write the configuration to %s.', self.strLogID, strPathConfiguration)
+    tResult, strError = self.pl.utils.writefile(strPathConfiguration, cArtifact.strSource, false)
+    if tResult==nil then
+      self.tLogger:error('%s Failed to create the file for the configuration at "%s": %s', self.strLogID, strPathConfiguration, strError)
+    else
+      -- Write the hash of the configuration.
+      local strHash = self.hash:get_sha1_string(cArtifact.strSource)
+      self.tLogger:debug('%s Configuration hash: %s', self.strLogID, strHash)
+      self.tLogger:debug('%s Write the configuration hash to %s.', self.strLogID, strPathConfigurationHash)
+      tResult, strError = self.pl.utils.writefile(strPathConfigurationHash, strHash, false)
+      if tResult==nil then
+        self.tLogger:error('%s Failed to create the file for the configuration hash at "%s": %s', self.strLogID, strPathConfigurationHash, strError)
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
+  local tResult = nil
+  local strError
+
+
+  -- Get the paths.
+  local strPathArtifact, strPathArtifactHash = self:_get_artifact_paths(cArtifact)
+
+  -- Create the output folder.
+  local strPath = self.pl.path.splitpath(strPathArtifact)
+  if strPath=='' then
+    tResult = true
+  else
+    tResult, strError = self.pl.dir.makepath(strPath)
+    if tResult~=true then
+      self.tLogger:error('%s Failed to create the path "%s": %s', self.strLogID, strPath, strError)
+    end
+  end
+
+  if tResult==true then
+    -- Copy the artifact.
+    self.tLogger:debug('%s Copy the artifact from %s to %s.', self.strLogID, strArtifactSourcePath, strPathArtifact)
+    tResult, strError = self.pl.file.copy(strArtifactSourcePath, strPathArtifact, true)
+    if tResult~=true then
+      self.tLogger:error('%s Failed to copy the artifact from %s to %s: %s', self.strLogID, strArtifactSourcePath, strPathArtifact, strError)
+    else
+      -- Create the hash for the artifact.
+      -- NOTE: get the hash from the source file.
+      tResult, strError = self.hash:get_sha1_file(strArtifactSourcePath)
+      if tResult==nil then
+        self.tLogger:error('%s Failed to get the hash for "%s": %s', self.strLogID, strArtifactSourcePath, strError)
+      else
+        local strHash = tResult
+
+        -- Write the hash of the artifact.
+        self.tLogger:debug('%s Artifact hash: %s', self.strLogID, strHash)
+        self.tLogger:debug('%s Write the artifact hash to %s.', self.strLogID, strPathArtifactHash)
+        tResult, strError = self.pl.utils.writefile(strPathArtifactHash, strHash, false)
+        if tResult==nil then
+          self.tLogger:error('%s Failed to create the file for the artifact hash at "%s": %s', self.strLogID, strPathArtifactHash, strError)
+        end
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:add_configuration(cArtifact)
+  local tResult = nil
+  local strError
+
+  local tInfo = cArtifact.tInfo
+  local strGroup = tInfo.strGroup
+  local strModule = tInfo.strModule
+  local strArtifact = tInfo.strArtifact
+  local tVersion = tInfo.tVersion
+  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+
+  -- First check if the artifact is not yet part of the cache.
+  local fFound = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  if fFound==nil then
+    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+  elseif fFound==true then
+    self.tLogger:debug('%s The artifact %s is already in the cache.', self.strLogID, strGMAV)
+  else
+    self.tLogger:debug('%s Adding the configuration for the artifact %s to the cache.', self.strLogID, strGMAV)
+
+    tResult = self:_cachefs_write_configuration(cArtifact)
+    if tResult==true then
+      -- Add the configuration to the database.
+      tResult = self:_database_add_configuration(cArtifact)
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:add_artifact(cArtifact, strArtifactSourcePath)
+  local tResult = nil
+  local strError
+
+  local tInfo = cArtifact.tInfo
+  local strGroup = tInfo.strGroup
+  local strModule = tInfo.strModule
+  local strArtifact = tInfo.strArtifact
+  local tVersion = tInfo.tVersion
+  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+
+  -- First check if the artifact is not yet part of the cache.
+  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  if fFound==nil then
+    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+  elseif fFound==true and atAttr.strArtifactPath~=nil then
+    self.tLogger:debug('%s The artifact %s is already in the cache.', self.strLogID, strGMAV)
+  else
+    self.tLogger:debug('%s Adding the artifact %s to the cache.', self.strLogID, strGMAV)
+
+    -- Add the artifact to the database.
+    if atAttr==false then
+      tResult = self:_cachefs_write_configuration(cArtifact)
+      if tResult==true then
+        tResult = self:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
+        if tResult==true then
+          -- Create a new entry.
+          self:_database_add_artifact(cArtifact)
+        end
+      end
+    else
+      -- Update an existing entry.
+      tResult = self:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
+      if tResult==true then
+        self:_database_update_artifact(atAttr, cArtifact)
+      end
+    end
+  end
+end
+
 
 return Cache

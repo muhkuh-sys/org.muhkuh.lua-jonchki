@@ -286,10 +286,40 @@ Do not store this in the GMA->V table as it would look like this is a complete d
     -- Get the repository with this ID.
     local tDriver = self:get_driver_by_id(strSourceID)
     if tDriver~=nil then
-      tResult = tDriver:get_configuration(strGroup, strModule, strArtifact, tVersion)
-      if tResult==nil then
-        self.tLogger:warn('Failed to get %s from repository %s.', strGMAV, strSourceID)
-      else
+      -- The configuration was not found yet.
+      local fFound = false
+
+      -- Does the driver instance allow a cache? Does a cache exist?
+      local fCacheable = tDriver.fCacheable and (self.cCache~=nil)
+
+      -- Search the cache if allowed.
+      if fCacheable==true then
+        tResult = self.cCache:get_configuration(strGroup, strModule, strArtifact, tVersion)
+        if tResult==nil then
+          self.tLogger:info('Configuration %s not found in cache "%s".', strGMAV, self.cCache.strID)
+        else
+          self.tLogger:info('Configuration %s found in cache "%s".', strGMAV, self.cCache.strID)
+          fFound = true
+        end
+      end
+
+      if fFound==false then
+        tResult = tDriver:get_configuration(strGroup, strModule, strArtifact, tVersion)
+        if tResult==nil then
+          self.tLogger:warn('Failed to get the configuration for %s from repository %s.', strGMAV, strSourceID)
+        else
+          local cArtifact = tResult
+          self.tLogger:info('Configuration for %s found in repository "%s".', strGMAV, strSourceID)
+          fFound = true
+
+          -- Add the configuration to the cache if allowed.
+          if fCacheable==true then
+            self.cCache:add_configuration(cArtifact)
+          end
+        end
+      end
+
+      if fFound==true then
         break
       end
     end
@@ -331,11 +361,40 @@ Do not store this in the GMA->V table as it would look like this is a complete d
     if tDriver==nil then
       self.tLogger:warn('No driver found with the ID "%s".', strSourceID)
     else
-      tResult = tDriver:get_artifact(tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion, strDepackFolder)
-      if tResult==nil then
-        self.tLogger:info('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
-      else
-        self.tLogger:info('Artifact %s found in repository "%s".', strGMAV, strSourceID)
+      -- The artifact was not found yet.
+      local fFound = false
+
+      -- Does the driver instance allow a cache? Does a cache exist?
+      local fCacheable = tDriver.fCacheable and (self.cCache~=nil)
+
+      -- Search the cache if allowed.
+      if fCacheable==true then
+        tResult = self.cCache:get_artifact(cArtifact, strDepackFolder)
+        if tResult==nil then
+          self.tLogger:info('Artifact %s not found in cache "%s".', strGMAV, self.cCache.strID)
+        else
+          self.tLogger:info('Artifact %s found in cache "%s".', strGMAV, self.cCache.strID)
+          fFound = true
+        end
+      end
+
+      if fFound==false then
+        tResult = tDriver:get_artifact(tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion, strDepackFolder)
+        if tResult==nil then
+          self.tLogger:warn('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
+        else
+          local strArtifactPath = tResult
+          self.tLogger:info('Artifact %s found in repository "%s".', strGMAV, strSourceID)
+          fFound = true
+
+          -- Add the artifact to the cache if allowed.
+          if fCacheable==true then
+            self.cCache:add_artifact(cArtifact, strArtifactPath)
+          end
+        end
+      end
+
+      if fFound==true then
         break
       end
     end
