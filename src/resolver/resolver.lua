@@ -9,7 +9,7 @@ local Resolver = class()
 
 --- Initialize a new instance of the exact resolver.
 -- @param strID The ID identifies the resolver.
-function Resolver:_init(cLogger, strID, fInstallBuildDependencies)
+function Resolver:_init(cLogger, cReport, strID, fInstallBuildDependencies)
   self.strID = strID
 
   -- The "penlight" module is used to parse the configuration file.
@@ -22,6 +22,7 @@ function Resolver:_init(cLogger, strID, fInstallBuildDependencies)
   self.atRepositoryByID = nil
 
   self.tLogger = cLogger
+  self.tReport = cReport
 
   self.fInstallBuildDependencies = fInstallBuildDependencies
 
@@ -649,13 +650,9 @@ end
 
 
 -- Get all dependencies. This is a list of all artifacts except the root in the resolve table.
-function Resolver:get_all_dependencies(tResolv, atArtifacts, fIsRoot)
+function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
   tResolv = tResolv or self.atResolvTab
   atArtifacts = atArtifacts or {}
-  -- If no third argument is specified, assume this is the root.
-  if fIsRoot==nil then
-    fIsRoot = true
-  end
 
   -- Get the active version.
   local atV = tResolv.ptActiveVersion
@@ -663,11 +660,25 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, fIsRoot)
     error('No active version!')
   end
 
+  -- Get a unique ID and the parent ID.
+  local uiID, strParentID
+  if uiParentID==nil then
+    -- This is the root artifact. It has the ID 0 and no parent.
+    uiID = 0
+    strParentID = ''
+  else
+    -- This is not the root artifact.
+    uiID = #atArtifacts + 1
+    strParentID = tostring(uiParentID)
+  end
+  -- Write the artifact to the report.
+  atV.cArtifact:writeToReport(self.tReport, string.format('artifacts/artifact@id=%d@parent=%s', uiID, strParentID))
+
   -- Get the artifact configuration.
   local cArtifact = atV.cArtifact
 
   -- Do not add the root artifact.
-  if fIsRoot==false then
+  if uiParentID~=nil then
     -- Is the GMA already in the list?
     local fNotThereYet = true
     local tInfo = cArtifact.tInfo
@@ -702,7 +713,7 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, fIsRoot)
   local atDependencies = atV.atDependencies
   if atDependencies~=nil then
     for _, tDependency in pairs(atDependencies) do
-      self:get_all_dependencies(tDependency, atArtifacts, false)
+      self:get_all_dependencies(tDependency, atArtifacts, uiID)
     end
   end
 

@@ -210,7 +210,7 @@ end
 -- Create the resolver.
 --
 local Resolver = require 'resolver.resolver'
-local tResolver = Resolver(cLogger, 'default', tArgs.fInstallBuildDependencies)
+local tResolver = Resolver(cLogger, cReport, 'default', tArgs.fInstallBuildDependencies)
 -- Create all policy lists.
 local tResult = tResolver:load_policies(cPrjCfg)
 if tResult~=true then
