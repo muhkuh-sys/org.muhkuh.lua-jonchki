@@ -23,6 +23,9 @@ function ArtifactConfiguration:_init(tLogger)
   -- Get the logger object from the system configuration.
   self.tLogger = tLogger
 
+  -- This is the default extension if it is not specified in the XML.
+  self.strDefaultExtension = 'zip'
+
   -- Save the complete source to be able to reproduce the file.
   self.strSource = nil
   self.strSourceUrl = nil
@@ -70,6 +73,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     tInfo.strAuthorName = nil
     tInfo.strAuthorUrl = nil
     tInfo.strDescription = nil
+    tInfo.strExtension = aLxpAttr.strDefaultExtension
 
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
@@ -111,6 +115,11 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       aLxpAttr.tLogger:error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
     end
     tInfo.strVcsId = strVcsId
+
+    local strExtension = atAttributes['extension']
+    if strExtension~=nil and strExtension~='' then
+      tInfo.strExtension = strExtension
+    end
 
     aLxpAttr.tInfo = tInfo
 
@@ -287,6 +296,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
     atBuildDependencies = {},
     atDependencies = {},
 
+    strDefaultExtension = self.strDefaultExtension,
     tResult = true,
     tLogger = self.tLogger
   }
@@ -375,6 +385,7 @@ function ArtifactConfiguration:__tostring()
     table.insert(astrRepr, string.format('    artifact: %s', self.tInfo.strArtifact))
     table.insert(astrRepr, string.format('    version: %s', self.tInfo.tVersion:get()))
     table.insert(astrRepr, string.format('    vcs-id: %s', self.tInfo.strVcsId))
+    table.insert(astrRepr, string.format('    extension: %s', self.tInfo.strExtension))
 
     local strLicense = self.tInfo.strLicense
     if strLicense==nil then
@@ -440,7 +451,7 @@ function ArtifactConfiguration:writeToReport(tReport, strPath)
   -- Add the info node.
   local strInfoGroup = ''
   local strInfoModule = ''
-  local strInfoArtifcat = ''
+  local strInfoArtifact = ''
   local strInfoVersion = ''
   local strInfoVcsId = ''
   local strInfoExtension = ''

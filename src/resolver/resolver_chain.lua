@@ -379,7 +379,7 @@ Do not store this in the GMA->V table as it would look like this is a complete d
       end
 
       if fFound==false then
-        tResult = tDriver:get_artifact(tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion, strDepackFolder)
+        tResult = tDriver:get_artifact(tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion, tInfo.strExtension, strDepackFolder)
         if tResult==nil then
           self.tLogger:warn('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
         else

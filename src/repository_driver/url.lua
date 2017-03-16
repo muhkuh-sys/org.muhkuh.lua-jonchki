@@ -388,12 +388,12 @@ end
 
 
 
-function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVersion, strDestinationFolder)
+function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVersion, strExtension, strDestinationFolder)
   local tResult
 
   -- Construct the artifact path.
-  local strArtifactPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'zip', self.strArtifact)
-  local strShaPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'zip.sha1', self.strArtifact)
+  local strArtifactPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strExtension, self.strArtifact)
+  local strShaPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, string.format('%s.sha1', strExtension), self.strArtifact)
 
   -- Append the version folder to the root.
   -- FIXME: First check if the URLs are already absolute. In this case do not append the root folder.

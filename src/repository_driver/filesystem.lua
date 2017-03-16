@@ -194,13 +194,13 @@ end
 
 
 
-function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifact, tVersion, strDestinationFolder)
+function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifact, tVersion, strExtension, strDestinationFolder)
   -- Does the root folder of the repository exist?
   local tResult = self:exists()
   if tResult==true then
     -- Construct the artifact path.
-    local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'zip', self.strArtifact)
-    local strShaSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'zip.sha1', self.strArtifact)
+    local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strExtension, self.strArtifact)
+    local strShaSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, string.format('%s.sha1', strExtension), self.strArtifact)
 
     -- Append the version folder to the root.
     -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
