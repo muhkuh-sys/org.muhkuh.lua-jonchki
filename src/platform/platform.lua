@@ -164,9 +164,9 @@ function Platform:detect()
   end
 
   -- Add the results to the report.
-  self.tReport:addData('platform/host/cpu_architecture', self.strCpuArchitecture)
-  self.tReport:addData('platform/host/distribution_id', self.strDistributionId)
-  self.tReport:addData('platform/host/distribution_version', self.strDistributionVersion)
+  self.tReport:addData('system/platform/host/cpu_architecture', self.strCpuArchitecture)
+  self.tReport:addData('system/platform/host/distribution_id', self.strDistributionId)
+  self.tReport:addData('system/platform/host/distribution_version', self.strDistributionVersion)
 end
 
 
@@ -189,21 +189,21 @@ end
 
 function Platform:override_cpu_architecture(strCpuArchitecture)
   self.strCpuArchitecture = strCpuArchitecture
-  self.tReport:addData('platform/override/cpu_architecture', strCpuArchitecture)
+  self.tReport:addData('system/platform/override/cpu_architecture', strCpuArchitecture)
 end
 
 
 
 function Platform:override_distribution_id(strDistributionId)
   self.strDistributionId = strDistributionId
-  self.tReport:addData('platform/override/distribution_id', strDistributionId)
+  self.tReport:addData('system/platform/override/distribution_id', strDistributionId)
 end
 
 
 
 function Platform:override_distribution_version(strDistributionVersion)
   self.strDistributionVersion = strDistributionVersion
-  self.tReport:addData('platform/override/distribution_version', strDistributionVersion)
+  self.tReport:addData('system/platform/override/distribution_version', strDistributionVersion)
 end
 
 

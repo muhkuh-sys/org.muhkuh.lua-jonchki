@@ -303,26 +303,26 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
 
         -- Add all repositories to the report.
         for uiCnt, tRepository in ipairs(self.atRepositories) do
-          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/id', uiCnt), tRepository.strID)
-          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/type', uiCnt), tRepository.strType)
-          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/root', uiCnt), tRepository.strRoot)
-          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/versions', uiCnt), tRepository.strVersions)
-          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/config', uiCnt), tRepository.strConfig)
-          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/artifact', uiCnt), tRepository.strArtifact)
+          self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/id', uiCnt), tRepository.strID)
+          self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/type', uiCnt), tRepository.strType)
+          self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/root', uiCnt), tRepository.strRoot)
+          self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/versions', uiCnt), tRepository.strVersions)
+          self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/config', uiCnt), tRepository.strConfig)
+          self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/artifact', uiCnt), tRepository.strArtifact)
         end
 
         -- Add all default policies to the report.
         for uiCnt, strPolicy in ipairs(self.atPolicyListDefault) do
-          self.tReport:addData(string.format('project/configuration/policies/default@idx=%d/policy', uiCnt), strPolicy)
+          self.tReport:addData(string.format('configuration/project/policies/default@idx=%d/policy', uiCnt), strPolicy)
         end
 
         -- Add the policy overrides to the report.
         -- FIXME: sort the overrides by GAV. Maybe with penlight?
         local uiCnt = 1
         for strGMA, atPolicies in pairs(self.atPolicyListOverrides) do
-          self.tReport:addData(string.format('project/configuration/policies/override@idx=%d/GAV', uiCnt), strPolicies)
+          self.tReport:addData(string.format('configuration/project/policies/override@idx=%d/GAV', uiCnt), strPolicies)
           for uiCnt, strPolicy in ipairs(atPolicies) do
-            self.tReport:addData(string.format('project/configuration/policies/override@idx=%d/policy', uiCnt), strPolicy)
+            self.tReport:addData(string.format('configuration/project/policies/override@idx=%d/policy', uiCnt), strPolicy)
           end
         end
       end
