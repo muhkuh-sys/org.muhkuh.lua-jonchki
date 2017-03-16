@@ -430,64 +430,70 @@ end
 
 
 
-function ArtifactConfiguration:toxml(tXml)
-  local tAttr = {}
+function ArtifactConfiguration:writeToReport(tReport, strPath)
+  local strVersion = ''
   if self.version~=nil then
-    tAttr.version = self.tVersion:get()
+    strVersion = self.tVersion:get()
   end
-  tXml:addtag('jonchki-artifact', tAttr)
+  tReport:addData(strPath .. '/version', strVersion)
 
   -- Add the info node.
+  local strInfoGroup = ''
+  local strInfoModule = ''
+  local strInfoArtifcat = ''
+  local strInfoVersion = ''
+  local strInfoVcsId = ''
+  local strInfoExtension = ''
+  local strInfoLicense = ''
+  local strInfoAuthorName = ''
+  local strInfoAuthorUrl = ''
+  local strInfoDescription = ''
   if self.tInfo~=nil then
-    local tAttr = {
-      ['group'] = self.tInfo.strGroup,
-      ['module'] = self.tInfo.strModule,
-      ['artifact'] = self.tInfo.strArtifact,
-      ['version'] = self.tInfo.tVersion:get(),
-      ['vcs-id'] = self.tInfo.strVcsId
-    }
-    tXml:addtag('info', tAttr)
-
-    local tAttr = {
-      ['name'] = self.tInfo.strLicense,
-    }
-    tXml:addtag('license', tAttr)
-    tXml:up()
-
-    local tAttr = {
-      ['name'] = self.tInfo.strAuthorName,
-      ['url'] = self.tInfo.strAuthorName
-    }
-    tXml:addtag('author', tAttr)
-    tXml:up()
-
-    tXml:addtag('description')
-    local strDescription = self.tInfo.strDescription
-    if strDescription~=nil and strDescription~='' then
-      tXml:text(strDescription)
-    end
-    tXml:up()
-
-    tXml:up()
+    strInfoGroup = self.tInfo.strGroup
+    strInfoModule = self.tInfo.strModule
+    strInfoArtifact = self.tInfo.strArtifact
+    strInfoVersion = self.tInfo.tVersion:get()
+    strInfoVcsId = self.tInfo.strVcsId
+    strInfoExtension = self.tInfo.strExtension
+    strInfoLicense = self.tInfo.strLicense
+    strInfoAuthorName = self.tInfo.strAuthorName
+    strInfoAuthorUrl = self.tInfo.strAuthorUrl
+    strInfoDescription = self.tInfo.strDescription
   end
-
+  tReport:addData(strPath .. '/info/group', strInfoGroup)
+  tReport:addData(strPath .. '/info/module', strInfoModule)
+  tReport:addData(strPath .. '/info/artifact', strInfoArtifact)
+  tReport:addData(strPath .. '/info/version', strInfoVersion)
+  tReport:addData(strPath .. '/info/vcs_id', strInfoVcsId)
+  tReport:addData(strPath .. '/info/extension', strInfoExtension)
+  tReport:addData(strPath .. '/info/license', strInfoLicense)
+  tReport:addData(strPath .. '/info/author_name', strInfoAuthorName)
+  tReport:addData(strPath .. '/info/author_url', strInfoAuthorUrl)
+  tReport:addData(strPath .. '/info/description', strInfoDescription)
+  
   -- Add the dependencies.
   if self.atDependencies~=nil then
-    tXml:addtag('dependencies')
-      for _,tDependency in pairs(self.atDependencies) do
-        local tAttr = {
-          ['group'] = tDependency.strGroup,
-          ['module'] = tDependency.strModule,
-          ['artifact'] = tDependency.strArtifact,
-          ['version'] = tDependency.tVersion:get()
-        }
-        tXml:addtag('dependency', tAttr)
-        tXml:up()
+    for uiCnt,tDependency in ipairs(self.atDependencies) do
+      tReport:addData(string.format('%s/dependencies/dependency@id=%d/group', strPath, uiCnt), tDependency.strGroup)
+      tReport:addData(string.format('%s/dependencies/dependency@id=%d/module', strPath, uiCnt), tDependency.strModule)
+      tReport:addData(string.format('%s/dependencies/dependency@id=%d/artifact', strPath, uiCnt), tDependency.strArtifact)
+      if tDependency.tVersion~=nil then
+        tReport:addData(string.format('%s/dependencies/dependency@id=%d/version', strPath, uiCnt), tDependency.tVersion:get())
       end
-    tXml:up()
+    end
   end
-
-  tXml:up()
+  
+  -- Add the build dependencies.
+  if self.atBuildDependencies~=nil then
+    for uiCnt,tDependency in ipairs(self.atDependencies) do
+      tReport:addData(string.format('%s/builddependencies/dependency@id=%d/group', strPath, uiCnt), tDependency.strGroup)
+      tReport:addData(string.format('%s/builddependencies/dependency@id=%d/module', strPath, uiCnt), tDependency.strModule)
+      tReport:addData(string.format('%s/builddependencies/dependency@id=%d/artifact', strPath, uiCnt), tDependency.strArtifact)
+      if tDependency.tVersion~=nil then
+        tReport:addData(string.format('%s/builddependencies/dependency@id=%d/version', strPath, uiCnt), tDependency.tVersion:get())
+      end
+    end
+  end
 end
 
 

@@ -11,11 +11,12 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLogger, fInstallBuildDependencies)
+function SystemConfiguration:_init(cLogger, cReport, fInstallBuildDependencies)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
   self.tLogger = cLogger
+  self.tReport = cReport
 
   self.fInstallBuildDependencies = fInstallBuildDependencies
 
@@ -214,6 +215,21 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
             -- Store the configuration.
             self.tConfiguration = atConfiguration
 
+            self.tReport:addData('system/configuration/work', atConfiguration.work)
+            self.tReport:addData('system/configuration/cache', atConfiguration.cache)
+            self.tReport:addData('system/configuration/cache_max_size', atConfiguration.cache_max_size)
+            self.tReport:addData('system/configuration/depack', atConfiguration.depack)
+            self.tReport:addData('system/configuration/install_base', atConfiguration.install_base)
+            self.tReport:addData('system/configuration/install_executables', atConfiguration.install_executables)
+            self.tReport:addData('system/configuration/install_shared_objects', atConfiguration.install_shared_objects)
+            self.tReport:addData('system/configuration/install_lua_path', atConfiguration.install_lua_path)
+            self.tReport:addData('system/configuration/install_lua_cpath', atConfiguration.install_lua_cpath)
+            self.tReport:addData('system/configuration/install_doc', atConfiguration.install_doc)
+            self.tReport:addData('system/configuration/install_dev', atConfiguration.install_dev)
+            self.tReport:addData('system/configuration/install_dev_include', atConfiguration.install_dev_include)
+            self.tReport:addData('system/configuration/install_dev_lib', atConfiguration.install_dev_lib)
+            self.tReport:addData('system/configuration/install_dev_cmake', atConfiguration.install_dev_cmake)
+
             -- Success!
             tResult = true
 
@@ -296,76 +312,6 @@ function SystemConfiguration:initialize_paths()
   end
 
   return tResult
-end
-
-
-
-function SystemConfiguration:toxml(tXml)
-  tXml:addtag('SystemConfiguration')
-
-  tXml:addtag('work')
-  tXml:text(self.tConfiguration.work)
-  tXml:up()
-
-  local tAttr = {
-    ['max_size'] = tostring(self.tConfiguration.cache_max_size)
-  }
-  tXml:addtag('cache', tAttr)
-  tXml:text(self.tConfiguration.cache)
-  tXml:up()
-
-  tXml:addtag('depack')
-  tXml:text(self.tConfiguration.depack)
-  tXml:up()
-
-  tXml:addtag('install')
-
-  tXml:addtag('base')
-  tXml:text(self.tConfiguration.install_base)
-  tXml:up()
-
-  tXml:addtag('executables')
-  tXml:text(self.tConfiguration.install_executables)
-  tXml:up()
-
-  tXml:addtag('shared_objects')
-  tXml:text(self.tConfiguration.install_shared_objects)
-  tXml:up()
-
-  tXml:addtag('lua_path')
-  tXml:text(self.tConfiguration.install_lua_path)
-  tXml:up()
-
-  tXml:addtag('lua_cpath')
-  tXml:text(self.tConfiguration.install_lua_cpath)
-  tXml:up()
-
-  tXml:addtag('doc')
-  tXml:text(self.tConfiguration.install_doc)
-  tXml:up()
-
-  tXml:addtag('dev')
-
-  tXml:addtag('include')
-  tXml:text(self.tConfiguration.install_dev_include)
-  tXml:up()
-
-  tXml:addtag('lib')
-  tXml:text(self.tConfiguration.install_dev_lib)
-  tXml:up()
-
-  tXml:addtag('cmake')
-  tXml:text(self.tConfiguration.install_dev_cmake)
-  tXml:up()
-
-  -- Leave the "dev" node.
-  tXml:up()
-
-  -- Leave the "install" node.
-  tXml:up()
-
-  -- Leave the "system" node.
-  tXml:up()
 end
 
 

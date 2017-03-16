@@ -90,19 +90,25 @@ cLogger:setLevel(tArgs.tLogLevel)
 
 -----------------------------------------------------------------------------
 --
+-- Create a report.
+--
+local Report = require 'Report'
+local cReport = Report()
+
+
+-----------------------------------------------------------------------------
+--
 -- Get the target ID.
 --
 local strCpuArchitecture = tArgs.strCpuArchitecture
 local strDistributionId = tArgs.strDistributionId
 local strDistributionVersion = tArgs.strDistributionVersion
 local Platform = require 'platform.platform'
-local cPlatform = Platform(cLogger)
+local cPlatform = Platform(cLogger, cReport)
 
--- If at least one value is not set, we need auto-detection.
-if strCpuArchitecture==nil or strDistributionId==nil or strDistributionVersion==nil then
-  cPlatform:detect()
-  cLogger:info('Detected platform: %s', tostring(cPlatform))
-end
+-- Detect the host platform.
+cPlatform:detect()
+cLogger:info('Detected platform: %s', tostring(cPlatform))
 
 -- Override the initial values (empty or from the detection)
 if strCpuArchitecture~=nil then
@@ -119,6 +125,7 @@ local fPlatformInfoIsValid = cPlatform:is_valid()
 if fPlatformInfoIsValid~=true then
   -- The platform information is not valid.
   cLogger:fatal('The platform information is not valid!')
+  cReport:write()
   os.exit(1)
 end
 
@@ -129,17 +136,19 @@ end
 --
 local SystemConfiguration = require 'SystemConfiguration'
 -- Create a configuration object.
-local cSysCfg = SystemConfiguration(cLogger)
+local cSysCfg = SystemConfiguration(cLogger, cReport, tArgs.fInstallBuildDependencies)
 -- Read the settings from 'demo.cfg'.
-local tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies)
+local tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
 if tResult==nil then
   cLogger:fatal('Failed to parse the system configuration!')
+  cReport:write()
   os.exit(1)
 end
 -- Check if all paths exist. Try to create them. Clean the depack and the install folders.
 local tResult = cSysCfg:initialize_paths()
 if tResult==nil then
   cLogger:fatal('Failed to initialize the paths!')
+  cReport:write()
   os.exit(1)
 end
 
@@ -149,10 +158,11 @@ end
 -- Read the project configuration.
 --
 local ProjectConfiguration = require 'ProjectConfiguration'
-local cPrjCfg = ProjectConfiguration(cLogger)
+local cPrjCfg = ProjectConfiguration(cLogger, cReport)
 local tResult = cPrjCfg:parse_configuration(tArgs.strProjectConfigurationFile)
 if tResult==nil then
   cLogger:fatal('Failed to parse the project configuration!')
+  cReport:write()
   os.exit(1)
 end
 
@@ -167,6 +177,7 @@ local cCache = Cache(cLogger, 'main')
 tResult = cCache:configure(cSysCfg.tConfiguration.cache)
 if tResult==nil then
   cLogger:fatal('Failed to open the cache!')
+  cReport:write()
   os.exit(1)
 end
 
@@ -190,6 +201,7 @@ local cArtifactCfg = ArtifactConfiguration(cLogger)
 local tResult = cArtifactCfg:parse_configuration_file(tArgs.strInputFile)
 if tResult~=true then
   cLogger:fatal('Failed to parse the artifact configuration!')
+  cReport:write()
   os.exit(1)
 end
 
@@ -203,6 +215,7 @@ local tResolver = Resolver(cLogger, 'default', tArgs.fInstallBuildDependencies)
 local tResult = tResolver:load_policies(cPrjCfg)
 if tResult~=true then
   cLogger:fatal('Failed to create all policy lists.')
+  cReport:write()
   os.exit(1)
 else
   -- Resolve all dependencies.
@@ -210,6 +223,7 @@ else
   local tStatus = tResolver:resolve(cArtifactCfg)
   if tStatus~=true then
     cLogger:fatal('Failed to resolve all dependencies.')
+    cReport:write()
     os.exit(1)
   else
     local atArtifacts = tResolver:get_all_dependencies()
@@ -218,6 +232,7 @@ else
     local tResult = cResolverChain:retrieve_artifacts(atArtifacts)
     if tResult==nil then
       cLogger:fatal('Failed to retrieve all artifacts.')
+      cReport:write()
       os.exit(1)
     else
       local Installer = require 'installer.installer'
@@ -225,6 +240,7 @@ else
       local tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
       if tResult==nil then
         cLogger:fatal('Failed to install all artifacts.')
+        cReport:write()
         os.exit(1)
       end
     end
@@ -232,4 +248,5 @@ else
 end
 
 cLogger:info('All OK!')
+cReport:write()
 os.exit(0)

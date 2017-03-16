@@ -11,7 +11,7 @@ local ProjectConfiguration = class()
 
 
 
-function ProjectConfiguration:_init(cLogger)
+function ProjectConfiguration:_init(cLogger, cReport)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -20,6 +20,8 @@ function ProjectConfiguration:_init(cLogger)
 
   -- Get the logger.
   self.tLogger = cLogger
+  -- Get the report.
+  self.tReport = cReport
 
   -- There is no configuration yet.
   self.atRepositories = nil
@@ -298,59 +300,36 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
         self.atRepositories = aLxpAttr.atRepositories
         self.atPolicyListDefault = aLxpAttr.atPolicyListDefault
         self.atPolicyListOverrides = aLxpAttr.atPolicyListOverrides
+
+        -- Add all repositories to the report.
+        for uiCnt, tRepository in ipairs(self.atRepositories) do
+          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/id', uiCnt), tRepository.strID)
+          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/type', uiCnt), tRepository.strType)
+          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/root', uiCnt), tRepository.strRoot)
+          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/versions', uiCnt), tRepository.strVersions)
+          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/config', uiCnt), tRepository.strConfig)
+          self.tReport:addData(string.format('project/configuration/repositories/repository@idx=%d/artifact', uiCnt), tRepository.strArtifact)
+        end
+
+        -- Add all default policies to the report.
+        for uiCnt, strPolicy in ipairs(self.atPolicyListDefault) do
+          self.tReport:addData(string.format('project/configuration/policies/default@idx=%d/policy', uiCnt), strPolicy)
+        end
+
+        -- Add the policy overrides to the report.
+        -- FIXME: sort the overrides by GAV. Maybe with penlight?
+        local uiCnt = 1
+        for strGMA, atPolicies in pairs(self.atPolicyListOverrides) do
+          self.tReport:addData(string.format('project/configuration/policies/override@idx=%d/GAV', uiCnt), strPolicies)
+          for uiCnt, strPolicy in ipairs(atPolicies) do
+            self.tReport:addData(string.format('project/configuration/policies/override@idx=%d/policy', uiCnt), strPolicy)
+          end
+        end
       end
     end
   end
 
   return tResult
-end
-
-
-
-function ProjectConfiguration:toxml(tXml)
-  tXml:addtag('jonchkicfg')
-
-  local atRepositories = self.atRepositories
-  if atRepositories~=nil then
-    tXml:addtag('repositories')
-
-    -- Loop over all repositories.
-    for _, tRepository in pairs(self.atRepositories) do
-      -- Create the "repository" node with the attributes "id", "type" and "cacheable".
-      local tAttributes = {
-        ['id'] = tRepository.strID,
-        ['type'] = tRepository.strType,
-        ['cacheable'] = tostring(tRepository.cacheable)
-      }
-      tXml:addtag('repository', tAttributes)
-
-      -- Create the "root" node.
-      tXml:addtag('root')
-      tXml:text(tRepository.strRoot)
-      tXml:up()
-
-      -- Create the "versions" node.
-      tXml:addtag('versions')
-      tXml:text(tRepository.strVersions)
-      tXml:up()
-
-      -- Create the "config" node.
-      tXml:addtag('config')
-      tXml:text(tRepository.strConfig)
-      tXml:up()
-
-      -- Create the "artifact" node.
-      tXml:addtag('artifact')
-      tXml:text(tRepository.strArtifact)
-      tXml:up()
-
-      tXml:up()
-    end
-
-    tXml:up()
-  end
-
-  tXml:up()
 end
 
 
