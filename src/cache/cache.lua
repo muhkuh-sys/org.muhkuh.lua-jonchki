@@ -114,98 +114,6 @@ end
 
 
 
---- Rebuild the complete cache database.
--- Scan one folder of the repository. Sum up all file sizes and collect the
--- ages of each entry.
--- @param tSQLDatabase The database handle.
--- @return In case of an error the function returns nil.
---         If the function succeeded it returns true.
-function Cache:_rebuild_complete_cache(tSQLDatabase)
-  -- Be optimistic.
-  local tResult = true
-
-  -- Loop over all files in the repository.
-  for strRoot,astrDirs,astrFiles in self.pl.dir.walk(self.strRepositoryRootPath, false, true) do
-    -- Loop over all files in the current directory.
-    for _,strFile in pairs(astrFiles) do
-      -- Get the full path of the file.
-      local strFullPath = self.pl.path.join(strRoot, strFile)
-      -- Get the extension of the file.
-      local strExtension = self.pl.path.extension(strFullPath)
-      -- Is this a configuration file?
-      if strExtension=='xml' then
-        -- Try to parse the file as a configuration.
-        local cArtifact = self.ArtifactConfiguration()
-        local tResult = cArtifact:parse_configuration_file(strFullPath)
-        if tResult==true then
-          self.tLogger:debug('Found configuration file "%s".', strFullPath)
-          
-          -- TODO: Add it to the database.
-        else
-          self.tLogger:warning('%s Ignoring file "%s". It is no valid artifact configuration.', self.strLogID)
-        end
-      end
-    end
-  end
-
-  return tResult
-end
-
-
-
---- Set the configuration of the cache instance.
--- @param strRepositoryRootPath The root path of the repository.
-function Cache:configure(strRepositoryRootPath)
-  local tResult = nil
-
-
-  -- Convert this to an absolute path.
-  local strAbsRepositoryRootPath = self.pl.path.abspath(strRepositoryRootPath)
-  self.tLogger:debug('%s Set the repository root path to "%s".', self.strLogID, strAbsRepositoryRootPath)
-  self.strRepositoryRootPath = strAbsRepositoryRootPath
-
-  -- The path was already created by the system configuration.
-  -- If it does not exist or it is no directory, this is an error.
-  if self.pl.path.exists(strAbsRepositoryRootPath)~=strAbsRepositoryRootPath then
-    self.tLogger:error('%s The repository root path "%s" does not exist.', self.strLogID, strAbsRepositoryRootPath)
-  elseif self.pl.path.isdir(strAbsRepositoryRootPath)~=true then
-    self.tLogger:error('%s The repository root path "%s" is no directory.', self.strLogID, strAbsRepositoryRootPath)
-  else
-    -- Create the path template string.
-    self.strPathTemplate = self.pl.path.join(strAbsRepositoryRootPath, '[group]/[module]/[version]/[artifact]-[version].[extension]')
-
-    -- Append the database name to the path.
-    local strDb = self.pl.path.join(strAbsRepositoryRootPath, self.strDatabaseName)
-
-    -- Try to open an existing SQLite3 database in the root path.
-    -- If the database does not exist yet, create it.
-    self.tLogger:debug('%s Opening database "%s".', self.strLogID, strDb)
-    local tSQLDatabase, strError = self.tSQLEnv:connect(strDb)
-    if tSQLDatabase==nil then
-      self.tLogger:error('%s Failed to open the database "%s": %s', self.strLogID, strDb, strError)
-    else
-      -- Construct the "CREATE" statement for the "cache" table.
-      local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strConfigurationPath TEXT NOT NULL, strConfigurationHashPath TEXT NOT NULL, iConfigurationSize INTEGER NOT NULL, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
-      tResult = self:_sql_create_table(tSQLDatabase, 'cache', strCreateStatement)
-      if tResult==nil then
-        tSQLDatabase:close()
-        self.tLogger:error('%s Failed to create the table.', self.strLogID)
-      elseif tResult==true then
-        self.tLogger:debug('%s Rebuild the cache information.', self.strLogID)
-        tResult = self:_rebuild_complete_cache(tSQLDatabase)
-      end
-
-      if tResult~=nil then
-        self.tSQLDatabase = tSQLDatabase
-      end
-    end
-  end
-
-  return tResult
-end
-
-
-
 --- A sort function for the age attributes of 2 entries.
 -- This function is used in the table.sort function. It gets 2 entries which
 -- must be tables with an "age" attribute each. Both "age" entries are
@@ -451,6 +359,227 @@ end
 
 
 
+function Cache:_cachefs_write_configuration(cArtifact)
+  local tResult = nil
+  local strError
+
+
+  -- Get the paths.
+  local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
+
+  -- Create the output folder.
+  local strPath = self.pl.path.splitpath(strPathConfiguration)
+  if strPath=='' then
+    tResult = true
+  else
+    tResult, strError = self.pl.dir.makepath(strPath)
+    if tResult~=true then
+      self.tLogger:error('%s Failed to create the path "%s": %s', self.strLogID, strPath, strError)
+    end
+  end
+
+  if tResult==true then
+    -- Write the configuration.
+    self.tLogger:debug('%s Write the configuration to %s.', self.strLogID, strPathConfiguration)
+    tResult, strError = self.pl.utils.writefile(strPathConfiguration, cArtifact.strSource, false)
+    if tResult==nil then
+      self.tLogger:error('%s Failed to create the file for the configuration at "%s": %s', self.strLogID, strPathConfiguration, strError)
+    else
+      -- Write the hash of the configuration.
+      local strHash = self.hash:get_sha1_string(cArtifact.strSource)
+      self.tLogger:debug('%s Configuration hash: %s', self.strLogID, strHash)
+      self.tLogger:debug('%s Write the configuration hash to %s.', self.strLogID, strPathConfigurationHash)
+      tResult, strError = self.pl.utils.writefile(strPathConfigurationHash, strHash, false)
+      if tResult==nil then
+        self.tLogger:error('%s Failed to create the file for the configuration hash at "%s": %s', self.strLogID, strPathConfigurationHash, strError)
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
+  local tResult = nil
+  local strError
+
+
+  -- Get the paths.
+  local strPathArtifact, strPathArtifactHash = self:_get_artifact_paths(cArtifact)
+
+  -- Create the output folder.
+  local strPath = self.pl.path.splitpath(strPathArtifact)
+  if strPath=='' then
+    tResult = true
+  else
+    tResult, strError = self.pl.dir.makepath(strPath)
+    if tResult~=true then
+      self.tLogger:error('%s Failed to create the path "%s": %s', self.strLogID, strPath, strError)
+    end
+  end
+
+  if tResult==true then
+    -- Copy the artifact.
+    self.tLogger:debug('%s Copy the artifact from %s to %s.', self.strLogID, strArtifactSourcePath, strPathArtifact)
+    tResult, strError = self.pl.file.copy(strArtifactSourcePath, strPathArtifact, true)
+    if tResult~=true then
+      self.tLogger:error('%s Failed to copy the artifact from %s to %s: %s', self.strLogID, strArtifactSourcePath, strPathArtifact, strError)
+    else
+      -- Create the hash for the artifact.
+      -- NOTE: get the hash from the source file.
+      tResult, strError = self.hash:get_sha1_file(strArtifactSourcePath)
+      if tResult==nil then
+        self.tLogger:error('%s Failed to get the hash for "%s": %s', self.strLogID, strArtifactSourcePath, strError)
+      else
+        local strHash = tResult
+
+        -- Write the hash of the artifact.
+        self.tLogger:debug('%s Artifact hash: %s', self.strLogID, strHash)
+        self.tLogger:debug('%s Write the artifact hash to %s.', self.strLogID, strPathArtifactHash)
+        tResult, strError = self.pl.utils.writefile(strPathArtifactHash, strHash, false)
+        if tResult==nil then
+          self.tLogger:error('%s Failed to create the file for the artifact hash at "%s": %s', self.strLogID, strPathArtifactHash, strError)
+        end
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
+--- Rebuild the complete cache database.
+-- Scan one folder of the repository. Sum up all file sizes and collect the
+-- ages of each entry.
+-- @param tSQLDatabase The database handle.
+-- @return In case of an error the function returns nil.
+--         If the function succeeded it returns true.
+function Cache:_rebuild_complete_cache(tSQLDatabase)
+  -- Be optimistic.
+  local tResult = true
+
+
+  -- Loop over all files in the repository.
+  for strRoot,astrDirs,astrFiles in self.pl.dir.walk(self.strRepositoryRootPath, false, true) do
+    -- Loop over all files in the current directory.
+    for _,strFile in pairs(astrFiles) do
+      -- Get the full path of the file.
+      local strFullPath = self.pl.path.join(strRoot, strFile)
+      -- Get the extension of the file.
+      local strExtension = self.pl.path.extension(strFullPath)
+      -- Is this a configuration file?
+      if strExtension=='xml' then
+        -- Try to parse the file as a configuration.
+        local cArtifact = self.ArtifactConfiguration()
+        local tResult = cArtifact:parse_configuration_file(strFullPath)
+        if tResult~=true then
+          self.tLogger:debug('%s Ignoring file "%s". It is no valid artifact configuration.', self.strLogID)
+        else
+          self.tLogger:debug('%s Found configuration file "%s".', self.strLogID, strFullPath)
+
+          -- Generate the paths from the artifact configuration.
+          local strPathArtifact, strPathArtifactHash = self:_get_artifact_paths(cArtifact)
+          local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
+
+          local tInfo = cArtifact.tInfo
+          local strGMAV = string.format('%s/%s/%s/%s', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get())
+
+          -- Read the hash of the configuration.
+          local strHash, strError = self.pl.utils.readfile(strPathConfigurationHash, false)
+          if strHash==nil then
+            self.tLogger:debug('%s Failed to read the hash for the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
+          else
+            -- Check the hash of the configuration.
+            tResult = self.hash:check_file(strPathConfiguration, strHash)
+            if tResult~=true then
+              self.tLogger:debug('%s The hash for the configuration of artifact %s does not match.', self.strLogID, strGMAV)
+            else
+              -- Read the hash of the artifact.
+              strHash, strError = self.pl.utils.readfile(strPathArtifactHash, true)
+              if strHash==nil then
+                self.tLogger:debug('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAV, strError)
+              else
+                -- Check the hash of the artifact.
+                tResult = self.hash:check_file(strPathArtifact, strHash)
+                if tResult~=true then
+                  self.tLogger:debug('%s The hash for the artifact %s does not match.', self.strLogID, strGMAV)
+                else
+                  -- Add it to the database.
+                  tResult = self:_database_add_artifact(cArtifact)
+                  if tResult==nil then
+                    self.tLogger:error('%s Failed to add the artifact %s to the database.', self.strLogID, strGMAV)
+                    break
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
+--- Set the configuration of the cache instance.
+-- @param strRepositoryRootPath The root path of the repository.
+function Cache:configure(strRepositoryRootPath)
+  local tResult = nil
+
+
+  -- Convert this to an absolute path.
+  local strAbsRepositoryRootPath = self.pl.path.abspath(strRepositoryRootPath)
+  self.tLogger:debug('%s Set the repository root path to "%s".', self.strLogID, strAbsRepositoryRootPath)
+  self.strRepositoryRootPath = strAbsRepositoryRootPath
+
+  -- The path was already created by the system configuration.
+  -- If it does not exist or it is no directory, this is an error.
+  if self.pl.path.exists(strAbsRepositoryRootPath)~=strAbsRepositoryRootPath then
+    self.tLogger:error('%s The repository root path "%s" does not exist.', self.strLogID, strAbsRepositoryRootPath)
+  elseif self.pl.path.isdir(strAbsRepositoryRootPath)~=true then
+    self.tLogger:error('%s The repository root path "%s" is no directory.', self.strLogID, strAbsRepositoryRootPath)
+  else
+    -- Create the path template string.
+    self.strPathTemplate = self.pl.path.join(strAbsRepositoryRootPath, '[group]/[module]/[version]/[artifact]-[version].[extension]')
+
+    -- Append the database name to the path.
+    local strDb = self.pl.path.join(strAbsRepositoryRootPath, self.strDatabaseName)
+
+    -- Try to open an existing SQLite3 database in the root path.
+    -- If the database does not exist yet, create it.
+    self.tLogger:debug('%s Opening database "%s".', self.strLogID, strDb)
+    local tSQLDatabase, strError = self.tSQLEnv:connect(strDb)
+    if tSQLDatabase==nil then
+      self.tLogger:error('%s Failed to open the database "%s": %s', self.strLogID, strDb, strError)
+    else
+      -- Construct the "CREATE" statement for the "cache" table.
+      local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strConfigurationPath TEXT NOT NULL, strConfigurationHashPath TEXT NOT NULL, iConfigurationSize INTEGER NOT NULL, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
+      tResult = self:_sql_create_table(tSQLDatabase, 'cache', strCreateStatement)
+      if tResult==nil then
+        tSQLDatabase:close()
+        self.tLogger:error('%s Failed to create the table.', self.strLogID)
+      elseif tResult==true then
+        self.tLogger:debug('%s Rebuild the cache information.', self.strLogID)
+        tResult = self:_rebuild_complete_cache(tSQLDatabase)
+      end
+
+      if tResult~=nil then
+        self.tSQLDatabase = tSQLDatabase
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
 function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
   local strError
@@ -549,98 +678,6 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
         else
           -- All OK, return the path of the artifact in the depack folder.
           tResult = strLocalPath
-        end
-      end
-    end
-  end
-
-  return tResult
-end
-
-
-
-function Cache:_cachefs_write_configuration(cArtifact)
-  local tResult = nil
-  local strError
-
-
-  -- Get the paths.
-  local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
-
-  -- Create the output folder.
-  local strPath = self.pl.path.splitpath(strPathConfiguration)
-  if strPath=='' then
-    tResult = true
-  else
-    tResult, strError = self.pl.dir.makepath(strPath)
-    if tResult~=true then
-      self.tLogger:error('%s Failed to create the path "%s": %s', self.strLogID, strPath, strError)
-    end
-  end
-
-  if tResult==true then
-    -- Write the configuration.
-    self.tLogger:debug('%s Write the configuration to %s.', self.strLogID, strPathConfiguration)
-    tResult, strError = self.pl.utils.writefile(strPathConfiguration, cArtifact.strSource, false)
-    if tResult==nil then
-      self.tLogger:error('%s Failed to create the file for the configuration at "%s": %s', self.strLogID, strPathConfiguration, strError)
-    else
-      -- Write the hash of the configuration.
-      local strHash = self.hash:get_sha1_string(cArtifact.strSource)
-      self.tLogger:debug('%s Configuration hash: %s', self.strLogID, strHash)
-      self.tLogger:debug('%s Write the configuration hash to %s.', self.strLogID, strPathConfigurationHash)
-      tResult, strError = self.pl.utils.writefile(strPathConfigurationHash, strHash, false)
-      if tResult==nil then
-        self.tLogger:error('%s Failed to create the file for the configuration hash at "%s": %s', self.strLogID, strPathConfigurationHash, strError)
-      end
-    end
-  end
-
-  return tResult
-end
-
-
-
-function Cache:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
-  local tResult = nil
-  local strError
-
-
-  -- Get the paths.
-  local strPathArtifact, strPathArtifactHash = self:_get_artifact_paths(cArtifact)
-
-  -- Create the output folder.
-  local strPath = self.pl.path.splitpath(strPathArtifact)
-  if strPath=='' then
-    tResult = true
-  else
-    tResult, strError = self.pl.dir.makepath(strPath)
-    if tResult~=true then
-      self.tLogger:error('%s Failed to create the path "%s": %s', self.strLogID, strPath, strError)
-    end
-  end
-
-  if tResult==true then
-    -- Copy the artifact.
-    self.tLogger:debug('%s Copy the artifact from %s to %s.', self.strLogID, strArtifactSourcePath, strPathArtifact)
-    tResult, strError = self.pl.file.copy(strArtifactSourcePath, strPathArtifact, true)
-    if tResult~=true then
-      self.tLogger:error('%s Failed to copy the artifact from %s to %s: %s', self.strLogID, strArtifactSourcePath, strPathArtifact, strError)
-    else
-      -- Create the hash for the artifact.
-      -- NOTE: get the hash from the source file.
-      tResult, strError = self.hash:get_sha1_file(strArtifactSourcePath)
-      if tResult==nil then
-        self.tLogger:error('%s Failed to get the hash for "%s": %s', self.strLogID, strArtifactSourcePath, strError)
-      else
-        local strHash = tResult
-
-        -- Write the hash of the artifact.
-        self.tLogger:debug('%s Artifact hash: %s', self.strLogID, strHash)
-        self.tLogger:debug('%s Write the artifact hash to %s.', self.strLogID, strPathArtifactHash)
-        tResult, strError = self.pl.utils.writefile(strPathArtifactHash, strHash, false)
-        if tResult==nil then
-          self.tLogger:error('%s Failed to create the file for the artifact hash at "%s": %s', self.strLogID, strPathArtifactHash, strError)
         end
       end
     end
