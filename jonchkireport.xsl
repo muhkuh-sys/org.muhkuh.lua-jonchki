@@ -7,7 +7,7 @@
 	<html>
 		<xsl:comment>XSLT stylesheet used to transform this file:  jonchkireport.xsl</xsl:comment>
 		<head>
-			<title>Jonchki Report</title>
+			<title>Jonchki report for <xsl:call-template name="project_gmav"/></title>
 			<style type="text/css">
 .global {
 	background-color: darkseagreen;
@@ -18,7 +18,7 @@
 #system,
 #project,
 #artifacts,
-#toc {
+#main {
 	display: block;
 	border-width: medium;
 	border-style: inset;
@@ -109,6 +109,11 @@
 		<xsl:apply-templates select="JonchkiReport"/>
 		</body>
 	</html>
+</xsl:template>
+
+
+<xsl:template name="project_gmav">
+	<xsl:value-of select="concat(/JonchkiReport/artifacts/artifact[@id='0']/info/group, '.', /JonchkiReport/artifacts/artifact[@id='0']/info/module, '-', /JonchkiReport/artifacts/artifact[@id='0']/info/artifact, '-', /JonchkiReport/artifacts/artifact[@id='0']/info/version)"/>
 </xsl:template>
 
 
@@ -215,6 +220,7 @@
 <xsl:template name="system">
 	<div id="system">
 		<a name="system"/>
+		<h2>System Information</h2>
 		<xsl:call-template name="platform"/>
 		<xsl:call-template name="system_configuration"/>
 	</div>
@@ -291,6 +297,7 @@
 
 <xsl:template name="artifacts">
 	<div id="artifacts">
+		<a name="artifacts"/>
 		<div id="artifacts_caption">Artifacts</div>
 
 		<!-- First show a quick overview of all artifacts. -->
@@ -379,12 +386,14 @@
 
 
 <xsl:template match="JonchkiReport">
-	<div id="toc">
+	<div id="main">
+		<h1>Jonchki report for <xsl:call-template name="project_gmav"/></h1>
+
 		<!-- Show a table of contents. -->
 		<h2><a name="toc">Table of Contents</a></h2>
 		<b><big><a href="#system">System Information</a></big></b><br/>
 		<b><big><a href="#project">Project Configuration</a></big></b><br/>
-		<b><big><a href="#steps">Steps</a></big></b><br/>
+		<b><big><a href="#artifacts">Artifacts</a></big></b><br/>
 	</div>
 	
 	<xsl:call-template name="system"/>
