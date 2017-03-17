@@ -1,6 +1,30 @@
 TODO
 ----
 
+* Cache max size einhalten
+  Immer nach neuem Artifact oder Configuration testen.
+
+* Orphaned Files finden und löschen
+Wie: walk über alle files
+ Name = "cache.sqlite3" -> OK
+ Name in DB (Artifact, *hash, Configuration, *hash) -> OK
+ Sonst nicht OK und weg
+Wann: Beim kompletten rebuild der DB und wenn ein Fehler festgestellt wurde (z.B. Hash error)
+
+* Bei Fehler Eintrag aus der DB schmeißen
+
+* Hash in .hash Datei speichern. Da stehen 1 oder mehrere Zeilen drin, die die folgende Form haben:
+   <HASH_ID>:<HASH>
+  z.B.
+   SHA1:0123456...
+   SHA384:0123456...
+
+* Artifact mit luaarchive entpacken -> mehrere Formate möglich, z.B. .tar.xz
+
+* luaarchive im Installer bereitstellen, um Archive erstellen zu können
+
+* Hash im Installer erreichbar machen, um .hash Files erstellen zu können
+
 * Add a link to the parent object in the resolve table. This is important for good error messages about one instance.
 Example:
 Error xyz in group/artifact/version required by
@@ -15,12 +39,10 @@ Be careful to create something which will also work with other resolvers than "e
 
 * Store error messages for the resolve process in the resolve table.
 
-* Combine the XML dumps of the resolve steps into one big XML.
 
-* Add a stylesheet to view the big dumped XML.
 
-* Add the system configuration to the XML dump.
+DONE
+----
 
-* Add the project configuration to the XML dump.
+* Change the Logger to a ReportWriter. This should produce something like the IVY report file.
 
-* Add the GA->V table to each step of the XML dump.
