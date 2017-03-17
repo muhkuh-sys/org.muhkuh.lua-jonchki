@@ -15,7 +15,10 @@
 	font-size: medium;
 }
 
-#system, #project, #artifacts, #toc {
+#system,
+#project,
+#artifacts,
+#toc {
 	display: block;
 	border-width: medium;
 	border-style: inset;
@@ -26,44 +29,73 @@
 	background-color: lemonchiffon;
 }
 
-#platform, #system_configuration, #repository, #artifacts_overview, #artifacts_details {
+#platform,
+#system_configuration,
+#repository,
+#artifacts_overview,
+#artifact_details,
+#artifact_dependencies {
 	display: table;
 	padding: 1em;
 }
 
-#platform_caption, #system_configuration_caption, #repository_caption, #artifacts_overview_caption, ##artifacts_details_caption {
+#platform_caption,
+#system_configuration_caption,
+#repository_caption,
+#artifacts_overview_caption,
+#artifact_details_caption,
+#artifact_dependencies_caption {
 	display: table-caption;
-	
 }
 
-#platform_content_body, #system_configuration_content_body, #repository_content_body, #artifacts_overview_content_body, #artifacts_details_content_body {
+#platform_content_body,
+#system_configuration_content_body,
+#repository_content_body,
+#artifacts_overview_content_body,
+#artifact_details_content_body,
+#artifact_dependencies_content_body {
 	border-width: medium;
 	border-style: solid;
 	border-color: black;
 	padding: 0.5em;
 }
 
-#platform_content_row, #system_configuration_content_row, #repository_content_row, #artifacts_overview_content_row, #artifacts_details_content_row {
+#platform_content_row,
+#system_configuration_content_row,
+#repository_content_row,
+#artifacts_overview_content_row,
+#artifact_details_content_row,
+#artifact_dependencies_content_row {
 	display: table-row;
 }
 
-#platform_content_key, #system_configuration_content_key, #repository_content_key, #artifacts_overview_content_key, #artifacts_details_content_key {
+#platform_content_key,
+#system_configuration_content_key,
+#repository_content_key,
+#artifacts_overview_content_key,
+#artifact_details_content_key,
+#artifact_dependencies_content_key {
 	display: table-cell;
 	font-weight: bold;
 	padding-right: 1em;
 }
 
-#platform_content_value, #system_configuration_content_value, #repository_content_value, #artifacts_overview_content_value, #artifacts_details_content_value {
+#platform_content_value,
+#system_configuration_content_value,
+#repository_content_value,
+#artifacts_overview_content_value,
+#artifact_details_content_value,
+#artifact_dependencies_content_value {
 	display: table-cell;
 	padding-right: 1em;
 }
 
-#repositories, #artifact_details {
+#repositories, #artifact_chapter {
 	display: block;
 	margin: 1em;
 }
 
-#repositories_caption, #artifacts_caption {
+#repositories_caption, #artifacts_caption, #artifact_caption {
 	font-weight: bold;
 	font-size: large;
 }
@@ -235,14 +267,26 @@
 </xsl:template>
 
 
-<!--
+
 <xsl:template name="artifact_tree">
-	<table border="1" cellspacing="0" cellpadding="2">
-	<xsl:for-each select="../artifact/@parent='0'">
+	<xsl:param name="start_id"/>
+	<xsl:param name="indent"/>
+	<xsl:for-each select="/JonchkiReport/artifacts/artifact[@parent=$start_id]">
 		<xsl:sort select="@id" order="ascending" data-type="number"/>
+		<div id="artifact_dependencies_content_row">
+			<div id="artifact_dependencies_content_value"><xsl:value-of select="concat($indent,info/group)"/></div>
+			<div id="artifact_dependencies_content_value"><xsl:value-of select="info/module"/></div>
+			<div id="artifact_dependencies_content_value"><xsl:value-of select="info/artifact"/></div>
+			<div id="artifact_dependencies_content_value"><xsl:value-of select="info/version"/></div>
+			<div id="artifact_dependencies_content_value"><div id="vcs_id"><xsl:value-of select="info/vcs_id"/></div></div>
+		</div>
+		<xsl:call-template name="artifact_tree">
+			<xsl:with-param name="start_id" select="@id"/>
+			<xsl:with-param name="indent" select="concat($indent,'-')"/>
+		</xsl:call-template>
 	</xsl:for-each>
 </xsl:template>
--->
+
 
 
 <xsl:template name="artifacts">
@@ -276,39 +320,59 @@
 		<!-- Show each artifact in a detail view. -->
 		<xsl:for-each select="artifacts/artifact">
 			<xsl:sort select="@id" order="ascending" data-type="number"/>
-			<div id="artifact_details">
-				<div id="artifacts_details_caption">Artifact <xsl:value-of select="concat(info/group,'.',info/module,'-',info/artifact)"/></div>
-				<div id="artifacts_details_content_body">
-					<div id="artifacts_details_content_row">
-						<div id="artifacts_details_content_key">Version</div>
-						<div id="artifacts_details_content_value"><xsl:value-of select="info/version"/></div>
-					</div>
-					<div id="artifacts_details_content_row">
-						<div id="artifacts_details_content_key">VCS ID</div>
-						<div id="artifacts_details_content_value"><div id="vcs_id"><xsl:value-of select="info/vcs_id"/></div></div>
-					</div>
-					<div id="artifacts_details_content_row">
-						<div id="artifacts_details_content_key">License</div>
-						<div id="artifacts_details_content_value"><xsl:value-of select="info/license"/></div>
-					</div>
-					<div id="artifacts_details_content_row">
-						<div id="artifacts_details_content_key">Author</div>
-						<div id="artifacts_details_content_value"><xsl:value-of select="info/author_name"/></div>
-					</div>
-					<div id="artifacts_details_content_row">
-						<div id="artifacts_details_content_key">URL</div>
-						<div id="artifacts_details_content_value">
-							<xsl:call-template name="simple_url_link"><xsl:with-param name="url" select="info/author_url"/></xsl:call-template>
+			<div id="artifact_caption">Artifact <xsl:value-of select="concat(info/group,'.',info/module,'-',info/artifact)"/></div>
+			<div id="artifact_chapter">
+				<div id="artifact_details">
+					<div id="artifact_details_caption">Details</div>
+					<div id="artifact_details_content_body">
+						<div id="artifact_details_content_row">
+							<div id="artifact_details_content_key">Version</div>
+							<div id="artifact_details_content_value"><xsl:value-of select="info/version"/></div>
+						</div>
+						<div id="artifact_details_content_row">
+							<div id="artifact_details_content_key">VCS ID</div>
+							<div id="artifact_details_content_value"><div id="vcs_id"><xsl:value-of select="info/vcs_id"/></div></div>
+						</div>
+						<div id="artifact_details_content_row">
+							<div id="artifact_details_content_key">License</div>
+							<div id="artifact_details_content_value"><xsl:value-of select="info/license"/></div>
+						</div>
+						<div id="artifact_details_content_row">
+							<div id="artifact_details_content_key">Author</div>
+							<div id="artifact_details_content_value"><xsl:value-of select="info/author_name"/></div>
+						</div>
+						<div id="artifact_details_content_row">
+							<div id="artifact_details_content_key">URL</div>
+							<div id="artifact_details_content_value">
+								<xsl:call-template name="simple_url_link"><xsl:with-param name="url" select="info/author_url"/></xsl:call-template>
+							</div>
 						</div>
 					</div>
 				</div>
-				<h4>Dependencies</h4>
+				<div id="artifact_dependencies">
+					<div id="artifact_dependencies_caption">Dependencies</div>
+					<div id="artifact_dependencies_content_body">
+						<div id="artifact_dependencies_content_row">
+							<div id="artifact_dependencies_content_key">Group</div>
+							<div id="artifact_dependencies_content_key">Module</div>
+							<div id="artifact_dependencies_content_key">Artifact</div>
+							<div id="artifact_dependencies_content_key">Version</div>
+							<div id="artifact_dependencies_content_key">VCS version</div>
+						</div>
+						<xsl:choose>
+							<xsl:when test="count(/JonchkiReport/artifacts/artifact[@parent=current()/@id])=0">
+								None.
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:call-template name="artifact_tree">
+									<xsl:with-param name="start_id" select="@id"/>
+									<xsl:with-param name="indent" select="''"/>
+								</xsl:call-template>
+							</xsl:otherwise>
+						</xsl:choose>
+					</div>
+				</div>
 			</div>
-<!-- 
-		<xsl:call-template name="artifact_tree">
-			<xsl:with-param name="start_idx" select="@idx"/>
-		</xsl:call-template>
--->
 		</xsl:for-each>
 	</div>
 </xsl:template>
