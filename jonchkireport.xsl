@@ -5,138 +5,327 @@
 
 <xsl:template match="/">
 	<html>
-		<xsl:comment>XSLT stylesheet used to transform this file:  jonchkilog.xsl</xsl:comment>
+		<xsl:comment>XSLT stylesheet used to transform this file:  jonchkireport.xsl</xsl:comment>
 		<head>
-			<title>Jonchki Log</title>
+			<title>Jonchki Report</title>
+			<style type="text/css">
+.global {
+	background-color: darkseagreen;
+	font-family: sans-serif;
+	font-size: medium;
+}
+
+#system, #project, #artifacts, #toc {
+	display: block;
+	border-width: medium;
+	border-style: inset;
+	border-color: green;
+	border-radius: 1em;
+	padding: 1em;
+	margin-bottom: 1em;
+	background-color: lemonchiffon;
+}
+
+#platform, #system_configuration, #repository, #artifacts_overview, #artifacts_details {
+	display: table;
+	padding: 1em;
+}
+
+#platform_caption, #system_configuration_caption, #repository_caption, #artifacts_overview_caption, ##artifacts_details_caption {
+	display: table-caption;
+	
+}
+
+#platform_content_body, #system_configuration_content_body, #repository_content_body, #artifacts_overview_content_body, #artifacts_details_content_body {
+	border-width: medium;
+	border-style: solid;
+	border-color: black;
+	padding: 0.5em;
+}
+
+#platform_content_row, #system_configuration_content_row, #repository_content_row, #artifacts_overview_content_row, #artifacts_details_content_row {
+	display: table-row;
+}
+
+#platform_content_key, #system_configuration_content_key, #repository_content_key, #artifacts_overview_content_key, #artifacts_details_content_key {
+	display: table-cell;
+	font-weight: bold;
+	padding-right: 1em;
+}
+
+#platform_content_value, #system_configuration_content_value, #repository_content_value, #artifacts_overview_content_value, #artifacts_details_content_value {
+	display: table-cell;
+	padding-right: 1em;
+}
+
+#repositories, #artifact_details {
+	display: block;
+	margin: 1em;
+}
+
+#repositories_caption, #artifacts_caption {
+	font-weight: bold;
+	font-size: large;
+}
+
+#vcs_id {
+	font-family: monospace;
+}
+			</style>
 		</head>
-		<body bgcolor="#ffffff" marginheight="2" marginwidth="2" topmargin="2" leftmargin="2">
-		<xsl:apply-templates select="JonchkiLog"/>
+		<body class="global">
+		<xsl:apply-templates select="JonchkiReport"/>
 		</body>
 	</html>
 </xsl:template>
 
 
-<xsl:template match="SystemConfiguration">
-	<h2>System configuration</h2>
+<xsl:template name="simple_url_link">
+	<xsl:param name="url"/>
+	<xsl:element name="a">
+		<xsl:attribute name="href"><xsl:value-of select="$url"/></xsl:attribute>
+		<xsl:value-of select="$url"/>
+	</xsl:element>
+</xsl:template>
+
+
+
+<xsl:template name="platform">
+	<div id="platform">
+		<div id="platform_caption">Platform</div>
+		<div id="platform_content_body">
+			<div id="platform_content_row">
+				<td></td>
+				<div id="platform_content_key">host</div>
+				<div id="platform_content_key">override</div>
+			</div>
+			<div id="platform_content_row">
+				<div id="platform_content_key">CPU architecture</div>
+				<div id="platform_content_value"><xsl:value-of select="system/platform/host/cpu_architecture"/></div>
+				<div id="platform_content_value"><xsl:value-of select="system/platform/override/cpu_architecture"/></div>
+			</div>
+			<div id="platform_content_row">
+				<div id="platform_content_key">distribution ID</div>
+				<div id="platform_content_value"><xsl:value-of select="system/platform/host/distribution_id"/></div>
+				<div id="platform_content_value"><xsl:value-of select="system/platform/override/distribution_id"/></div>
+			</div>
+			<div id="platform_content_row">
+				<div id="platform_content_key">distribution version</div>
+				<div id="platform_content_value"><xsl:value-of select="system/platform/host/distribution_version"/></div>
+				<div id="platform_content_value"><xsl:value-of select="system/platform/override/distribution_version"/></div>
+			</div>
+		</div>
+	</div>
+</xsl:template>
+
+
+<xsl:template name="system_configuration">
+	<div id="system_configuration">
+		<div id="system_configuration_caption">System configuration</div>
+		<div id="system_configuration_content_body">
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">work</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/work"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">cache</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/cache"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">cache_max_size</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/cache_max_size"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">depack</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/depack"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_base</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_base"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_lua_path</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_lua_path"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_lua_cpath</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_lua_cpath"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_shared_objects</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_shared_objects"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_doc</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_doc"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_dev</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_dev"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_dev_include</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_dev_include"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_dev_lib</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_dev_lib"/></div>
+			</div>
+			<div id="system_configuration_content_row">
+				<div id="system_configuration_content_key">install_dev_cmake</div>
+				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_dev_cmake"/></div>
+			</div>
+		</div>
+	</div>
+</xsl:template>
+
+
+<xsl:template name="system">
+	<div id="system">
+		<a name="system"/>
+		<xsl:call-template name="platform"/>
+		<xsl:call-template name="system_configuration"/>
+	</div>
+</xsl:template>
+
+
+
+<xsl:template name="project_configuration">
+	<h2>Project configuration</h2>
+	<div id="repositories_caption">Repositories</div>
+	<div id="repositories">
+		<xsl:for-each select="configuration/project/repositories/repository">
+			<xsl:sort select="@idx" order="ascending" data-type="number"/>
+			<div id="repository">
+				<div id="repository_caption">Repository <xsl:value-of select="concat('&quot;', id, '&quot;')"/></div>
+				<div id="repository_content_body">
+					<div id="repository_content_row">
+						<div id="repository_content_key">Type</div>
+						<div id="repository_content_value"><xsl:value-of select="type"/></div>
+					</div>
+					<div id="repository_content_row">
+						<div id="repository_content_key">root</div>
+						<div id="repository_content_value"><xsl:value-of select="root"/></div>
+					</div>
+					<div id="repository_content_row">
+						<div id="repository_content_key">versions</div>
+						<div id="repository_content_value"><xsl:value-of select="versions"/></div>
+					</div>
+					<div id="repository_content_row">
+						<div id="repository_content_key">config</div>
+						<div id="repository_content_value"><xsl:value-of select="config"/></div>
+					</div>
+					<div id="repository_content_row">
+						<div id="repository_content_key">artifact</div>
+						<div id="repository_content_value"><xsl:value-of select="artifact"/></div>
+					</div>
+				</div>
+			</div>
+		</xsl:for-each>
+	</div>
+	<h3>Policies</h3>
+</xsl:template>
+
+
+<xsl:template name="project">
+	<div id="project">
+		<a name="project"/>
+		<xsl:call-template name="project_configuration"/>
+	</div>
+</xsl:template>
+
+
+<!--
+<xsl:template name="artifact_tree">
 	<table border="1" cellspacing="0" cellpadding="2">
-		<tr><td>work</td><td><xsl:value-of select="work"/></td></tr>
-		<tr><td>cache</td><td><xsl:value-of select="cache"/></td></tr>
-		<tr><td>cache_max_size</td><td><xsl:value-of select="cache/@max_size"/></td></tr>
-		<tr><td>depack</td><td><xsl:value-of select="depack"/></td></tr>
-		<tr><td>install_base</td><td><xsl:value-of select="install/base"/></td></tr>
-		<tr><td>install_lua_path</td><td><xsl:value-of select="install/lua_path"/></td></tr>
-		<tr><td>install_lua_cpath</td><td><xsl:value-of select="install/lua_cpath"/></td></tr>
-		<tr><td>install_shared_objects</td><td><xsl:value-of select="install/shared_objects"/></td></tr>
-		<tr><td>install_doc</td><td><xsl:value-of select="install/doc"/></td></tr>
-	</table>
+	<xsl:for-each select="../artifact/@parent='0'">
+		<xsl:sort select="@id" order="ascending" data-type="number"/>
+	</xsl:for-each>
 </xsl:template>
-
-<xsl:template match="SystemConfig">
-	<xsl:apply-templates select="SystemConfiguration"/>
-</xsl:template>
-
-<xsl:template match="System">
-	<a name="system"/>
-	<xsl:apply-templates select="SystemConfig"/>
-</xsl:template>
+-->
 
 
-<xsl:template match="repository">
-	<tr><td colspan="3"><b><xsl:value-of select="@id"/></b></td></tr>
-	<tr><td></td><td>type:</td><td><xsl:value-of select="@type"/></td></tr>
-	<tr><td></td><td>cacheable:</td><td><xsl:value-of select="@cacheable"/></td></tr>
-	<tr><td></td><td>root:</td><td><xsl:value-of select="root"/></td></tr>
-	<tr><td></td><td>versions:</td><td><xsl:value-of select="versions"/></td></tr>
-	<tr><td></td><td>config:</td><td><xsl:value-of select="config"/></td></tr>
-	<tr><td></td><td>artifact:</td><td><xsl:value-of select="artifact"/></td></tr>
-</xsl:template>
+<xsl:template name="artifacts">
+	<div id="artifacts">
+		<div id="artifacts_caption">Artifacts</div>
 
-<xsl:template match="repositories">
-	<h2>Repositories</h2>
-	<table border="1" cellspacing="0" cellpadding="2">
-		<xsl:apply-templates select="repository"/>
-	</table>
-</xsl:template>
+		<!-- First show a quick overview of all artifacts. -->
+		<div id="artifacts_overview">
+			<div id="artifacts_overview_caption">Overview</div>
+			<div id="artifacts_overview_content_body">
+				<div id="artifacts_overview_content_row">
+					<div id="artifacts_overview_content_key">Group</div>
+					<div id="artifacts_overview_content_key">Module</div>
+					<div id="artifacts_overview_content_key">Artifact</div>
+					<div id="artifacts_overview_content_key">Version</div>
+					<div id="artifacts_overview_content_key">VCS version</div>
+				</div>
+				<xsl:for-each select="artifacts/artifact">
+					<xsl:sort select="@id" order="ascending" data-type="number"/>
+					<div id="artifacts_overview_content_row">
+						<div id="artifacts_overview_content_value"><xsl:value-of select="info/group"/></div>
+						<div id="artifacts_overview_content_value"><xsl:value-of select="info/module"/></div>
+						<div id="artifacts_overview_content_value"><xsl:value-of select="info/artifact"/></div>
+						<div id="artifacts_overview_content_value"><xsl:value-of select="info/version"/></div>
+						<div id="artifacts_overview_content_value"><div id="vcs_id"><xsl:value-of select="info/vcs_id"/></div></div>
+					</div>
+				</xsl:for-each>
+			</div>
+		</div>
 
-<xsl:template match="jonchkicfg">
-	<xsl:apply-templates select="repositories"/>
-</xsl:template>
-
-
-<xsl:template match="ProjectConfiguration">
-	<a name="project"/>
-	<h2>Project Configuration</h2>
-	<xsl:apply-templates select="jonchkicfg"/>
-</xsl:template>
-
-
-
-<xsl:template match="Dependencies">
-	<xsl:apply-templates select="Resolv"/>
-</xsl:template>
-
-<xsl:template match="dependencies/dependency">
-	<tr><td></td><td colspan="2"><xsl:value-of select="concat(@group, '-', @artifact, '-', @version)"/></td></tr>
-</xsl:template>
-
-<xsl:template match="jonchki-artifact">
-	<table border="1">
-		<tr><td colspan="3">Info</td></tr>
-		<tr><td></td><td>Group:</td><td><xsl:value-of select="info/@group"/></td></tr>
-		<tr><td></td><td>Artifact:</td><td><xsl:value-of select="info/@artifact"/></td></tr>
-		<tr><td></td><td>Version:</td><td><xsl:value-of select="info/@version"/></td></tr>
-		<tr><td></td><td>VCS ID:</td><td><xsl:value-of select="info/@vcs-id"/></td></tr>
-		<tr><td colspan="3">Dependencies</td></tr>
-		<xsl:apply-templates select="dependencies/dependency"/>
-	</table>
-</xsl:template>
-
-<xsl:template match="Versions/Version">
-	<xsl:value-of select="concat(@version,' (', @status, ')')"/>
-	<xsl:apply-templates select="jonchki-artifact"/>
-	<xsl:apply-templates select="Dependencies"/>
-</xsl:template>
-
-<xsl:template match="Resolv">
-	<table border="1" width="100%">
-		<tr><td>Group-Artifact:</td><td><xsl:value-of select="concat(@group,'-',@artifact)"/></td></tr>
-		<tr><td>Status:</td><td><xsl:value-of select="@status"/></td></tr>
-		<tr><td>Constraint:</td><td><xsl:value-of select="Constraint"/></td></tr>
-		<tr><td>Versions:</td><td><xsl:apply-templates select="Versions/Version"/></td></tr>
-	</table>
-</xsl:template>
-
-<xsl:template match="JonchkiResolvtab">
-	<p>The resolve table</p>
-	<xsl:apply-templates select="Resolv"/>
-</xsl:template>
-
-<xsl:template match="Step">
-	<h3>Step <xsl:value-of select="@index"/></h3>
-	<p><xsl:value-of select="Comment"/></p>
-
-	<xsl:apply-templates select="JonchkiResolvtab"/>
-</xsl:template>
-
-<xsl:template match="Steps">
-	<a name="steps"/>
-	<h2>Steps</h2>
-	Logged <xsl:value-of select="count(Step)"/> steps.
-	<xsl:apply-templates select="Step"/>
+		<!-- Show each artifact in a detail view. -->
+		<xsl:for-each select="artifacts/artifact">
+			<xsl:sort select="@id" order="ascending" data-type="number"/>
+			<div id="artifact_details">
+				<div id="artifacts_details_caption">Artifact <xsl:value-of select="concat(info/group,'.',info/module,'-',info/artifact)"/></div>
+				<div id="artifacts_details_content_body">
+					<div id="artifacts_details_content_row">
+						<div id="artifacts_details_content_key">Version</div>
+						<div id="artifacts_details_content_value"><xsl:value-of select="info/version"/></div>
+					</div>
+					<div id="artifacts_details_content_row">
+						<div id="artifacts_details_content_key">VCS ID</div>
+						<div id="artifacts_details_content_value"><div id="vcs_id"><xsl:value-of select="info/vcs_id"/></div></div>
+					</div>
+					<div id="artifacts_details_content_row">
+						<div id="artifacts_details_content_key">License</div>
+						<div id="artifacts_details_content_value"><xsl:value-of select="info/license"/></div>
+					</div>
+					<div id="artifacts_details_content_row">
+						<div id="artifacts_details_content_key">Author</div>
+						<div id="artifacts_details_content_value"><xsl:value-of select="info/author_name"/></div>
+					</div>
+					<div id="artifacts_details_content_row">
+						<div id="artifacts_details_content_key">URL</div>
+						<div id="artifacts_details_content_value">
+							<xsl:call-template name="simple_url_link"><xsl:with-param name="url" select="info/author_url"/></xsl:call-template>
+						</div>
+					</div>
+				</div>
+				<h4>Dependencies</h4>
+			</div>
+<!-- 
+		<xsl:call-template name="artifact_tree">
+			<xsl:with-param name="start_idx" select="@idx"/>
+		</xsl:call-template>
+-->
+		</xsl:for-each>
+	</div>
 </xsl:template>
 
 
-
-<xsl:template match="JonchkiLog">
-	<!-- Show a table of contents. -->
-	<h2><a name="toc">Table of Contents</a></h2>
-	<b><big><a href="#system">System Information</a></big></b><br/>
-	<b><big><a href="#project">Project Configuration</a></big></b><br/>
-	<b><big><a href="#steps">Steps</a></big></b><br/>
-
-	<xsl:apply-templates select="System"/>
-	<xsl:apply-templates select="ProjectConfiguration"/>
-	<xsl:apply-templates select="Steps"/>
+<xsl:template match="JonchkiReport">
+	<div id="toc">
+		<!-- Show a table of contents. -->
+		<h2><a name="toc">Table of Contents</a></h2>
+		<b><big><a href="#system">System Information</a></big></b><br/>
+		<b><big><a href="#project">Project Configuration</a></big></b><br/>
+		<b><big><a href="#steps">Steps</a></big></b><br/>
+	</div>
+	
+	<xsl:call-template name="system"/>
+	<xsl:call-template name="project"/>
+	<xsl:call-template name="artifacts"/>
 </xsl:template>
 
 </xsl:stylesheet>
