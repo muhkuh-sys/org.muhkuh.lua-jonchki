@@ -17,7 +17,8 @@ function Cache:_init(tLogger, strID)
   self.pl = require'pl.import_into'()
 
   -- Get the hash abstraction.
-  self.hash = require 'Hash'
+  local cHash = require 'Hash'
+  self.hash = cHash(tLogger)
 
   self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.date = require 'date'
@@ -203,7 +204,7 @@ end
 
 function Cache:_get_configuration_paths(cArtifact)
   local strPathConfiguration = self:_replace_path(cArtifact, 'xml')
-  local strPathConfigurationHash = self:_replace_path(cArtifact, 'xml.sha1')
+  local strPathConfigurationHash = self:_replace_path(cArtifact, 'xml.hash')
 
   return strPathConfiguration, strPathConfigurationHash
 end
@@ -212,7 +213,7 @@ end
 
 function Cache:_get_artifact_paths(cArtifact)
   local strPathArtifact = self:_replace_path(cArtifact, 'zip')
-  local strPathArtifactHash = self:_replace_path(cArtifact, 'zip.sha1')
+  local strPathArtifactHash = self:_replace_path(cArtifact, 'zip.hash')
 
   return strPathArtifact, strPathArtifactHash
 end
@@ -386,8 +387,7 @@ function Cache:_cachefs_write_configuration(cArtifact)
       self.tLogger:error('%s Failed to create the file for the configuration at "%s": %s', self.strLogID, strPathConfiguration, strError)
     else
       -- Write the hash of the configuration.
-      local strHash = self.hash:get_sha1_string(cArtifact.strSource)
-      self.tLogger:debug('%s Configuration hash: %s', self.strLogID, strHash)
+      local strHash = self.hash:generate_hashes_for_string(cArtifact.strSource)
       self.tLogger:debug('%s Write the configuration hash to %s.', self.strLogID, strPathConfigurationHash)
       tResult, strError = self.pl.utils.writefile(strPathConfigurationHash, strHash, false)
       if tResult==nil then
@@ -429,14 +429,13 @@ function Cache:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
     else
       -- Create the hash for the artifact.
       -- NOTE: get the hash from the source file.
-      tResult, strError = self.hash:get_sha1_file(strArtifactSourcePath)
+      tResult = self.hash:generate_hashes_for_file(strArtifactSourcePath)
       if tResult==nil then
-        self.tLogger:error('%s Failed to get the hash for "%s": %s', self.strLogID, strArtifactSourcePath, strError)
+        self.tLogger:error('%s Failed to get the hash for "%s".', self.strLogID, strArtifactSourcePath)
       else
         local strHash = tResult
 
         -- Write the hash of the artifact.
-        self.tLogger:debug('%s Artifact hash: %s', self.strLogID, strHash)
         self.tLogger:debug('%s Write the artifact hash to %s.', self.strLogID, strPathArtifactHash)
         tResult, strError = self.pl.utils.writefile(strPathArtifactHash, strHash, false)
         if tResult==nil then
@@ -493,7 +492,7 @@ function Cache:_rebuild_complete_cache(tSQLDatabase)
             self.tLogger:debug('%s Failed to read the hash for the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
           else
             -- Check the hash of the configuration.
-            tResult = self.hash:check_file(strPathConfiguration, strHash)
+            tResult = self.hash:check_file(strPathConfiguration, strHash, strPathConfigurationHash)
             if tResult~=true then
               self.tLogger:debug('%s The hash for the configuration of artifact %s does not match.', self.strLogID, strGMAV)
             else
@@ -503,7 +502,7 @@ function Cache:_rebuild_complete_cache(tSQLDatabase)
                 self.tLogger:debug('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAV, strError)
               else
                 -- Check the hash of the artifact.
-                tResult = self.hash:check_file(strPathArtifact, strHash)
+                tResult = self.hash:check_file(strPathArtifact, strHash, strPathArtifactHash)
                 if tResult~=true then
                   self.tLogger:debug('%s The hash for the artifact %s does not match.', self.strLogID, strGMAV)
                 else
@@ -598,7 +597,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
 
     -- Read the contents of the configuration file.
     local strConfiguration
-    strConfiguration, strError = self.pl.utils.readfile(atAttr.strConfigurationPath, false)
+    strConfiguration, strError = self.pl.utils.readfile(atAttr.strConfigurationPath, true)
     if strConfiguration==nil then
       self.tLogger:error('%s Failed to read the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
     else
@@ -609,7 +608,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
         self.tLogger:error('%s Failed to read the hash for the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
       else
         -- Verify the the hash.
-        local fHashOk = self.hash:check_string(strConfiguration, strHash)
+        local fHashOk = self.hash:check_string(strConfiguration, strHash, atAttr.strConfigurationPath, atAttr.strConfigurationHashPath)
         if fHashOk~=true then
           self.tLogger:error('%s The hash of the configuration for artifact %s does not match the expected hash.', self.strLogID, strGMAV)
           -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
@@ -671,7 +670,7 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
       else
         -- Verify the the artifact hash.
         -- NOTE: Do this in the depack folder.
-        local fHashOk = self.hash:check_file(strLocalPath, strHash)
+        local fHashOk = self.hash:check_file(strLocalPath, strHash, atAttr.strArtifactHashPath)
         if fHashOk~=true then
           self.tLogger:error('%s The hash of the artifact %s in the depack folder does not match the expected hash.', self.strLogID, strGMAV)
           -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.

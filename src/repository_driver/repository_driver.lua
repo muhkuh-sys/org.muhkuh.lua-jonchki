@@ -18,7 +18,9 @@ function RepositoryDriver:_init(tLogger, strID)
 
   self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.Version = require 'Version'
-  self.Hash = require 'Hash'
+
+  local cHash = require 'Hash'
+  self.hash = cHash(tLogger)
 end
 
 

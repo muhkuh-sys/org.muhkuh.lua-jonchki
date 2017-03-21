@@ -117,72 +117,42 @@ end
 
 
 
-function RepositoryDriverFilesystem:get_sha_sum(strShaPath)
-  local tResult = nil
-
-  -- Get tha SHA sum.
-  local strShaRaw, strMsg = self.pl.utils.readfile(strShaPath, false)
-  if strShaRaw==nil then
-    self.tLogger:error('Failed to read the SHA file "%s": %s', strShaPath, strMsg)
-  else
-    -- Extract the SHA sum.
-    local strMatch = string.match(strShaRaw, '%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x')
-    if strMatch==nil then
-      self.tLogger:error('The SHA1 file "%s" does not contain a valid hash.', strShaPath)
-    else
-      tResult = strMatch
-    end
-  end
-
-  return tResult
-end
-
-
-
 function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strArtifact, tVersion)
   -- Does the root folder of the repository exist?
   local tResult = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the configuration path.
     local strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml', self.strConfig)
-    local strShaSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml.sha1', self.strConfig)
+    local strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml.hash', self.strConfig)
 
     -- Append the version folder to the root.
     -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
     local strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
-    local strShaPath = self.pl.path.join(self.strRoot, strShaSubdirectory)
+    local strHashPath = self.pl.path.join(self.strRoot, strHashSubdirectory)
 
     -- Get the complete file.
     -- Read it as binary to prevent the conversion of the linefeed. This would give a wrong hash sum.
-    local strCfg, strMsg = self.pl.utils.readfile(strCfgPath, true)
+    local strCfg, strError = self.pl.utils.readfile(strCfgPath, true)
     if strCfg==nil then
       tResult = nil
-      self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgPath, strMsg)
+      self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgPath, strError)
     else
-      -- Get tha SHA sum.
-      tResult = self:get_sha_sum(strShaPath)
+      -- Get the hash sum.
+      tResult, strError = self.pl.util.readfile(strHashPath, false)
       if tResult==nil then
-        self.tLogger:error('Failed to get the SHA sum of "%s".', strCfgPath)
+        self.tLogger:error('Failed to get the hash sum of "%s": %s', strCfgPath, strError)
       else
-        local strShaRemote = tResult
+        local strHash = tResult
 
-        -- Build the local SHA sum.
-        tResult = self.Hash:get_sha1_string(strCfg)
-        if tResult==nil then
-          self.tLogger:error('Failed to get the SHA sum of "%s".', strCfg)
+        -- Check the hash sum.
+        tResult = self.hash:check_string(strCfg, strHash, strCfgPath, strHashPath)
+        if tResult~=true then
+          self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgPath)
         else
-          local strShaLocal = tResult
-
-          -- Compare the SHA1 sum from the repository and the local.
-          if strShaRemote~=strShaLocal then
-            tResult = nil
-            self.tLogger:error('The SHA1 sum of the configuration "%s" does not match.', strCfgPath)
-          else
-            local cA = self.ArtifactConfiguration(self.tLogger)
-            tResult = cA:parse_configuration(strCfg, strCfgPath)
-            if tResult==true then
-              tResult = cA
-            end
+          local cA = self.ArtifactConfiguration(self.tLogger)
+          tResult = cA:parse_configuration(strCfg, strCfgPath)
+          if tResult==true then
+            tResult = cA
           end
         end
       end
@@ -200,12 +170,12 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
   if tResult==true then
     -- Construct the artifact path.
     local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strExtension, self.strArtifact)
-    local strShaSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, string.format('%s.sha1', strExtension), self.strArtifact)
+    local strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, string.format('%s.hash', strExtension), self.strArtifact)
 
     -- Append the version folder to the root.
     -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
     local strArtifactPath = self.pl.path.join(self.strRoot, strArtifactSubdirectory)
-    local strShaPath = self.pl.path.join(self.strRoot, strShaSubdirectory)
+    local strHashPath = self.pl.path.join(self.strRoot, strHashSubdirectory)
 
     -- Get the file name.
     local _, strFileName = self.pl.path.splitpath(strArtifactPath)
@@ -219,22 +189,16 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
       self.tLogger:error('Failed to copy the artifact to the depack folder: %s', strError)
     else
       -- Get tha SHA sum.
-      tResult = self:get_sha_sum(strShaPath)
+      tResult, strError = self.pl.utils.readfile(strHashPath, true)
       if tResult==nil then
-        self.tLogger:error('Failed to get the SHA sum of "%s".', strArtifactPath)
+        self.tLogger:error('Failed to get the hash sum of "%s".', strArtifactPath)
       else
-        local strShaRemote = tResult
+        local strHash = tResult
 
-        -- Compare the SHA sums.
-        local strShaLocal, strError = self.Hash:get_sha1_file(strLocalFile)
-        if strShaLocal==nil then
-          tResult = nil
-          self.tLogger:error('Failed to get the SHA1 sum of the file "%s": %s', strLocalFile, strError)
-        elseif strShaLocal~=strShaRemote then
-          tResult = nil
-          self.tLogger:error('The SHA1 sum of the artifact "%s" does not match.', strArtifactPath)
-          self.tLogger:error('The locally generated SHA1 sum of the received file is %s .', strShaLocal)
-          self.tLogger:error('The SHA1 sum read from the remote "*.sha1" file is %s .', strShaRemote)
+        -- Compare the hash sums.
+        tResult = self.hash:check_file(strLocalFile, strHash, strHashPath)
+        if tResult~=true then
+          self.tLogger:error('The hash sum of the artifact "%s" does not match.', strArtifactPath)
         else
           tResult = strLocalFile
         end
