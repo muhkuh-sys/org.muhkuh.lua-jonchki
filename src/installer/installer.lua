@@ -12,8 +12,10 @@ function Installer:_init(cLogger, cSystemConfiguration)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
-  -- The "luazip" module is used to depack the archives.
-  self.zip = require 'zip'
+  -- The "archives" module is a wrapper for LUA modules and CLI tools to
+  -- create and depack archives.
+  local cArchives = require 'installer.archives'
+  self.archives = cArchives(cLogger)
 
   -- The install helper class.
   self.InstallHelper = require 'installer.install_helper'
@@ -22,77 +24,6 @@ function Installer:_init(cLogger, cSystemConfiguration)
 
   -- The system configuration.
   self.cSystemConfiguration = cSystemConfiguration
-end
-
-
-
-function Installer:depack_archive(strArtifactPath, strDepackPath)
-  local tResult
-  local strError
-
-  self.cLogger:info('Depacking artifact archive "%s" to "%s".', strArtifactPath, strDepackPath)
-  -- Open the artifact as a zip file.
-  tResult, strError = self.zip.open(strArtifactPath)
-  if tResult==nil then
-    self.cLogger:error('Failed to open %s as a ZIP archive: %s', strArtifactPath, strError)
-  else
-    local tZip = tResult
-
-    -- Loop over all files in the archive.
-    for tAttr in tZip:files() do
-      local strZipFileName = tAttr.filename
-      self.cLogger:debug('Extracting "%s"', strZipFileName)
-      -- Skip entries ending with a "/".
-      if string.sub(strZipFileName, -1)~='/' then
-        -- Get the directory part of the filename.
-        local strZipFolder = self.pl.path.dirname(strZipFileName)
-        local strOutputFolder = self.pl.path.join(strDepackPath, strZipFolder)
-
-        -- The output folder must be below the depack folder.
-        local strRel = self.pl.path.relpath(strDepackPath, strOutputFolder)
-        if strRel~='' then
-          if string.sub(strRel, 1, 2)~='..' then
-            tResult = nil
-            self.cLogger:error('The path "%s" leaves the depack folder!', strZipFileName)
-            break
-          end
-          -- Create the output folder.
-          tResult, strError = self.pl.dir.makepath(strOutputFolder)
-          if tResult==nil then
-            self.cLogger:error('Failed to create the folder: "%s"', strError)
-            break
-          end
-        end
-
-        -- Copy the file from the ZIP archive to the destination folder.
-        local strOutputFile = self.pl.path.join(strDepackPath, strZipFileName)
-        local tFileSrc = tZip:open(strZipFileName)
-        if tFileSrc==nil then
-          tResult = nil
-          self.cLogger:error('Failed to extract "%s".', strZipFileName)
-          break
-        end
-        local tFileDst = io.open(strOutputFile, 'wb')
-        if tFileDst==nil then
-          tResult = nil
-          self.cLogger:error('Failed open the file "%s" for writing.', strOutputFile)
-          break
-        end
-        repeat
-          local aucData = tFileSrc:read(4096)
-          if aucData~=nil then
-            tFileDst:write(aucData)
-          end
-        until aucData==nil
-        tFileSrc:close()
-        tFileDst:close()
-      end
-    end
-
-    tZip:close()
-  end
-
-  return tResult
 end
 
 
@@ -208,7 +139,7 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
               self.cLogger:error('Failed to add the version variable for %s.', strGMAV)
               break
             else
-              tResult = self:depack_archive(strArtifactPath, strDepackPath)
+              tResult = self.archives:depack_archive(strArtifactPath, strDepackPath)
               if tResult==nil then
                 self.cLogger:error('Error depacking %s .', strGMAV)
                 break
