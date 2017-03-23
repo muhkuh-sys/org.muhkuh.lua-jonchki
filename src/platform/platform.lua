@@ -11,6 +11,10 @@ function Platform:_init(tLogger, tReport)
   self.tLogger = tLogger
   self.tReport = tReport
 
+  self.strHostCpuArchitecture = nil
+  self.strHostDistributionId = nil
+  self.strHostDistributionVersion = nil
+
   self.strCpuArchitecture = nil
   self.strDistributionId = nil
   self.strDistributionVersion = nil
@@ -149,24 +153,29 @@ function Platform:detect()
     -- This is windows.
 
     -- Detect the CPU architecture.
-    self.strCpuArchitecture = self:__windows_get_cpu_architecture_env()
+    self.strHostCpuArchitecture = self:__windows_get_cpu_architecture_env()
 
     -- Get the version with the 'ver' command.
-    self.strDistributionId, self.strDistributionVersion = self:__windows_get_distribution_ver()
+    self.strHostDistributionId, self.strHostDistributionVersion = self:__windows_get_distribution_ver()
   else
     -- This is a Linux.
 
     -- Detect the CPU architecture.
-    self.strCpuArchitecture = self:__linux_get_cpu_architecture_lscpu()
+    self.strHostCpuArchitecture = self:__linux_get_cpu_architecture_lscpu()
 
     -- Detect the distribution.
-    self.strDistributionId, self.strDistributionVersion = self:__linux_detect_distribution_etc_lsb_release()
+    self.strHostDistributionId, self.strHostDistributionVersion = self:__linux_detect_distribution_etc_lsb_release()
   end
 
+  -- Copy the host values to the working values.
+  self.strCpuArchitecture = self.strHostCpuArchitecture
+  self.strDistributionId = self.strHostDistributionId
+  self.strDistributionVersion = self.strHostDistributionVersion
+
   -- Add the results to the report.
-  self.tReport:addData('system/platform/host/cpu_architecture', self.strCpuArchitecture)
-  self.tReport:addData('system/platform/host/distribution_id', self.strDistributionId)
-  self.tReport:addData('system/platform/host/distribution_version', self.strDistributionVersion)
+  self.tReport:addData('system/platform/host/cpu_architecture', self.strHostCpuArchitecture)
+  self.tReport:addData('system/platform/host/distribution_id', self.strHostDistributionId)
+  self.tReport:addData('system/platform/host/distribution_version', self.strHostDistributionVersion)
 end
 
 
@@ -226,14 +235,30 @@ end
 
 
 
+function Platform:get_host_id()
+  local strHostDistributionId = self.strHostDistributionId or 'unknown'
+  local strHostDistributionVersion = self.strHostDistributionVersion or 'unknown'
+  local strHostCpuArchitecture = self.strHostCpuArchitecture or 'unknown'
+
+  return string.format('%s-%s-%s', strHostDistributionId, strHostDistributionVersion, strHostCpuArchitecture)
+end
+
+
+
+function Platform:get_platform_id()
+  local strDistributionId = self.strDistributionId or 'unknown'
+  local strDistributionVersion = self.strDistributionVersion or 'unknown'
+  local strCpuArchitecture = self.strCpuArchitecture or 'unknown'
+
+  return string.format('%s-%s-%s', strDistributionId, strDistributionVersion, strCpuArchitecture)
+end
+
+
+
 --- Return the complete platform information as a string.
 -- @return The platform information as a string.
 function Platform:__tostring()
-  local strDistributionId = self.strDistributionId or '???'
-  local strDistributionVersion = self.strDistributionVersion or '???'
-  local strCpuArchitecture = self.strCpuArchitecture or '???'
-
-  return string.format('%s_%s_%s', strDistributionId, strDistributionVersion, strCpuArchitecture)
+  return self:get_platform_id()
 end
 
 
