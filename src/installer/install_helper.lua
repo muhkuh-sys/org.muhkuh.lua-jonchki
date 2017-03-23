@@ -37,9 +37,6 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, cPlatform, fInstallB
   -- The "penlight" module is used for various helpers.
   self.pl = require'pl.import_into'()
 
-  -- The "luazip" module is used to create new archives.
-  self.zip = require 'zip'
-
   -- This is the list of installed files for the complete installation procedure (i.e. over all packages).
   self.atInstalledFiles = {}
 
@@ -47,7 +44,7 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, cPlatform, fInstallB
   -- It is set with the "setId" method.
   self.strGMAV = ''
 
-  -- The current working folder is the source path if the installation. Here the artifact ZIP is depacked.
+  -- The current working folder is the source path if the installation. Here the artifact archive is depacked.
   self.strCwd = ''
 end
 
