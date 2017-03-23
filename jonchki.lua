@@ -132,6 +132,16 @@ end
 
 -----------------------------------------------------------------------------
 --
+-- Add the platform dependant modules.
+--
+local strHostPlatformID = cPlatform:get_host_id()
+local strHostPlatformCPath = pl.path.join(strScriptPath, 'lua_plugins', strHostPlatformID)
+cLogger:debug('Adding to cpath: "%s"', strHostPlatformCPath)
+package.cpath = package.cpath .. ';' .. strHostPlatformCPath
+
+
+-----------------------------------------------------------------------------
+--
 -- Read the system configuration.
 --
 local SystemConfiguration = require 'SystemConfiguration'
