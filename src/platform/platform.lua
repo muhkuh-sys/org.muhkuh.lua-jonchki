@@ -14,6 +14,7 @@ function Platform:_init(tLogger, tReport)
   self.strHostCpuArchitecture = nil
   self.strHostDistributionId = nil
   self.strHostDistributionVersion = nil
+  self.strHostModuleExtension = nil
 
   self.strCpuArchitecture = nil
   self.strDistributionId = nil
@@ -157,6 +158,9 @@ function Platform:detect()
 
     -- Get the version with the 'ver' command.
     self.strHostDistributionId, self.strHostDistributionVersion = self:__windows_get_distribution_ver()
+
+    -- Windows modules have a ".dll" extension.
+    self.strHostModuleExtension = 'dll'
   else
     -- This is a Linux.
 
@@ -165,6 +169,9 @@ function Platform:detect()
 
     -- Detect the distribution.
     self.strHostDistributionId, self.strHostDistributionVersion = self:__linux_detect_distribution_etc_lsb_release()
+
+    -- Linux modules have a ".so" extension.
+    self.strHostModuleExtension = 'so'
   end
 
   -- Copy the host values to the working values.

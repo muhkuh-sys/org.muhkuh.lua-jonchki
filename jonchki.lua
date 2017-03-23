@@ -135,7 +135,7 @@ end
 -- Add the platform dependant modules.
 --
 local strHostPlatformID = cPlatform:get_host_id()
-local strHostPlatformCPath = pl.path.join(strScriptPath, 'lua_plugins', strHostPlatformID)
+local strHostPlatformCPath = string.format('%s/?.%s', pl.path.join(strScriptPath, 'lua_plugins', strHostPlatformID), cPlatform.strHostModuleExtension)
 cLogger:debug('Adding to cpath: "%s"', strHostPlatformCPath)
 package.cpath = package.cpath .. ';' .. strHostPlatformCPath
 
