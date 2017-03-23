@@ -35,28 +35,75 @@ end
 
 function RepositoryDriverUrl:__get_any_curl()
   local curl
-  local tResult
+  local fFoundCurl = false
 
-  -- Prefer the modern lcurl.
-  tResult, curl = pcall(require, 'lcurl')
+  -- No curl found yet.
+  self.curl = nil
+  self.get_url = nil
+  self.download_url = nil
+
+  -- Prefer the LUA module lcurl.
+  local tResult, curl = pcall(require, 'lcurl')
   if tResult==true then
-    -- TODO: get the version somehow.
-    self.tLogger:info('Found new lcurl.')
-    self.curl = curl
-    self.get_url = self.get_url_lcurlv3
-    self.download_url = self.download_url_lcurlv3
-  else
-
-    -- If lcurl is not available, fall back to "lua-curl".
-    tResult, curl = pcall(require, 'curl')
-    if tResult==true then
-      self.tLogger:info('Found old curl.')
-      self.curl = curl
-      self.get_url = self.get_url_curlold
-      self.download_url = self.download_url_curlold
-    else
-      error('Neither lcurl nor lua-curl is available.')
+    self.tLogger:info('Detected lcurl.')
+    -- Get the version.
+    local tVersion = curl.version_info()
+    if tVersion.version_num<0x00073501 then
+      self.tLogger:warn('The version of lcurl is %s. This is older than the recommended version of 7.53.1.', tVersion.version_num)
     end
+    if tVersion.protocols['HTTP']~=true then
+      self.tLogger:warn('The version of lcurl does not support HTTP. Ignoring lcurl.')
+    elseif tVersion.protocols['HTTPS']~=true then
+      self.tLogger:warn('The version of lcurl does not support HTTPS. Ignoring lcurl.')
+    else
+      self.curl = curl
+      self.get_url = self.get_url_lcurlv3
+      self.download_url = self.download_url_lcurlv3
+      fFoundCurl = true
+
+      self.tLogger:info('Using lcurl.')
+    end
+  end
+
+  if fFoundCurl==false then
+    -- Try to use the command line tool.
+    -- The detection needs the popen function.
+    if io.popen==nil then
+      self.tLogger:info('Unable to detect the command line tool "curl": io.popen is not available.')
+    else
+      -- Try to run "curl".
+      local tFile, strError = io.popen('curl --version')
+      if tFile==nil then
+        self.tLogger:info('Failed to detect the command line tool "curl": %s', strError)
+      else
+        -- Read all data from curl.
+        local strData = tFile:read('*a')
+        tFile:close()
+
+        -- Get the version.
+        local strVersion = string.match(strData, 'curl ([0-9.]+) ')
+        self.tLogger:info('Detected curl version %s', strVersion)
+        -- Check for HTTP and HTTPS.
+        local strHttp = string.match(string.lower(strData), '%shttp%s')
+        local strHttps = string.match(string.lower(strData), '%shttps%s')
+        if strHttp==nil then
+          self.tLogger:warn('Ignoring the command line version of curl as it does not support HTTP.')
+        elseif strHttps==nil then
+          self.tLogger:warn('Ignoring the command line version of curl as it does not support HTTPS.')
+        else
+          self.curl = nil
+          self.get_url = self.get_url_clicurl
+          self.download_url = self.download_url_clicurl
+          fFoundCurl = true
+
+          self.tLogger:info('Using command line curl.')
+        end
+      end
+    end
+  end
+
+  if fFoundCurl==false then
+    error('No suitable curl found.')
   end
 end
 
@@ -162,37 +209,19 @@ end
 
 
 
-function RepositoryDriverUrl:get_url_curlold(strUrl)
+function RepositoryDriverUrl:get_url_clicurl(strUrl)
   local tResult = nil
 
-  -- Collect the received data in a table.
-  local atChunks = {}
-  local sizTotal = 0
 
-  local function local_download(aucBuffer)
-    table.insert(atChunks, aucBuffer)
-    local sizNew = string.len(aucBuffer)
-    sizTotal = sizTotal + sizNew
-    print(string.format('Dl %d.', sizTotal))
-    return sizNew
-  end
-
-  local tCURL = self.curl.easy_init()
-
-  tCURL:setopt(self.curl.OPT_FOLLOWLOCATION, 1)
-  tCURL:setopt(self.curl.OPT_URL, strUrl)
-
-  tCURL:setopt(self.curl.OPT_WRITEFUNCTION, local_download)
-
-  local tCallResult, strError, abc = pcall(tCURL.perform, tCURL)
-  if tCallResult~=true then
-    self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
+  local tFile, strError = io.popen(string.format('curl --location --silent --fail "%s"', strUrl))
+  if tFile==nil then
+    self.tLogger:info('Failed to download "%s": %s', strUrl, strError)
   else
-    if tCURL.close~=nil then
-      tCURL:close()
-    end
+    -- Read all data.
+    local strData = tFile:read('*a')
+    tFile:close()
 
-    tResult = table.concat(atChunks)
+    tResult = strData
   end
 
   return tResult
@@ -200,44 +229,15 @@ end
 
 
 
-function RepositoryDriverUrl:download_url_curlold(strUrl, strLocalFile)
+function RepositoryDriverUrl:download_url_clicurl(strUrl, strLocalFile)
   local tResult = nil
-  local tCURL = self.curl.easy_init()
-  local tFile
-  local sizTotal = 0
 
-  local function local_download(aucBuffer)
-    tFile:write(aucBuffer)
-    local sizNew = string.len(aucBuffer)
-    sizTotal = sizTotal + sizNew
-    print(string.format('Dl %d.', sizTotal)) 
-    return sizNew
+
+  local tCurlResult = os.execute(string.format('curl --location --fail --output "%s" "%s"', strLocalFile, strUrl))
+  if tCurlResult==0 then
+    tResult = true
   end
-
-  tCURL:setopt(self.curl.OPT_FOLLOWLOCATION, 1)
-  tCURL:setopt(self.curl.OPT_URL, strUrl)
-
-  tCURL:setopt(self.curl.OPT_WRITEFUNCTION, local_download)
-
-  -- Write the received data to a file.
-  local strError
-  tFile, strError = io.open(strLocalFile, 'wb')
-  if tFile==nil then
-    self.tLogger:error('Failed to open "%s" for writing: %s', strLocalFile, strError)
-  else
-    local tCallResult, strError = pcall(tCURL.perform, tCURL)
-    if tCallResult~=true then
-      self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
-    else
-      if tCURL.close~=nil then
-        tCURL:close()
-      end
-      tResult = true
-    end
     
-    tFile:close()
-  end
-
   return tResult
 end
 
