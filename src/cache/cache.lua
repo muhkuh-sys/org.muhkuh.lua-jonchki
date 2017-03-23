@@ -212,8 +212,9 @@ end
 
 
 function Cache:_get_artifact_paths(cArtifact)
-  local strPathArtifact = self:_replace_path(cArtifact, 'zip')
-  local strPathArtifactHash = self:_replace_path(cArtifact, 'zip.hash')
+  local strExtension = cArtifact.tInfo.strExtension
+  local strPathArtifact = self:_replace_path(cArtifact, strExtension)
+  local strPathArtifactHash = self:_replace_path(cArtifact, string.format('%s.hash', strExtension))
 
   return strPathArtifact, strPathArtifactHash
 end
