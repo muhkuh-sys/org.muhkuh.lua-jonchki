@@ -10,6 +10,7 @@ local Policy = class()
 function Policy:_init(cLogger, strID)
   self.tLogger = cLogger
   self.strID = strID
+  self.strLogID = string.format('[Policy%s] ', strID)
 
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
