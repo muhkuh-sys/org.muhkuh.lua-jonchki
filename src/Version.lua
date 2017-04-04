@@ -23,7 +23,7 @@ end
 -- @param strComponent The string to be converted.
 -- @return If an error occured, it returns nil and an error message as a string.
 --         If the function succeeded it returns the converted number.
-function Version:componentToNumber(strComponent)
+function Version:_componentToNumber(strComponent)
   -- Be pessimistic.
   local tResult = nil
   local strError = nil
@@ -46,7 +46,7 @@ end
 
 
 
-function Version:convertStringToList(strVersion)
+function Version:_convertStringToList(strVersion)
   local tResult = true
   local strError = nil
   local auiComponents = {}
@@ -57,7 +57,7 @@ function Version:convertStringToList(strVersion)
 
   -- Convert all components to numbers.
   for _, strComponent in ipairs(astrComponents) do
-    local uiNumber, strMsg = self:componentToNumber(strComponent)
+    local uiNumber, strMsg = self:_componentToNumber(strComponent)
     if uiNumber==nil then
       tResult = nil
       strError = strMsg
@@ -82,14 +82,43 @@ end
 
 
 
-function Version:getCleanString(strVersion)
-  local tResult, strError = self:convertStringToList(strVersion)
-  if tResult~=nil then
-    local strCleanVersion = table.concat(tResult, ".")
-    tResult = strCleanVersion
+--- Compare with another version.
+-- This function compares the current version ("A") with another version ("B").
+-- @param tVersion The other version "B" to compare with.
+-- @return  -1 if A < B
+--           0 if A == B
+--           1 if A > B
+function Version.compare(tVersionA, tVersionB)
+  -- Get quick links to the versions.
+  local atVersionA = tVersionA.atVersion
+  local atVersionB = tVersionB.atVersion
+
+  -- Get the size of both versions.
+  local sizVersionA = #atVersionA
+  local sizVersionB = #atVersionB
+
+  -- Get the maximum size.
+  local sizMax = math.max(sizVersionA, sizVersionB)
+
+  -- Compare both versions.
+  local iResult = 0
+  for uiPos=1,sizMax do
+    -- Get the next version component or 0 if not enough digits are present.
+    local uiComponentA = atVersionA[uiPos] or 0
+    local uiComponentB = atVersionB[uiPos] or 0
+
+    -- Get the difference of the version components
+    local iDiff = uiComponentA - uiComponentB
+    if iDiff<0 then
+      iResult = -1
+      break
+    elseif iDiff>0 then
+      iResult = 1
+      break
+    end
   end
 
-  return tResult, strError
+  return iResult
 end
 
 
@@ -116,7 +145,7 @@ function Version:set(tVersion)
     tResult = true
 
   elseif type(tVersion)=='string' then
-    tResult, strError = self:convertStringToList(tVersion)
+    tResult, strError = self:_convertStringToList(tVersion)
     if tResult~=nil then
       self.atVersion = tResult
       tResult = true
@@ -129,7 +158,7 @@ function Version:set(tVersion)
       tResult = true
     else
       local strVersion = table.concat(tVersion, '.')
-      tResult, strError = self:convertStringToList(strVersion)
+      tResult, strError = self:_convertStringToList(strVersion)
       if tResult~=nil then
         self.atVersion = tResult
         tResult = true
@@ -146,19 +175,6 @@ function Version:__tostring()
   return string.format('Version(%s)', self:get())
 end
 
-
-
-function Version:__len()
-  local uiLen
-
-  if self.atVersion==nil then
-    uiLen = nil
-  else
-    uiLen = #self.atVersion
-  end
-
-  return uiLen
-end
 
 
 return Version

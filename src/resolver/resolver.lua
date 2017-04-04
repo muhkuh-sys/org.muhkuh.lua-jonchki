@@ -54,7 +54,8 @@ function Resolver:load_policies(cProjectConfiguration)
   -- "resolver.policies.policy001".
   -- Note that the entries here must not match the ID of a class.
   local astrPolicyClassID = {
-    '001'
+    '001',
+    '002'
   }
 
   -- This table will hold all loaded policies in the form ID -> policy class .
@@ -525,10 +526,9 @@ function Resolver:resolve_step(tResolv)
       local strID = tPolicy:get_id()
       self.tLogger:debug('[RESOLVE] Trying policy "%s".', strID)
 
-      local strMessage
-      tVersion, strMessage = tPolicy:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
+      tVersion = tPolicy:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
       if tVersion==nil then
-        self.tLogger:debug('[RESOLVE] No available version found for %s with policy "%s": %s', strGMA, strID, strMessage)
+        self.tLogger:debug('[RESOLVE] No available version found for %s with policy "%s".', strGMA, strID)
       else
         self.tLogger:debug('[RESOLVE] Select version %s for %s with policy "%s".', tVersion:get(), strGMA, strID)
         break
