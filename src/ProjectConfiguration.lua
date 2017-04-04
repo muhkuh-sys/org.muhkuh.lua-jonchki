@@ -292,9 +292,10 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
       elseif aLxpAttr.tResult==nil then
         tResult = nil
       else
-        -- Set the default policy list to "001" if it was not specified yet.
+        -- Set the default policy list to "001" and "002" if it was not specified yet.
         if #aLxpAttr.atPolicyListDefault == 0 then
           table.insert(aLxpAttr.atPolicyListDefault, '001')
+          table.insert(aLxpAttr.atPolicyListDefault, '002')
         end
 
         self.atRepositories = aLxpAttr.atRepositories
