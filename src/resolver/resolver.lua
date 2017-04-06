@@ -30,8 +30,9 @@ function Resolver:_init(cLogger, cReport, strID, fInstallBuildDependencies)
   self.RT_Initialized = 0            -- The structure was initialized, no version picked, no resolving done.
   self.RT_ResolvingDependencies = 1  -- Resolving the dependencies.
   self.RT_GetConfiguration = 2       -- Get the configuration from the repository.
-  self.RT_GetDependencyVersions = 3  -- Get the available versions of all dependencies.
-  self.RT_Resolved = 4               -- All dependencies resolved. Ready to use.
+  self.RT_PickDependencyGroup = 3    -- Select the next dependency group.
+  self.RT_GetDependencyVersions = 4  -- Get the available versions of all dependencies.
+  self.RT_Resolved = 5               -- All dependencies resolved. Ready to use.
   self.RT_Blocked = -1               -- Not possible to use.
 
   -- This is the state enumeration for a version entry.
@@ -203,6 +204,8 @@ function Resolver:resolvtab_add_versions(tResolvEntry, atNewVersions)
         tVersion = tNewVersion,
         cArtifact = nil,                     -- the Artifact object
         eStatus = self.V_Unused,
+        uiCurrentDependencyGroupIndex = nil, -- the index of the dependency group currenty used
+        atCurrentDependencyGroup = nil,      -- a link to the current dependency group
         atDependencies = nil,
         ptBlockingConstraint = nil,          -- nil if the artifact is not blocked by one of its direct constraints
         ptBlockingDependency = nil           -- nil if the artifact is not blocked by one of its dependencies. A pointer to the first blocking dependency otherwise.
@@ -242,12 +245,11 @@ function Resolver:resolvetab_pick_version(tResolvEntry, tVersion)
     atV.eStatus = self.V_Active
 
     -- Clear the dependencies for the version.
+    atV.uiCurrentDependencyGroupIndex = nil
+    atV.atCurrentDependencyGroup = nil
     atV.atDependencies = nil
     atV.ptBlockingConstraint = nil
     atV.ptBlockingDependency = nil
-
-    -- Download the configuration next.
-    tResolvEntry.eStatus = self.RT_GetConfiguration
   end
 end
 
@@ -267,13 +269,54 @@ function Resolver:resolvetab_add_config_to_active_version(tResolvEntry, cArtifac
     atV.cArtifact = cArtifact
 
     -- Clear the dependencies for the version.
+    atV.uiCurrentDependencyGroupIndex = 0
+    atV.atCurrentDependencyGroup = nil
     atV.atDependencies = nil
     atV.ptBlockingConstraint = nil
     atV.ptBlockingDependency = nil
-
-    -- Get all available versions next.
-    tResolvEntry.eStatus = self.RT_GetDependencyVersions
   end
+end
+
+
+
+function Resolver:resolvetab_pick_dependency_group(tResolvEntry)
+  local tResult = nil
+
+  -- Get the active version.
+  local atV = tResolvEntry.ptActiveVersion
+  if atV==nil then
+    error('No active version set!')
+  else
+    -- Get the configuration.
+    local cA = atV.cArtifact
+    if cA==nil then
+      error('No artifact configuration set.')
+    end
+
+    local strGMA = string.format('%s/%s/%s', tResolvEntry.strGroup, tResolvEntry.strModule, tResolvEntry.strArtifact)
+    local tVersion = atV.tVersion
+    self.tLogger:debug('[RESOLVE] Pick a dependency group for %s/%s', strGMA, tVersion:get())
+
+    -- Increase the current dependency group index.
+    local uiCurrentDependencyGroupIndex = atV.uiCurrentDependencyGroupIndex
+    if uiCurrentDependencyGroupIndex==nil then
+      error('No current dependency group selected.')
+    end
+    uiCurrentDependencyGroupIndex = uiCurrentDependencyGroupIndex + 1
+    atV.uiCurrentDependencyGroupIndex = uiCurrentDependencyGroupIndex
+
+    local atCurrentDependencyGroup = cA.atDependencies[uiCurrentDependencyGroupIndex]
+    atV.atCurrentDependencyGroup = atCurrentDependencyGroup
+    if atCurrentDependencyGroup==nil then
+      self.tLogger:debug('[RESOLVE] Dependency group %d at %s/%s does not exist.', uiCurrentDependencyGroupIndex, strGMA, tVersion:get())
+    else
+      -- OK, a new dependency group was selected.
+      self.tLogger:debug('[RESOLVE] Using dependency group %d for %s/%s', uiCurrentDependencyGroupIndex, strGMA, tVersion:get())
+      tResult = true
+    end
+  end
+
+  return tResult
 end
 
 
@@ -290,18 +333,29 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
       error('No artifact configuration set.')
     end
 
+    -- Get the current dependency block.
+    local uiCurrentDependencyGroupIndex = atV.uiCurrentDependencyGroupIndex
+    if uiCurrentDependencyGroupIndex==nil then
+      error('No current dependency group selected.')
+    end
+    local atDependencyGroup = cA.atDependencies[uiCurrentDependencyGroupIndex]
+    if atDependencyGroup==nil then
+      error('The current dependency group does not exist.')
+    end
+
+    local atDependencies
+    if self.fInstallBuildDependencies==true then
+      atDependencies = atDependencyGroup.atBuildDependencies
+    else
+      atDependencies = atDependencyGroup.atDependencies
+    end
+    
     -- Create a new empty dependency list.
     atV.atDependencies = {}
     atV.ptBlockingConstraint = nil
     atV.ptBlockingDependency = nil
 
     -- Loop over all dependencies.
-    local atDependencies
-    if self.fInstallBuildDependencies==true then
-      atDependencies = cA.atBuildDependencies
-    else
-      atDependencies = cA.atDependencies
-    end
     for _,tDependency in pairs(atDependencies) do
       local strGroup = tDependency.strGroup
       local strModule = tDependency.strModule
@@ -311,103 +365,7 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
       self:resolvtab_set_constraint(tResolv, tDependency.tVersion:get())
       table.insert(atV.atDependencies, tResolv)
     end
-
-    tResolvEntry.eStatus = self.RT_ResolvingDependencies
   end
-end
-
-
-
-function Resolver:toxml_resolv(tXml, tResolv)
-  -- Get the status.
-  local atStatusNames = {
-    [self.RT_Initialized] = 'initialized, selecting version...',
-    [self.RT_GetConfiguration] = 'get the configuration...',
-    [self.RT_GetDependencyVersions] = 'get the available versions for all dependencies...',
-    [self.RT_ResolvingDependencies] = 'resolving the dependencies...',
-    [self.RT_Resolved] = 'resolved',
-    [self.RT_Blocked] = 'blocked'
-  }
-  local strStatus = atStatusNames[tResolv.eStatus]
-  if strStatus==nil then
-    strStatus = 'unknown'
-  end
-
-  local tAttrib = {
-    group = tResolv.strGroup,
-    artifact = tResolv.strArtifact,
-    status = strStatus
-  }
-  tXml:addtag('Resolv', tAttrib)
-
-  tXml:addtag('Constraint')
-  tXml:text(tResolv.strConstraint)
-  tXml:up()
-
-  tXml:addtag('Versions')
-  for tVersion, atV in pairs(tResolv.atVersions) do
-    local strVersion = tVersion:get()
-
-    local astrStatus = {
-      [self.V_Unused] = 'unused',
-      [self.V_Active] = 'active',
-      [self.V_Blocked] = 'blocked'
-    }
-    local strStatus = astrStatus[atV.eStatus]
-    if strStatus==nil then
-      strStatus = 'unknown'
-    end
-    tXml:addtag('Version', { version=strVersion, status=strStatus })
-    local cArtifact = atV.cArtifact
-    if cArtifact~=nil then
-      cArtifact:toxml(tXml)
-    end
-
-    if atV.ptBlockingConstraint~=nil then
-      tXml:addtag('BlockingConstraint')
-      tXml:up()
-    end
-
-    if atV.ptBlockingDependency~=nil then
-      tXml:addtag('BlockingDependency')
-      tXml:up()
-    end
-
-    -- Dump the dependencies.
-    if atV.atDependencies~=nil then
-      tXml:addtag('Dependencies')
-      for _,tDependency in pairs(atV.atDependencies) do
-        self:toxml_resolv(tXml, tDependency)
-      end
-      tXml:up()
-    end
-
-    tXml:up()
-  end
-  tXml:up()
-
-  if tResolv.ptActiveVersion~=nil then
-    local atV = tResolv.ptActiveVersion
-    local strVersion = atV.tVersion:get()
-    tXml:addtag('ActiveVersion', { version=strVersion })
-    tXml:up()
-  end
-
-  tXml:up()
-end
-
-
-
-function Resolver:toxml(tXml)
-  -- Dump the resolve table as XML.
-  tXml:addtag('JonchkiResolvtab')
-
-  -- Dump all entries of the resolve table recursively.
-  if self.atResolvTab~=nil then
-    self:toxml_resolv(tXml, self.atResolvTab)
-  end
-
-  tXml:up()
 end
 
 
@@ -439,8 +397,16 @@ function Resolver:resolve_set_start_artifact(cArtifact)
   self:resolvetab_add_config_to_active_version(tResolv, cArtifact)
 --  self.cLogger:log_resolve_status(self, 'Added configuration.')
 
-  -- Get the available versions for all dependencies.
-  self:resolvetab_get_dependency_versions(tResolv)
+  -- Pick the next available dependency group.
+  local tResult = self:resolvetab_pick_dependency_group(tResolv)
+  if tResult==true then
+    -- Get the available versions for all dependencies.
+    self:resolvetab_get_dependency_versions(tResolv)
+  
+    tResolv.eStatus = self.RT_ResolvingDependencies
+  else
+    tResolv.eStatus = self.RT_Blocked
+  end
 end
 
 
@@ -463,6 +429,10 @@ function Resolver:is_done(tStatus)
     fIsDone = false
 
   elseif tStatus==self.RT_GetDependencyVersions then
+    -- Not completely resolved yet.
+    fIsDone = false
+
+  elseif tStatus==self.RT_PickDependencyGroup then
     -- Not completely resolved yet.
     fIsDone = false
 
@@ -538,13 +508,13 @@ function Resolver:resolve_step(tResolv)
     if tVersion==nil then
       self.tLogger:error('[RESOLVE] Failed to select a new version for %s . The item is now blocked.', strGMA)
       -- The item is now blocked.
-      tResolv.eStatus = self.RT_Blocked
+      tStatus = self.RT_Blocked
     else
       self:resolvetab_pick_version(tResolv, tVersion)
-    end
 
-    -- Update the status.
-    tStatus = tResolv.eStatus
+      -- Download the configuration next.
+      tStatus = self.RT_GetConfiguration
+    end
 
   elseif tStatus==self.RT_GetConfiguration then
     -- Get the GAV parameters.
@@ -561,15 +531,25 @@ function Resolver:resolve_step(tResolv)
       self.tLogger:info('Failed to get the configuration file for %s/%s.', strGMA, tVersion:get())
 
       -- This item is now blocked.
-      tResolv.eStatus = self.RT_Blocked
+      tStatus = self.RT_Blocked
     else
       -- Add the configuration to the active configuration.
       self:resolvetab_add_config_to_active_version(tResolv, tResult)
 
       -- Update the status.
-      tStatus = self.RT_GetDependencyVersions
-
+      tStatus = self.RT_PickDependencyGroup
     end
+
+  elseif tStatus==self.RT_PickDependencyGroup then
+    local tResult = self:resolvetab_pick_dependency_group(tResolv)
+    if tResult==true then
+      -- Get the versions of all dependencies next.
+      tStatus = self.RT_GetDependencyVersions
+    else
+      -- The item is blocked.
+      tStatus = self.RT_Blocked
+    end
+
   elseif tStatus==self.RT_GetDependencyVersions then
     local tVersion = tResolv.ptActiveVersion.tVersion
     self.tLogger:debug('[RESOLVE] Get the available versions for the dependencies for %s/%s', strGMA, tVersion:get())
@@ -577,7 +557,7 @@ function Resolver:resolve_step(tResolv)
     self:resolvetab_get_dependency_versions(tResolv)
 
     -- Update the status.
-    tStatus = tResolv.eStatus
+    tStatus = self.RT_ResolvingDependencies
 
   elseif tStatus==self.RT_ResolvingDependencies then
     local tVersion = tResolv.ptActiveVersion.tVersion
@@ -601,9 +581,14 @@ function Resolver:resolve_step(tResolv)
       end
     end
 
-    -- Set the new status for the current object.
-    tResolv.eStatus = tCombinedStatus
-    tStatus = tCombinedStatus
+    -- If the combined status is blocked, try another dependency group.
+    if tCombinedStatus==self.RT_Blocked then
+      -- Pick a new dependency group.
+      tStatus = self.RT_PickDependencyGroup
+    else
+      -- Set the new status for the current object.
+      tStatus = tCombinedStatus
+    end
 
   elseif tStatus==self.RT_Resolved then
     -- Pass this up.
@@ -611,7 +596,12 @@ function Resolver:resolve_step(tResolv)
   elseif tStatus==self.RT_Blocked then
     -- Pass this up.
 
+  else
+    self.tLogger:debug('[RESOLVE] %s has an invalid state of %d', strGMA, tStatus)
   end
+
+  -- Update the status
+  tResolv.eStatus = tStatus
 
   return tStatus
 end

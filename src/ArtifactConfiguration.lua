@@ -144,7 +144,14 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       tInfo.strAuthorUrl = strAuthorUrl
     end
 
-  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/build-dependencies/dependency' then
+  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies' then
+    local atCurrentDependencyGroup = {}
+    atCurrentDependencyGroup.atDependencies = {}
+    atCurrentDependencyGroup.atBuildDependencies = {}
+    aLxpAttr.atCurrentDependencyGroup = atCurrentDependencyGroup
+    table.insert(aLxpAttr.atDependencies, atCurrentDependencyGroup)
+
+  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies/build-dependency' then
     local tDependency = {}
     
     local strGroup = atAttributes['group']
@@ -181,7 +188,8 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     end
     tDependency.tVersion = tVersion
 
-    table.insert(aLxpAttr.atBuildDependencies, tDependency)
+    table.insert(aLxpAttr.atCurrentDependencyGroup.atBuildDependencies, tDependency)
+
   elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies/dependency' then
     local tDependency = {}
 
@@ -221,7 +229,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       tDependency.tVersion = tVersion
     end
 
-    table.insert(aLxpAttr.atDependencies, tDependency)
+    table.insert(aLxpAttr.atCurrentDependencyGroup.atDependencies, tDependency)
   end
 end
 
@@ -293,8 +301,8 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
     Version = self.Version,
     tVersion = nil,
     tInfo = nil,
-    atBuildDependencies = {},
     atDependencies = {},
+    atCurrentDependencyGroup = {},
 
     strDefaultExtension = self.strDefaultExtension,
     tResult = true,
@@ -325,7 +333,6 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
   else
     self.tVersion = aLxpCallbacks.userdata.tVersion
     self.tInfo = aLxpCallbacks.userdata.tInfo
-    self.atBuildDependencies = aLxpCallbacks.userdata.atBuildDependencies
     self.atDependencies = aLxpCallbacks.userdata.atDependencies
 
     -- Check if all required components are present.
@@ -338,22 +345,24 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
       tResult = true
 
       -- Check if all depedencies have version numbers.
-      for _,tDependency in pairs(self.atDependencies) do
-        -- Does this dependency have a version number?
-        if tDependency.tVersion==nil then
-          -- No, the dependency has no version number. Look for the artifact
-          -- in the build dependencies.
-          local fFound = false
-          for _,tBuildDependency in pairs(self.atBuildDependencies) do
-            if tBuildDependency.strGroup==tDependency.strGroup and tBuildDependency.strModule==tDependency.strModule and tBuildDependency.strArtifact==tDependency.strArtifact then
-              tDependency.tVersion = tBuildDependency.tVersion
-              fFound = true
-              break
+      for _,atDependencyGroup in pairs(self.atDependencies) do
+        for _,tDependency in pairs(atDependencyGroup.atDependencies) do
+          -- Does this dependency have a version number?
+          if tDependency.tVersion==nil then
+            -- No, the dependency has no version number. Look for the artifact
+            -- in the build dependencies.
+            local fFound = false
+            for _,tBuildDependency in pairs(atDependencyGroup.atBuildDependencies) do
+              if tBuildDependency.strGroup==tDependency.strGroup and tBuildDependency.strModule==tDependency.strModule and tBuildDependency.strArtifact==tDependency.strArtifact then
+                tDependency.tVersion = tBuildDependency.tVersion
+                fFound = true
+                break
+              end
             end
-          end
-          if fFound == false then
-            self.tLogger:error('Failed to parse the artifact configuration "%s": The dependency G:%s,M:%s,A:%s has no version, which is only allowed if it is present in the build-dependencies - but it is not!', strConfiguration, tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
-            tResult = nil
+            if fFound == false then
+              self.tLogger:error('Failed to parse the artifact configuration "%s": The dependency G:%s,M:%s,A:%s has no version, which is only allowed if it is present in the build-dependencies - but it is not!', strConfiguration, tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
+              tResult = nil
+            end
           end
         end
       end
@@ -424,14 +433,28 @@ function ArtifactConfiguration:__tostring()
   if self.atDependencies==nil then
     table.insert(astrRepr, '  no dependencies available')
   else
-    table.insert(astrRepr, string.format('  dependencies: %d', #self.atDependencies))
-    for uiCnt,tAttr in pairs(self.atDependencies) do
-      table.insert(astrRepr, string.format('  %d:', uiCnt))
-      table.insert(astrRepr, string.format('    group: %s', tAttr.strGroup))
-      table.insert(astrRepr, string.format('    module: %s', tAttr.strModule))
-      table.insert(astrRepr, string.format('    artifact: %s', tAttr.strArtifact))
-      table.insert(astrRepr, string.format('    version: %s', tAttr.tVersion:get()))
-      table.insert(astrRepr, '')
+    for uiGroupCnt,atDependencyGroup in pairs(self.atDependencies) do
+      table.insert(astrRepr, string.format('  group %d:', uiGroupCnt))
+
+      table.insert(astrRepr, string.format('    dependencies: %d', #atDependencyGroup.atDependencies))
+      for uiCnt,tAttr in pairs(atDependencyGroup.atDependencies) do
+        table.insert(astrRepr, string.format('    %d:', uiCnt))
+        table.insert(astrRepr, string.format('      group: %s', tAttr.strGroup))
+        table.insert(astrRepr, string.format('      module: %s', tAttr.strModule))
+        table.insert(astrRepr, string.format('      artifact: %s', tAttr.strArtifact))
+        table.insert(astrRepr, string.format('      version: %s', tAttr.tVersion:get()))
+        table.insert(astrRepr, '')
+      end
+
+      table.insert(astrRepr, string.format('    build dependencies: %d', #atDependencyGroup.atBuildDependencies))
+      for uiCnt,tAttr in pairs(atDependencyGroup.atBuildDependencies) do
+        table.insert(astrRepr, string.format('    %d:', uiCnt))
+        table.insert(astrRepr, string.format('      group: %s', tAttr.strGroup))
+        table.insert(astrRepr, string.format('      module: %s', tAttr.strModule))
+        table.insert(astrRepr, string.format('      artifact: %s', tAttr.strArtifact))
+        table.insert(astrRepr, string.format('      version: %s', tAttr.tVersion:get()))
+        table.insert(astrRepr, '')
+      end
     end
   end
   table.insert(astrRepr, ')')
@@ -481,27 +504,26 @@ function ArtifactConfiguration:writeToReport(tReport, strPath)
   tReport:addData(strPath .. '/info/author_name', strInfoAuthorName)
   tReport:addData(strPath .. '/info/author_url', strInfoAuthorUrl)
   tReport:addData(strPath .. '/info/description', strInfoDescription)
-  
+
   -- Add the dependencies.
   if self.atDependencies~=nil then
-    for uiCnt,tDependency in ipairs(self.atDependencies) do
-      tReport:addData(string.format('%s/dependencies/dependency@id=%d/group', strPath, uiCnt), tDependency.strGroup)
-      tReport:addData(string.format('%s/dependencies/dependency@id=%d/module', strPath, uiCnt), tDependency.strModule)
-      tReport:addData(string.format('%s/dependencies/dependency@id=%d/artifact', strPath, uiCnt), tDependency.strArtifact)
-      if tDependency.tVersion~=nil then
-        tReport:addData(string.format('%s/dependencies/dependency@id=%d/version', strPath, uiCnt), tDependency.tVersion:get())
+    for uiGroupCnt,atDependencyGroup in ipairs(self.atDependencies) do
+      for uiCnt,tDependency in ipairs(atDependencyGroup.atDependencies) do
+        tReport:addData(string.format('%s/dependency_group@id=%d/dependency@id=%d/group', strPath, uiGroupCnt, uiCnt), tDependency.strGroup)
+        tReport:addData(string.format('%s/dependency_group@id=%d/dependency@id=%d/module', strPath, uiGroupCnt, uiCnt), tDependency.strModule)
+        tReport:addData(string.format('%s/dependency_group@id=%d/dependency@id=%d/artifact', strPath, uiGroupCnt, uiCnt), tDependency.strArtifact)
+        if tDependency.tVersion~=nil then
+          tReport:addData(string.format('%s/dependency_group@id=%d/dependency@id=%d/version', strPath, uiGroupCnt, uiCnt), tDependency.tVersion:get())
+        end
       end
-    end
-  end
-  
-  -- Add the build dependencies.
-  if self.atBuildDependencies~=nil then
-    for uiCnt,tDependency in ipairs(self.atDependencies) do
-      tReport:addData(string.format('%s/builddependencies/dependency@id=%d/group', strPath, uiCnt), tDependency.strGroup)
-      tReport:addData(string.format('%s/builddependencies/dependency@id=%d/module', strPath, uiCnt), tDependency.strModule)
-      tReport:addData(string.format('%s/builddependencies/dependency@id=%d/artifact', strPath, uiCnt), tDependency.strArtifact)
-      if tDependency.tVersion~=nil then
-        tReport:addData(string.format('%s/builddependencies/dependency@id=%d/version', strPath, uiCnt), tDependency.tVersion:get())
+
+      for uiCnt,tDependency in ipairs(atDependencyGroup.atBuildDependencies) do
+        tReport:addData(string.format('%s/dependency_group@id=%d/build_dependency@id=%d/group', strPath, uiGroupCnt, uiCnt), tDependency.strGroup)
+        tReport:addData(string.format('%s/dependency_group@id=%d/build_dependency@id=%d/module', strPath, uiGroupCnt, uiCnt), tDependency.strModule)
+        tReport:addData(string.format('%s/dependency_group@id=%d/build_dependency@id=%d/artifact', strPath, uiGroupCnt, uiCnt), tDependency.strArtifact)
+        if tDependency.tVersion~=nil then
+          tReport:addData(string.format('%s/dependency_group@id=%d/build_dependency@id=%d/version', strPath, uiGroupCnt, uiCnt), tDependency.tVersion:get())
+        end
       end
     end
   end
