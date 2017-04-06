@@ -148,10 +148,13 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
         tResult = self.hash:check_string(strCfg, strHash, strCfgPath, strHashPath)
         if tResult~=true then
           self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgPath)
+          tResult = nil
         else
           local cA = self.ArtifactConfiguration(self.tLogger)
           tResult = cA:parse_configuration(strCfg, strCfgPath)
-          if tResult==true then
+          if tResult~=true then
+            tResult = nil
+          else
             tResult = cA
           end
         end

@@ -343,10 +343,13 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
       tResult = self.hash:check_string(strCfgData, strHash, strCfgUrl, strHashUrl)
       if tResult~=true then
         self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgUrl)
+        tResult = nil
       else
         local cA = self.ArtifactConfiguration(self.tLogger)
-        local tParseResult = cA:parse_configuration(strCfgData, strCfgUrl)
-        if tParseResult==true then
+        tResult = cA:parse_configuration(strCfgData, strCfgUrl)
+        if tResult~=true then
+          tResult = nil
+        else
           tResult = cA
         end
       end
@@ -391,6 +394,7 @@ function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVer
       tResult = self.hash:check_file(strLocalFile, strHash, strHashUrl)
       if tResult~=true then
         self.tLogger:error('The hash sum of the artifact "%s" does not match.', strArtifactUrl)
+        tResult = nil
       else
         tResult = strLocalFile
       end
