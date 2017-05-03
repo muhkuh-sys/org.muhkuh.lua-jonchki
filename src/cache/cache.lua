@@ -38,7 +38,8 @@ function Cache:_init(tLogger, strID)
   self.uiStatistics_RequestsArtifactHit = 0
   self.uiStatistics_RequestsConfigMiss = 0
   self.uiStatistics_RequestsArtifactMiss = 0
-  self.uiStatistics_ServedBytes = 0
+  self.uiStatistics_ServedBytesConfig = 0
+  self.uiStatistics_ServedBytesArtifact = 0
 end
 
 
@@ -632,7 +633,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
           if tParseResult==true then
             tResult = cA
             self.uiStatistics_RequestsConfigHit = self.uiStatistics_RequestsConfigHit + 1
-            self.uiStatistics_ServedBytes = self.uiStatistics_ServedBytes + atAttr.iConfigurationSize
+            self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + atAttr.iConfigurationSize
           end
         end
       end
@@ -699,7 +700,7 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
           -- All OK, return the path of the artifact in the depack folder.
           tResult = strLocalPath
           self.uiStatistics_RequestsArtifactHit = self.uiStatistics_RequestsArtifactHit + 1
-          self.uiStatistics_ServedBytes = self.uiStatistics_ServedBytes + atAttr.iArtifactSize
+          self.uiStatistics_ServedBytesArtifact = self.uiStatistics_ServedBytesArtifact + atAttr.iArtifactSize
         end
       end
     end
@@ -785,9 +786,8 @@ end
 
 
 function Cache:show_statistics()
-  self.tLogger:info('%s Configuration requests: %d hit / %d miss', self.strLogID, self.uiStatistics_RequestsConfigHit, self.uiStatistics_RequestsConfigMiss)
-  self.tLogger:info('%s Artifact requests: %d hit / %d miss', self.strLogID, self.uiStatistics_RequestsArtifactHit, self.uiStatistics_RequestsArtifactMiss)
-  self.tLogger:info('%s Bytes served: %d', self.strLogID, self.uiStatistics_ServedBytes)
+  self.tLogger:info('%s Configuration requests: %d hit / %d miss / %d bytes served', self.strLogID, self.uiStatistics_RequestsConfigHit, self.uiStatistics_RequestsConfigMiss, self.uiStatistics_ServedBytesConfig)
+  self.tLogger:info('%s Artifact requests: %d hit / %d miss / %d bytes served', self.strLogID, self.uiStatistics_RequestsArtifactHit, self.uiStatistics_RequestsArtifactMiss, self.uiStatistics_ServedBytesArtifact)
 end
 
 
