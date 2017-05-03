@@ -93,7 +93,7 @@ cLogger:setLevel(tArgs.tLogLevel)
 -- Create a report.
 --
 local Report = require 'Report'
-local cReport = Report()
+local cReport = Report(cLogger)
 
 
 -----------------------------------------------------------------------------

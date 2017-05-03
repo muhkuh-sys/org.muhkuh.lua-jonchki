@@ -10,7 +10,7 @@ local Report = class()
 
 
 
-function Report:_init()
+function Report:_init(cLogger)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -19,6 +19,9 @@ function Report:_init()
 
   -- Set the default filename.
   self.strFileName = 'jonchkireport.xml'
+
+  -- Use the logger.
+  self.tLogger = cLogger
 
   -- No data yet.
   self.atData = {}
@@ -50,7 +53,8 @@ function Report:addData(strKey, strValue)
       tNewNode = {}
       tNode[strPathElement] = tNewNode
     elseif type(tNewNode)~='table' then
-      error(string.format('The element "%s" in the path "%s" points to a leaf.', strPathElement, strKey))
+      self.tLogger:fatal('[REPORT]: The element "%s" in the path "%s" points to a leaf.', strPathElement, strKey)
+      error('Internal error!')
     end
 
     -- Move to the new node.
@@ -58,8 +62,14 @@ function Report:addData(strKey, strValue)
   end
 
   -- Create the new key/value pair.
-  if tNode[strLeaf]~=nil then
-    error(string.format('The value "%s" already exists.', strLeaf))
+  local strOldValue = tNode[strLeaf]
+  if strOldValue~=nil then
+    if strOldValue==strValue then
+      self.tLogger:warn('[REPORT]: Setting existing key "%s" to the same value of "%s".', strKey, tostring(strValue))
+    else
+      self.tLogger:fatal('[REPORT]: Try to change existing key "%s" from "%s" to "%s".', strKey, strOldValue, tostring(strValue))
+      error('Internal error!')
+    end
   end
 
   -- Create the new leaf with the data.
@@ -89,7 +99,8 @@ function Report:to_xml(tNode, tXml)
           strAttribute = string.sub(strAttribute, 1, iIdxEq-1)
         end
         if atAttributes[strAttribute]~=nil then
-          error(string.format('Redefining attribute "%s" in path "%s".', strAttribute, strKey))
+          self.tLogger:fatal('[REPORT]: Redefining attribute "%s" in path "%s".', strAttribute, strKey)
+          error('Internal error!')
         end
         atAttributes[strAttribute] = strAttributeValue
       end
