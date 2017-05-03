@@ -135,6 +135,14 @@ end
 
 
 
+function ResolverChain:show_statistics()
+  if self.cCache~=nil then
+    self.cCache:show_statistics()
+  end
+end
+
+
+
 function ResolverChain:get_gma(strGroup, strModule, strArtifact)
   -- Combine the group, module and artifact.
   return string.format('%s/%s/%s', strGroup, strModule, strArtifact)

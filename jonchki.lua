@@ -257,6 +257,9 @@ else
   end
 end
 
+-- Show some statistics.
+cResolverChain:show_statistics()
+
 cLogger:info('All OK!')
 cReport:write()
 os.exit(0)

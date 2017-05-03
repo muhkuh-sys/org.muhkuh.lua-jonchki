@@ -32,6 +32,13 @@ function Cache:_init(tLogger, strID)
 
   -- Initialize the path template string.
   self.strPathTemplate = nil
+
+  -- Initialize the statistics.
+  self.uiStatistics_RequestsConfigHit = 0
+  self.uiStatistics_RequestsArtifactHit = 0
+  self.uiStatistics_RequestsConfigMiss = 0
+  self.uiStatistics_RequestsArtifactMiss = 0
+  self.uiStatistics_ServedBytes = 0
 end
 
 
@@ -591,8 +598,10 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+    self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
   elseif fFound==false then
     self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAV)
+    self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
   else
     self.tLogger:debug('%s Found the configuration for artifact %s in the cache.', self.strLogID, strGMAV)
 
@@ -601,17 +610,20 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
     strConfiguration, strError = self.pl.utils.readfile(atAttr.strConfigurationPath, true)
     if strConfiguration==nil then
       self.tLogger:error('%s Failed to read the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
+      self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
     else
       -- Read the contents of the hash file.
       local strHash
       strHash, strError = self.pl.utils.readfile(atAttr.strConfigurationHashPath, false)
       if strHash==nil then
         self.tLogger:error('%s Failed to read the hash for the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
+        self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
       else
         -- Verify the the hash.
         local fHashOk = self.hash:check_string(strConfiguration, strHash, atAttr.strConfigurationPath, atAttr.strConfigurationHashPath)
         if fHashOk~=true then
           self.tLogger:error('%s The hash of the configuration for artifact %s does not match the expected hash.', self.strLogID, strGMAV)
+          self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
           -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
         else
           -- Parse the configuration.
@@ -619,6 +631,8 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
           local tParseResult = cA:parse_configuration(strConfiguration, atAttr.strConfigurationPath)
           if tParseResult==true then
             tResult = cA
+            self.uiStatistics_RequestsConfigHit = self.uiStatistics_RequestsConfigHit + 1
+            self.uiStatistics_ServedBytes = self.uiStatistics_ServedBytes + atAttr.iConfigurationSize
           end
         end
       end
@@ -645,10 +659,13 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
   local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+    self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   elseif fFound==false then
     self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAV)
+    self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   elseif atAttr.strArtifactPath==nil then
     self.tLogger:debug('%s The cache entry for %s has only the configuration, but not the artifact.', self.strLogID, strGMAV)
+    self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   else
     self.tLogger:debug('%s Found the artifact %s in the cache.', self.strLogID, strGMAV)
 
@@ -656,6 +673,7 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
     local strHash, strError = self.pl.utils.readfile(atAttr.strArtifactHashPath, false)
     if strHash==nil then
       self.tLogger:error('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAV, strError)
+      self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
     else
       local strCachePath = atAttr.strArtifactPath
 
@@ -668,16 +686,20 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
       fCopyResult, strError = self.pl.file.copy(strCachePath, strLocalPath)
       if fCopyResult~=true then
         self.tLogger:error('%s Failed to copy the artifact to the depack folder: %s', self.strLogID, strError)
+        self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
       else
         -- Verify the the artifact hash.
         -- NOTE: Do this in the depack folder.
         local fHashOk = self.hash:check_file(strLocalPath, strHash, atAttr.strArtifactHashPath)
         if fHashOk~=true then
           self.tLogger:error('%s The hash of the artifact %s in the depack folder does not match the expected hash.', self.strLogID, strGMAV)
+          self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
           -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
         else
           -- All OK, return the path of the artifact in the depack folder.
           tResult = strLocalPath
+          self.uiStatistics_RequestsArtifactHit = self.uiStatistics_RequestsArtifactHit + 1
+          self.uiStatistics_ServedBytes = self.uiStatistics_ServedBytes + atAttr.iArtifactSize
         end
       end
     end
@@ -758,6 +780,14 @@ function Cache:add_artifact(cArtifact, strArtifactSourcePath)
       end
     end
   end
+end
+
+
+
+function Cache:show_statistics()
+  self.tLogger:info('%s Configuration requests: %d hit / %d miss', self.strLogID, self.uiStatistics_RequestsConfigHit, self.uiStatistics_RequestsConfigMiss)
+  self.tLogger:info('%s Artifact requests: %d hit / %d miss', self.strLogID, self.uiStatistics_RequestsArtifactHit, self.uiStatistics_RequestsArtifactMiss)
+  self.tLogger:info('%s Bytes served: %d', self.strLogID, self.uiStatistics_ServedBytes)
 end
 
 
