@@ -28,10 +28,14 @@ function Policy001:select_version_by_constraints(atVersions, strConstraint)
   else
     -- Look for the exact version string.
     local fFound = false
-    for tV, _ in pairs(atVersions) do
-      if tV:get()==strConstraint then
-        fFound = true
-        break
+    for tV,atV in pairs(atVersions) do
+      -- Only consider unused or active versions.
+      -- FIXME: Use the defines from the resolver class here.
+      if atV.eStatus==0 or atV.eStatus==1 then
+        if tV:get()==strConstraint then
+          fFound = true
+          break
+        end
       end
     end
 

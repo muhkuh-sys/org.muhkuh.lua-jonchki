@@ -43,30 +43,34 @@ function Policy002:select_version_by_constraints(atVersions, strConstraint)
 
     -- No best version found yet.
     local tVBest = nil
-    for tV,_ in pairs(atVersions) do
-      local atVCVersion = tV.atVersion
-      local sizVCVersion = #atVCVersion
-
-      -- The version must have at least as much digits as the constraint.
-      if sizVCVersion<sizVCConstraint then
-        self.tLogger:debug('%sIgnoring version %s as it has too less components for the constraint %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
-      else
-        -- Check if the version has the same start as the constraint.
-        local fStartsWithConstraint = true
-        for uiCnt=1,sizVCConstraint do
-          if atVCConstraint[uiCnt]~=atVCVersion[uiCnt] then
-            fStartsWithConstraint = false
-            break
+    for tV,atV in pairs(atVersions) do
+      -- Only consider unused or active versions.
+      -- FIXME: Use the defines from the resolver class here.
+      if atV.eStatus==0 or atV.eStatus==1 then
+        local atVCVersion = tV.atVersion
+        local sizVCVersion = #atVCVersion
+  
+        -- The version must have at least as much digits as the constraint.
+        if sizVCVersion<sizVCConstraint then
+          self.tLogger:debug('%sIgnoring version %s as it has too less components for the constraint %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
+        else
+          -- Check if the version has the same start as the constraint.
+          local fStartsWithConstraint = true
+          for uiCnt=1,sizVCConstraint do
+            if atVCConstraint[uiCnt]~=atVCVersion[uiCnt] then
+              fStartsWithConstraint = false
+              break
+            end
           end
-        end
-        if fStartsWithConstraint~=true then
-          self.tLogger:debug('%sIgnoring version %s as it does not start with the constraint %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
-        elseif tVBest==nil then
-          self.tLogger:debug('%sStarting with version %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
-          tVBest = tV
-        elseif v.compare(tV, tVBest)>0 then
-          self.tLogger:debug('%sVersion %s wins over %s.', self.strLogID, tostring(tV), tostring(tVBest))
-          tVBest = tV
+          if fStartsWithConstraint~=true then
+            self.tLogger:debug('%sIgnoring version %s as it does not start with the constraint %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
+          elseif tVBest==nil then
+            self.tLogger:debug('%sStarting with version %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
+            tVBest = tV
+          elseif v.compare(tV, tVBest)>0 then
+            self.tLogger:debug('%sVersion %s wins over %s.', self.strLogID, tostring(tV), tostring(tVBest))
+            tVBest = tV
+          end
         end
       end
     end
