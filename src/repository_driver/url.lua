@@ -246,6 +246,8 @@ end
 function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArtifact)
   local tResult = nil
 
+  self.uiStatistics_VersionScans = self.uiStatistics_VersionScans + 1
+
   -- Combine the group, module and artifact to a string for the logger messages.
   local strGMA = string.format('G:%s/M:%s/A:%s', strGroup, strModule, strArtifact)
 
@@ -333,24 +335,31 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
   local strCfgData = self:get_url(strCfgUrl)
   if strCfgData==nil then
     self.tLogger:error('Failed to read the configuration file "%s".', strCfgUrl)
+    self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
   else
     -- Get tha hash sum.
     local strHash = self:get_url(strHashUrl)
     if strHash==nil then
       self.tLogger:error('Failed to read the hash file "%s".', strHashUrl)
+      self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
     else
       -- Check the hash sum.
       tResult = self.hash:check_string(strCfgData, strHash, strCfgUrl, strHashUrl)
       if tResult~=true then
         self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgUrl)
+        self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
         tResult = nil
       else
         local cA = self.ArtifactConfiguration(self.tLogger)
         tResult = cA:parse_configuration(strCfgData, strCfgUrl)
         if tResult~=true then
           tResult = nil
+          self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
         else
           tResult = cA
+          self.uiStatistics_GetConfiguration_Success = self.uiStatistics_GetConfiguration_Success + 1
+          self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + string.len(strCfgData)
+          self.uiStatistics_ServedBytesConfigHash = self.uiStatistics_ServedBytesConfigHash + string.len(strHash)
         end
       end
     end
@@ -382,11 +391,13 @@ function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVer
   if tResult~=true then
     tResult = nil
     self.tLogger:error('Failed to download the URL "%s" to the file %s', strArtifactUrl, strLocalFile)
+    self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
   else
     -- Get tha SHA sum.
     tResult = self:get_url(strHashUrl)
     if tResult==nil then
       self.tLogger:error('Failed to get the hash sum of "%s".', strArtifactUrl)
+      self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
     else
       local strHash = tResult
 
@@ -395,8 +406,12 @@ function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVer
       if tResult~=true then
         self.tLogger:error('The hash sum of the artifact "%s" does not match.', strArtifactUrl)
         tResult = nil
+        self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
       else
         tResult = strLocalFile
+        self.uiStatistics_GetArtifact_Success = self.uiStatistics_GetArtifact_Success + 1
+        self.uiStatistics_ServedBytesArtifact = self.uiStatistics_ServedBytesArtifact + self.pl.path.getsize(strLocalFile)
+        self.uiStatistics_ServedBytesArtifactHash = self.uiStatistics_ServedBytesArtifactHash + string.len(strHash)
       end
     end
   end

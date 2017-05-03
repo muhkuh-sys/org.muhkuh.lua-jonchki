@@ -74,6 +74,7 @@ end
 
 function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, strArtifact)
   self.tLogger:debug('Get available versions for %s/%s/%s.', strGroup, strModule, strArtifact)
+  self.uiStatistics_VersionScans = self.uiStatistics_VersionScans + 1
   local tResult = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the versions path.
@@ -120,7 +121,9 @@ end
 function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strArtifact, tVersion)
   -- Does the root folder of the repository exist?
   local tResult = self:exists()
-  if tResult==true then
+  if tResult~=true then
+    self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
+  else
     -- Replace the artifact placeholder in the configuration path.
     local strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml', self.strConfig)
     local strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml.hash', self.strConfig)
@@ -136,11 +139,13 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
     if strCfg==nil then
       tResult = nil
       self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgPath, strError)
+      self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
     else
       -- Get the hash sum.
       tResult, strError = self.pl.util.readfile(strHashPath, false)
       if tResult==nil then
         self.tLogger:error('Failed to get the hash sum of "%s": %s', strCfgPath, strError)
+        self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
       else
         local strHash = tResult
 
@@ -148,14 +153,19 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
         tResult = self.hash:check_string(strCfg, strHash, strCfgPath, strHashPath)
         if tResult~=true then
           self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgPath)
+          self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
           tResult = nil
         else
           local cA = self.ArtifactConfiguration(self.tLogger)
           tResult = cA:parse_configuration(strCfg, strCfgPath)
           if tResult~=true then
             tResult = nil
+            self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
           else
             tResult = cA
+            self.uiStatistics_GetConfiguration_Success = self.uiStatistics_GetConfiguration_Success + 1
+            self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + string.len(strCfg)
+            self.uiStatistics_ServedBytesConfigHash = self.uiStatistics_ServedBytesConfigHash + string.len(strHash)
           end
         end
       end
@@ -170,7 +180,9 @@ end
 function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifact, tVersion, strExtension, strDestinationFolder)
   -- Does the root folder of the repository exist?
   local tResult = self:exists()
-  if tResult==true then
+  if tResult~=true then
+    self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
+  else
     -- Construct the artifact path.
     local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strExtension, self.strArtifact)
     local strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, string.format('%s.hash', strExtension), self.strArtifact)
@@ -190,11 +202,13 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
     if tResult~=true then
       tResult = nil
       self.tLogger:error('Failed to copy the artifact to the depack folder: %s', strError)
+      self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
     else
       -- Get tha SHA sum.
       tResult, strError = self.pl.utils.readfile(strHashPath, true)
       if tResult==nil then
         self.tLogger:error('Failed to get the hash sum of "%s".', strArtifactPath)
+        self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
       else
         local strHash = tResult
 
@@ -202,8 +216,12 @@ function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifac
         tResult = self.hash:check_file(strLocalFile, strHash, strHashPath)
         if tResult~=true then
           self.tLogger:error('The hash sum of the artifact "%s" does not match.', strArtifactPath)
+          self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
         else
           tResult = strLocalFile
+          self.uiStatistics_GetArtifact_Success = self.uiStatistics_GetArtifact_Success + 1
+          self.uiStatistics_ServedBytesArtifact = self.uiStatistics_ServedBytesArtifact + self.pl.path.getsize(strLocalFile)
+          self.uiStatistics_ServedBytesArtifactHash = self.uiStatistics_ServedBytesArtifactHash + string.len(strHash)
         end
       end
     end
@@ -228,5 +246,6 @@ function RepositoryDriverFilesystem:__tostring()
 
   return strRepr
 end
+
 
 return RepositoryDriverFilesystem

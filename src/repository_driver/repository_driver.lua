@@ -21,6 +21,16 @@ function RepositoryDriver:_init(tLogger, strID)
 
   local cHash = require 'Hash'
   self.hash = cHash(tLogger)
+
+  self.uiStatistics_VersionScans = 0
+  self.uiStatistics_GetConfiguration_Success = 0
+  self.uiStatistics_GetConfiguration_Error = 0
+  self.uiStatistics_GetArtifact_Success = 0
+  self.uiStatistics_GetArtifact_Error = 0
+  self.uiStatistics_ServedBytesConfig = 0
+  self.uiStatistics_ServedBytesConfigHash = 0
+  self.uiStatistics_ServedBytesArtifact = 0
+  self.uiStatistics_ServedBytesArtifactHash = 0
 end
 
 
@@ -77,6 +87,15 @@ function RepositoryDriver:__tostring()
   local strRepr = string.format('RepositoryDriver(id="%s")', self.strID)
 
   return strRepr
+end
+
+
+
+function RepositoryDriver:show_statistics()
+  local strLogID = string.format('[Repository "%s"] ', self:get_id())
+  self.tLogger:info('%s Version scans: %d', strLogID, self.uiStatistics_VersionScans)
+  self.tLogger:info('%s Configuration requests: %d success / %d error . %d bytes data and %d bytes hash served', strLogID, self.uiStatistics_GetConfiguration_Success, self.uiStatistics_GetConfiguration_Error, self.uiStatistics_ServedBytesConfig, self.uiStatistics_ServedBytesConfigHash)
+  self.tLogger:info('%s Artifact requests: %d success / %d error . %d bytes data and %d bytes hash served', strLogID, self.uiStatistics_GetArtifact_Success, self.uiStatistics_GetArtifact_Error, self.uiStatistics_ServedBytesArtifact, self.uiStatistics_ServedBytesArtifactHash)
 end
 
 

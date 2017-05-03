@@ -139,6 +139,11 @@ function ResolverChain:show_statistics()
   if self.cCache~=nil then
     self.cCache:show_statistics()
   end
+
+  -- Loop over all repository drivers and show the statistics.
+  for _, tRepositoryDriver in pairs(self.atResolverChain) do
+    tRepositoryDriver:show_statistics()
+  end
 end
 
 
