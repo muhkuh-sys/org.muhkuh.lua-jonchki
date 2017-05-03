@@ -141,6 +141,9 @@ end
 function Resolver:clear_resolve_tables()
   -- No resolve table yet.
   self.atResolvTab = nil
+
+  -- Create an empty list of used artifacts.
+  self.atUsedArtifacts = {}
 end
 
 
@@ -158,6 +161,104 @@ end
 
 
 
+function Resolver:_add_to_used_artifacts(tResolvEntry)
+  -- Get the group, module and artifact.
+  local strGroup = tResolvEntry.strGroup
+  local strModule = tResolvEntry.strModule
+  local strArtifact = tResolvEntry.strArtifact
+  -- Combine them to a key for the list of used artifacts.
+  local strKeyGMA = string.format('%s/%s/%s', strGroup, strModule, strArtifact)
+
+  -- Get the active version.
+  local atV = tResolvEntry.ptActiveVersion
+  if atV==nil then
+    error('No active version set!')
+  else
+    -- Get the current version.
+    local tCurrentVersion = atV.tVersion
+    local strCurrentVersion = tCurrentVersion:get()
+
+    -- Does the entry for the GMA already exist?
+    local atGMA = self.atUsedArtifacts[strKeyGMA]
+    if atGMA==nil then
+      self.tLogger:debug('[RESOLVE] Adding %s to the list of used artifacts.', strKeyGMA)
+  
+      atGMA = {}
+      atGMA.tVersion = tCurrentVersion
+      atGMA.atSources = {}
+      table.insert(atGMA.atSources, atV)
+  
+      self.atUsedArtifacts[strKeyGMA] = atGMA
+    else
+      self.tLogger:debug('[RESOLVE] %s already exists in the list of used artifacts.', strKeyGMA)
+  
+      -- Compare the versions.
+      local strExistingVersion = atGMA.tVersion:get()
+      if strCurrentVersion~=strExistingVersion then
+        self.tLogger:error('[RESOLVE] Trying to add version %s of artifact %s, but version %s is already in use.', strCurrentVersion, strKeyGMA, strExistingVersion)
+        error('Internal error!')
+      else
+        -- The version matches, add the version structure to the list of sources.
+        table.insert(atGMA.atSources, atV) 
+      end
+    end
+  end
+end
+
+
+
+function Resolver:_collect_used_artifacts(tResolvEntry)
+  -- Get the active version.
+  local atV = tResolvEntry.ptActiveVersion
+  if atV~=nil then
+    -- Add the artifact to the list.
+    self:_add_to_used_artifacts(tResolvEntry)
+
+    -- Loop over the dependencies.
+    local atDependencies = atV.atDependencies
+    if atDependencies~=nil then
+      for _, tDependency in pairs(atDependencies) do
+        self:_collect_used_artifacts(tDependency)
+      end
+    end
+  end
+end
+
+
+
+function Resolver:_rebuild_used_artifacts()
+  -- Clear the list of used artifacts.
+  self.atUsedArtifacts = {}
+
+  -- Rebuild the complete table.
+  self.tLogger:debug('[RESOLVE] Rebuilding the list of used artifacts.')
+  self:_collect_used_artifacts(self.atResolvTab)
+  self.tLogger:debug('[RESOLVE] Finished rebuilding the list of used artifacts.')
+end
+
+
+
+function Resolver:_get_used_artifact(tResolvEntry)
+  local tExistingVersion = nil
+
+  -- Get the group, module and artifact.
+  local strGroup = tResolvEntry.strGroup
+  local strModule = tResolvEntry.strModule
+  local strArtifact = tResolvEntry.strArtifact
+  -- Combine them to a key for the list of used artifacts.
+  local strKeyGMA = string.format('%s/%s/%s', strGroup, strModule, strArtifact)
+
+  -- Does the entry for the GMA already exist?
+  local atGMA = self.atUsedArtifacts[strKeyGMA]
+  if atGMA~=nil then
+    tExistingVersion = atGMA.tVersion
+  end
+
+  return tExistingVersion
+end
+
+
+
 function Resolver:resolvtab_create_entry(strGroup, strModule, strArtifact, tParentEntry)
   local tResolvEntry = {
     strGroup = strGroup,
@@ -167,7 +268,8 @@ function Resolver:resolvtab_create_entry(strGroup, strModule, strArtifact, tPare
     eStatus = self.RT_Initialized,
     strConstraint = nil,
     atVersions = {},
-    ptActiveVersion = nil
+    ptActiveVersion = nil,
+    fIsDouble = false
   }
 
   return tResolvEntry
@@ -250,6 +352,9 @@ function Resolver:resolvetab_pick_version(tResolvEntry, tVersion)
     atV.atDependencies = nil
     atV.ptBlockingConstraint = nil
     atV.ptBlockingDependency = nil
+
+    -- Add the version to the list of used artifacts.
+    self:_add_to_used_artifacts(tResolvEntry)
   end
 end
 
@@ -308,7 +413,7 @@ function Resolver:resolvetab_pick_dependency_group(tResolvEntry)
     local atCurrentDependencyGroup = cA.atDependencies[uiCurrentDependencyGroupIndex]
     atV.atCurrentDependencyGroup = atCurrentDependencyGroup
     if atCurrentDependencyGroup==nil then
-      self.tLogger:debug('[RESOLVE] Dependency group %d at %s/%s does not exist.', uiCurrentDependencyGroupIndex, strGMA, tVersion:get())
+      self.tLogger:debug('[RESOLVE] No more dependency groups for %s/%s.', strGMA, tVersion:get())
     else
       -- OK, a new dependency group was selected.
       self.tLogger:debug('[RESOLVE] Using dependency group %d for %s/%s', uiCurrentDependencyGroupIndex, strGMA, tVersion:get())
@@ -362,6 +467,33 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
       local strArtifact = tDependency.strArtifact
       local tResolv = self:resolvtab_create_entry(strGroup, strModule, strArtifact, tResolvEntry)
       self:add_versions_from_repositories(tResolv, strGroup, strModule, strArtifact)
+
+      -- Was this artifact used before?
+      local tExistingVersion = self:_get_used_artifact(tResolv)
+      if tExistingVersion~=nil then
+        -- If the artifact was used before, a version is already selected.
+        -- Do not change a previously selected version as it might affect the
+        -- path leading to the current situation.
+
+        -- Instead set all available versions except the existing one
+        -- to blocked.
+
+        local strExistingVersion = tExistingVersion:get()
+        self.tLogger:debug('[RESOLVE] The artifact %s/%s/%s is already in use with version %s. Blocking all other available versions.', strGroup, strModule, strArtifact, strExistingVersion)
+
+        for tVersionCnt, atVCnt in pairs(tResolv.atVersions) do
+          local strVersionCnt = tVersionCnt:get()
+          if strVersionCnt==strExistingVersion then
+            self.tLogger:debug('[RESOLVE] %s -> keep', strVersionCnt)
+          else
+            self.tLogger:debug('[RESOLVE] %s -> block', strVersionCnt)
+            atVCnt.eStatus = self.V_Blocked
+          end
+        end
+
+        tResolv.fIsDouble = true
+      end
+
       self:resolvtab_set_constraint(tResolv, tDependency.tVersion:get())
       table.insert(atV.atDependencies, tResolv)
     end
@@ -533,7 +665,7 @@ function Resolver:resolve_step(tResolv)
       -- This item is now blocked.
       tStatus = self.RT_Blocked
     else
-      -- Add the configuration to the active configuration.
+      -- Add the configuration to the active version.
       self:resolvetab_add_config_to_active_version(tResolv, tResult)
 
       -- Update the status.
@@ -567,17 +699,23 @@ function Resolver:resolve_step(tResolv)
     -- Set the default status to "resolved". This is good for empty lists.
     local tCombinedStatus = self.RT_Resolved
     for _,tDependency in pairs(tResolv.ptActiveVersion.atDependencies) do
-      local tChildStatus = self:resolve_step(tDependency)
-      local fIsDone = self:is_done(tChildStatus)
-      if fIsDone==true then
-        -- No change...
-      elseif fIsDone==false then
-        -- The child is not completely resolved yet.
-        tCombinedStatus = self.RT_ResolvingDependencies
+      -- Do not process the dependencies again if the artifact was already used.
+      if tDependency.fIsDouble==true then
+        self.tLogger:debug('[RESOLVE] Already processed %s/%s/%s', tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
       else
-        -- That's an error. Stop processing the other children.
-        tCombinedStatus = self.RT_Blocked
-        break
+        -- The artifact was not used yet.
+        local tChildStatus = self:resolve_step(tDependency)
+        local fIsDone = self:is_done(tChildStatus)
+        if fIsDone==true then
+          -- No change...
+        elseif fIsDone==false then
+          -- The child is not completely resolved yet.
+          tCombinedStatus = self.RT_ResolvingDependencies
+        else
+          -- That's an error. Stop processing the other children.
+          tCombinedStatus = self.RT_Blocked
+          break
+        end
       end
     end
 
@@ -600,8 +738,17 @@ function Resolver:resolve_step(tResolv)
     self.tLogger:debug('[RESOLVE] %s has an invalid state of %d', strGMA, tStatus)
   end
 
+  -- Get the old status to detect changes.
+  local eOldStatus = tResolv.eStatus
+
   -- Update the status
   tResolv.eStatus = tStatus
+
+  -- Was the status just changed to "blocked"?
+  if eOldStatus~=self.RT_Blocked and tStatus==self.RT_Blocked then
+    -- Rebuild the list of used artifacts.
+    self:_rebuild_used_artifacts()
+  end
 
   return tStatus
 end
@@ -634,6 +781,8 @@ function Resolver:resolve(cArtifact)
     end
   until fFinished==true
 
+  self.tLogger:info('[RESOLVE] Finished resolving.')
+
   return fIsDone
 end
 
@@ -644,10 +793,16 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
   tResolv = tResolv or self.atResolvTab
   atArtifacts = atArtifacts or {}
 
+  local strGroup = tResolv.strGroup
+  local strModule = tResolv.strModule
+  local strArtifact = tResolv.strArtifact
+  local strGMA = string.format('%s/%s/%s', strGroup, strModule, strArtifact)
+
   -- Get the active version.
   local atV = tResolv.ptActiveVersion
-  if atV==nil then
-    error('No active version!')
+  if tResolv.fIsDouble==false and atV==nil then
+    self.tLogger:error('[COLLECT]: %s is no double, but has no active version.', strGMA)
+    error('internal error')
   end
 
   -- Get a unique ID and the parent ID.
@@ -661,36 +816,41 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
     uiID = #atArtifacts + 1
     strParentID = tostring(uiParentID)
   end
-  -- Write the artifact to the report.
-  atV.cArtifact:writeToReport(self.tReport, string.format('artifacts/artifact@id=%d@parent=%s', uiID, strParentID))
-
-  -- Get the artifact configuration.
-  local cArtifact = atV.cArtifact
+  self.tLogger:debug('[COLLECT]: Processing %s with ID %d.', strGMA, uiID)
 
   -- Do not add the root artifact.
-  if uiParentID~=nil then
-    -- Is the GMA already in the list?
-    local fNotThereYet = true
-    local tInfo = cArtifact.tInfo
-    for _, tAttr in pairs(atArtifacts) do
-      local tInfoCnt = tAttr.cArtifact.tInfo
-      -- Compare the group, module and artifact.
-      if tInfo.strGroup==tInfoCnt.strGroup and tInfo.strModule==tInfoCnt.strModule and tInfo.strArtifact==tInfoCnt.strArtifact then
-        -- Get the current version.
-        local strCurrentVersion = tInfo.tVersion:get()
-        -- Get the entries version.
-        local strEntryVersion = tInfoCnt.tVersion:get()
-        -- Compare the version.
-        if strCurrentVersion==strEntryVersion then
-          fNotThereYet = false
-        else
-          -- The version differs.
-          error(string.format('More than one version found for %s/%s/%s: %s and %s .', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.strCurrentVersion, strEntryVersion))
+  if uiParentID==nil then
+    self.tLogger:debug('[COLLECT]: %s is the root artifact. Do not add it to the collect list.', strGMA)
+  else
+    -- Do not add doubles.
+    if tResolv.fIsDouble==true then
+      -- TODO: add a reference to the report so that the dependency tree can be displayed correctly.
+      self.tLogger:debug('[COLLECT]: %s was already processed.', strGMA)
+
+    else
+      -- Get the artifact configuration.
+      local cArtifact = atV.cArtifact
+      local strVersion = cArtifact.tInfo.tVersion:get()
+
+      for _, tAttr in pairs(atArtifacts) do
+        local tInfoCnt = tAttr.cArtifact.tInfo
+        -- Compare the group, module and artifact.
+        if strGroup==tInfoCnt.strGroup and strModule==tInfoCnt.strModule and strArtifact==tInfoCnt.strArtifact then
+          -- The GMA is already in the list.
+
+          -- Get the entries version.
+          local strEntryVersion = tInfoCnt.tVersion:get()
+
+          self.tLogger:error('[COLLECT]: More than one instance found for %s: %s and %s .', strGMA, strVersion, strEntryVersion)
+          error('Internal error!')
         end
       end
-    end
 
-    if fNotThereYet==true then
+      -- Write the artifact to the report.
+      cArtifact:writeToReport(self.tReport, string.format('artifacts/artifact@id=%d@parent=%s', uiID, strParentID))
+
+      self.tLogger:debug('[COLLECT]: Found dependency %s/%s.', strGMA, strVersion)
+
       local tAttr = {
         ['cArtifact'] = cArtifact,
         ['strArtifactPath'] = nil
@@ -699,11 +859,15 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
     end
   end
 
-  -- Loop over all dependencies.
-  local atDependencies = atV.atDependencies
-  if atDependencies~=nil then
-    for _, tDependency in pairs(atDependencies) do
-      self:get_all_dependencies(tDependency, atArtifacts, uiID)
+  -- Loop over the dependencies of this artifact if this is no double.
+  if tResolv.fIsDouble==false then
+    self.tLogger:debug('[COLLECT]: Processing dependencies for %s.', strGMA)
+
+    local atDependencies = atV.atDependencies
+    if atDependencies~=nil then
+      for _, tDependency in pairs(atDependencies) do
+        self:get_all_dependencies(tDependency, atArtifacts, uiID)
+      end
     end
   end
 
