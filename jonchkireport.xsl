@@ -18,6 +18,7 @@
 #system,
 #project,
 #artifacts,
+#statistics,
 #main {
 	display: block;
 	border-width: medium;
@@ -34,7 +35,8 @@
 #repository,
 #artifacts_overview,
 #artifact_details,
-#artifact_dependencies {
+#artifact_dependencies,
+#statistics_repository {
 	display: table;
 	padding: 1em;
 }
@@ -44,7 +46,8 @@
 #repository_caption,
 #artifacts_overview_caption,
 #artifact_details_caption,
-#artifact_dependencies_caption {
+#artifact_dependencies_caption,
+#statistics_caption {
 	display: table-caption;
 }
 
@@ -53,7 +56,8 @@
 #repository_content_body,
 #artifacts_overview_content_body,
 #artifact_details_content_body,
-#artifact_dependencies_content_body {
+#artifact_dependencies_content_body,
+#statistics_repository_content_body {
 	border-width: medium;
 	border-style: solid;
 	border-color: black;
@@ -65,7 +69,8 @@
 #repository_content_row,
 #artifacts_overview_content_row,
 #artifact_details_content_row,
-#artifact_dependencies_content_row {
+#artifact_dependencies_content_row,
+#statistics_repository_content_row {
 	display: table-row;
 }
 
@@ -74,7 +79,8 @@
 #repository_content_key,
 #artifacts_overview_content_key,
 #artifact_details_content_key,
-#artifact_dependencies_content_key {
+#artifact_dependencies_content_key,
+#statistics_repository_content_key {
 	display: table-cell;
 	font-weight: bold;
 	padding-right: 1em;
@@ -85,7 +91,8 @@
 #repository_content_value,
 #artifacts_overview_content_value,
 #artifact_details_content_value,
-#artifact_dependencies_content_value {
+#artifact_dependencies_content_value,
+#statistics_repository_content_value {
 	display: table-cell;
 	padding-right: 1em;
 }
@@ -385,6 +392,44 @@
 </xsl:template>
 
 
+<xsl:template name="statistics">
+	<div id="statistics">
+		<a name="statistics"/>
+		<div id="statistics_caption">Statistics</div>
+
+		<div id="statistics_repository">
+			<div id="statistics_repository_caption">Repositories</div>
+			<div id="statistics_repository_content_body">
+				<div id="statistics_repository_content_row">
+					<div id="statistics_repository_content_key">ID</div>
+					<div id="statistics_repository_content_key">Config Requests OK</div>
+					<div id="statistics_repository_content_key">Config Requests Error</div>
+					<div id="statistics_repository_content_key">Artifact Requests OK</div>
+					<div id="statistics_repository_content_key">Artifact Requests Error</div>
+					<div id="statistics_repository_content_key">Served Config</div>
+					<div id="statistics_repository_content_key">Served Config Hash</div>
+					<div id="statistics_repository_content_key">Served Artifact</div>
+					<div id="statistics_repository_content_key">Served Artifact Hash</div>
+				</div>
+				<xsl:for-each select="statistics/repository">
+					<div id="statistics_repository_content_row">
+						<div id="statistics_repository_content_value"><xsl:value-of select="@id"/></div>
+						<div id="statistics_repository_content_value"><xsl:value-of select="requests/configuration/success"/></div>
+						<div id="statistics_repository_content_value"><xsl:value-of select="requests/configuration/error"/></div>
+						<div id="statistics_repository_content_value"><xsl:value-of select="requests/artifact/success"/></div>
+						<div id="statistics_repository_content_value"><xsl:value-of select="requests/artifact/error"/></div>
+						<div id="statistics_repository_content_value"><xsl:value-of select="served_bytes/configuration"/></div>
+						<div id="statistics_repository_content_value"><xsl:value-of select="served_bytes/configuration_hash"/></div>
+						<div id="statistics_repository_content_value"><xsl:value-of select="served_bytes/artifact"/></div>
+						<div id="statistics_repository_content_value"><xsl:value-of select="served_bytes/artifact_hash"/></div>
+					</div>
+				</xsl:for-each>
+			</div>
+		</div>
+	</div>
+</xsl:template>
+
+
 <xsl:template match="JonchkiReport">
 	<div id="main">
 		<h1>Jonchki report for <xsl:call-template name="project_gmav"/></h1>
@@ -394,11 +439,13 @@
 		<b><big><a href="#system">System Information</a></big></b><br/>
 		<b><big><a href="#project">Project Configuration</a></big></b><br/>
 		<b><big><a href="#artifacts">Artifacts</a></big></b><br/>
+		<b><big><a href="#statistics">Statistics</a></big></b><br/>
 	</div>
 	
 	<xsl:call-template name="system"/>
 	<xsl:call-template name="project"/>
 	<xsl:call-template name="artifacts"/>
+	<xsl:call-template name="statistics"/>
 </xsl:template>
 
 </xsl:stylesheet>
