@@ -821,6 +821,11 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
   -- Do not add the root artifact.
   if uiParentID==nil then
     self.tLogger:debug('[COLLECT]: %s is the root artifact. Do not add it to the collect list.', strGMA)
+    -- Expect that the root artifact is no double.
+    local cArtifact = atV.cArtifact
+    -- List the root artifact in the report.
+    cArtifact:writeToReport(self.tReport, string.format('artifacts/artifact@id=%d@parent=%s', uiID, strParentID))
+
   else
     -- Do not add doubles.
     if tResolv.fIsDouble==true then
