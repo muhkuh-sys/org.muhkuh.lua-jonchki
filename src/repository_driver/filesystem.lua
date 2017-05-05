@@ -142,7 +142,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
       self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
     else
       -- Get the hash sum.
-      tResult, strError = self.pl.util.readfile(strHashPath, false)
+      tResult, strError = self.pl.utils.readfile(strHashPath, false)
       if tResult==nil then
         self.tLogger:error('Failed to get the hash sum of "%s": %s', strCfgPath, strError)
         self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
