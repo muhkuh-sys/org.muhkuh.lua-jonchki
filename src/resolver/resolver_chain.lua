@@ -135,14 +135,14 @@ end
 
 
 
-function ResolverChain:show_statistics()
+function ResolverChain:show_statistics(cReport)
   if self.cCache~=nil then
-    self.cCache:show_statistics()
+    self.cCache:show_statistics(cReport)
   end
 
   -- Loop over all repository drivers and show the statistics.
   for _, tRepositoryDriver in pairs(self.atResolverChain) do
-    tRepositoryDriver:show_statistics()
+    tRepositoryDriver:show_statistics(cReport)
   end
 end
 

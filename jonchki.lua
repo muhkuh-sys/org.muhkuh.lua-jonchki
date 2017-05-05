@@ -258,7 +258,7 @@ else
 end
 
 -- Show some statistics.
-cResolverChain:show_statistics()
+cResolverChain:show_statistics(cReport)
 
 cLogger:info('All OK!')
 cReport:write()

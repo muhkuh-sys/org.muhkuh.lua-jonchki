@@ -785,9 +785,16 @@ end
 
 
 
-function Cache:show_statistics()
+function Cache:show_statistics(cReport)
   self.tLogger:info('%s Configuration requests: %d hit / %d miss / %d bytes served', self.strLogID, self.uiStatistics_RequestsConfigHit, self.uiStatistics_RequestsConfigMiss, self.uiStatistics_ServedBytesConfig)
   self.tLogger:info('%s Artifact requests: %d hit / %d miss / %d bytes served', self.strLogID, self.uiStatistics_RequestsArtifactHit, self.uiStatistics_RequestsArtifactMiss, self.uiStatistics_ServedBytesArtifact)
+
+  cReport:addData(string.format('statistics/cache@id=%s/requests/configuration/hit', self.strID), self.uiStatistics_RequestsConfigHit)
+  cReport:addData(string.format('statistics/cache@id=%s/requests/configuration/miss', self.strID), self.uiStatistics_RequestsConfigMiss)
+  cReport:addData(string.format('statistics/cache@id=%s/served_bytes/configuration', self.strID), self.uiStatistics_ServedBytesConfig)
+  cReport:addData(string.format('statistics/cache@id=%s/requests/artifact/hit', self.strID), self.uiStatistics_RequestsArtifactHit)
+  cReport:addData(string.format('statistics/cache@id=%s/requests/artifact/miss', self.strID), self.uiStatistics_RequestsArtifactMiss)
+  cReport:addData(string.format('statistics/cache@id=%s/served_bytes/artifact', self.strID), self.uiStatistics_ServedBytesArtifact)
 end
 
 

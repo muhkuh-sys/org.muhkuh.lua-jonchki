@@ -91,11 +91,20 @@ end
 
 
 
-function RepositoryDriver:show_statistics()
+function RepositoryDriver:show_statistics(cReport)
   local strLogID = string.format('[Repository "%s"] ', self:get_id())
   self.tLogger:info('%s Version scans: %d', strLogID, self.uiStatistics_VersionScans)
   self.tLogger:info('%s Configuration requests: %d success / %d error . %d bytes data and %d bytes hash served', strLogID, self.uiStatistics_GetConfiguration_Success, self.uiStatistics_GetConfiguration_Error, self.uiStatistics_ServedBytesConfig, self.uiStatistics_ServedBytesConfigHash)
   self.tLogger:info('%s Artifact requests: %d success / %d error . %d bytes data and %d bytes hash served', strLogID, self.uiStatistics_GetArtifact_Success, self.uiStatistics_GetArtifact_Error, self.uiStatistics_ServedBytesArtifact, self.uiStatistics_ServedBytesArtifactHash)
+
+  cReport:addData(string.format('statistics/repository@id=%s/requests/configuration/success', self.strID), self.uiStatistics_GetConfiguration_Success)
+  cReport:addData(string.format('statistics/repository@id=%s/requests/configuration/error', self.strID), self.uiStatistics_GetConfiguration_Error)
+  cReport:addData(string.format('statistics/repository@id=%s/served_bytes/configuration', self.strID), self.uiStatistics_ServedBytesConfig)
+  cReport:addData(string.format('statistics/repository@id=%s/served_bytes/configuration_hash', self.strID), self.uiStatistics_ServedBytesConfigHash)
+  cReport:addData(string.format('statistics/repository@id=%s/requests/artifact/success', self.strID), self.uiStatistics_GetArtifact_Success)
+  cReport:addData(string.format('statistics/repository@id=%s/requests/artifact/error', self.strID), self.uiStatistics_GetArtifact_Error)
+  cReport:addData(string.format('statistics/repository@id=%s/served_bytes/artifact', self.strID), self.uiStatistics_ServedBytesArtifact)
+  cReport:addData(string.format('statistics/repository@id=%s/served_bytes/artifact_hash', self.strID), self.uiStatistics_ServedBytesArtifactHash)
 end
 
 
