@@ -15,6 +15,12 @@
 	font-size: medium;
 }
 
+.dependency_tree_indent {
+	display: inline;
+	font-weight: bold;
+	font-family: monospace;
+}
+
 #system,
 #project,
 #artifacts,
@@ -284,10 +290,10 @@
 <xsl:template name="artifact_tree">
 	<xsl:param name="start_id"/>
 	<xsl:param name="indent"/>
-	<xsl:for-each select="/JonchkiReport/artifacts/artifact[@parent=$start_id]">
+	<xsl:for-each select="/JonchkiReport/artifacts/artifact[parent=$start_id]">
 		<xsl:sort select="@id" order="ascending" data-type="number"/>
 		<div id="artifact_dependencies_content_row">
-			<div id="artifact_dependencies_content_value"><xsl:value-of select="concat($indent,info/group)"/></div>
+			<div id="artifact_dependencies_content_value"><div class="dependency_tree_indent"><xsl:value-of select="$indent"/></div><xsl:value-of select="info/group"/></div>
 			<div id="artifact_dependencies_content_value"><xsl:value-of select="info/module"/></div>
 			<div id="artifact_dependencies_content_value"><xsl:value-of select="info/artifact"/></div>
 			<div id="artifact_dependencies_content_value"><xsl:value-of select="info/version"/></div>
@@ -318,16 +324,10 @@
 					<div id="artifacts_overview_content_key">Version</div>
 					<div id="artifacts_overview_content_key">VCS version</div>
 				</div>
-				<xsl:for-each select="artifacts/artifact">
-					<xsl:sort select="@id" order="ascending" data-type="number"/>
-					<div id="artifacts_overview_content_row">
-						<div id="artifacts_overview_content_value"><xsl:value-of select="info/group"/></div>
-						<div id="artifacts_overview_content_value"><xsl:value-of select="info/module"/></div>
-						<div id="artifacts_overview_content_value"><xsl:value-of select="info/artifact"/></div>
-						<div id="artifacts_overview_content_value"><xsl:value-of select="info/version"/></div>
-						<div id="artifacts_overview_content_value"><div id="vcs_id"><xsl:value-of select="info/vcs_id"/></div></div>
-					</div>
-				</xsl:for-each>
+				<xsl:call-template name="artifact_tree">
+					<xsl:with-param name="start_id" select="'none'"/>
+					<xsl:with-param name="indent" select="''"/>
+				</xsl:call-template>
 			</div>
 		</div>
 
@@ -374,7 +374,7 @@
 							<div id="artifact_dependencies_content_key">VCS version</div>
 						</div>
 						<xsl:choose>
-							<xsl:when test="count(/JonchkiReport/artifacts/artifact[@parent=current()/@id])=0">
+							<xsl:when test="count(/JonchkiReport/artifacts/artifact[parent=current()/@id])=0">
 								None.
 							</xsl:when>
 							<xsl:otherwise>

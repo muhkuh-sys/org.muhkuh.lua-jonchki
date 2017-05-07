@@ -182,16 +182,16 @@ function Resolver:_add_to_used_artifacts(tResolvEntry)
     local atGMA = self.atUsedArtifacts[strKeyGMA]
     if atGMA==nil then
       self.tLogger:debug('[RESOLVE] Adding %s to the list of used artifacts.', strKeyGMA)
-  
+
       atGMA = {}
       atGMA.tVersion = tCurrentVersion
       atGMA.atSources = {}
       table.insert(atGMA.atSources, atV)
-  
+
       self.atUsedArtifacts[strKeyGMA] = atGMA
     else
       self.tLogger:debug('[RESOLVE] %s already exists in the list of used artifacts.', strKeyGMA)
-  
+
       -- Compare the versions.
       local strExistingVersion = atGMA.tVersion:get()
       if strCurrentVersion~=strExistingVersion then
@@ -199,7 +199,7 @@ function Resolver:_add_to_used_artifacts(tResolvEntry)
         error('Internal error!')
       else
         -- The version matches, add the version structure to the list of sources.
-        table.insert(atGMA.atSources, atV) 
+        table.insert(atGMA.atSources, atV)
       end
     end
   end
@@ -788,10 +788,48 @@ end
 
 
 
+function Resolver:assign_id_recursive(tResolv, uiID, atIdTab)
+  local strGroup = tResolv.strGroup
+  local strModule = tResolv.strModule
+  local strArtifact = tResolv.strArtifact
+  local strGMA = string.format('%s/%s/%s', strGroup, strModule, strArtifact)
+
+  -- Do not process doubles.
+  if tResolv.fIsDouble==false then
+    -- Get the active version.
+    local atV = tResolv.ptActiveVersion
+    if tResolv.fIsDouble==false and atV==nil then
+      self.tLogger:error('[COLLECT]: %s is no double, but has no active version.', strGMA)
+      error('internal error')
+    end
+
+    -- The resolv entry must have no ID yet.
+    if tResolv.uiID~=nil then
+      self.tLogger:error('[COUNTING]: %s has already the ID %d.', strGMA, tResolv.uiID)
+      error('internal error')
+    end
+
+    -- Assign the ID to the resolv entry.
+    self.tLogger:debug('[COUNTING]: Assign ID %d to %s.', uiID, strGMA)
+    tResolv.uiID = uiID
+    atIdTab[strGMA] = uiID
+
+    self.tLogger:debug('[COUNTING]: Processing dependencies for %s.', strGMA)
+    local atDependencies = atV.atDependencies
+    if atDependencies~=nil then
+      for _, tDependency in pairs(atDependencies) do
+        uiID = uiID + 1
+        self:assign_id_recursive(tDependency, uiID, atIdTab)
+      end
+    end
+  end
+end
+
+
+
 -- Get all dependencies. This is a list of all artifacts except the root in the resolve table.
-function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
-  tResolv = tResolv or self.atResolvTab
-  atArtifacts = atArtifacts or {}
+function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, strParent)
+  strParent = strParent or 'none'
 
   local strGroup = tResolv.strGroup
   local strModule = tResolv.strModule
@@ -805,26 +843,37 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
     error('internal error')
   end
 
-  -- Get a unique ID and the parent ID.
-  local uiID, strParentID
-  if uiParentID==nil then
-    -- This is the root artifact. It has the ID 0 and no parent.
-    uiID = 0
-    strParentID = ''
+  -- Get the entries ID.
+  local uiID
+  -- Doubles do not have IDs assigned to them.
+  if tResolv.fIsDouble==true then
+    uiID = atIdTab[strGMA]
+    if uiID==nil then
+      self.tLogger:fatal('[COLLECT]: The double %s is not part of the atIdTab.', strGMA)
+      error('internal error')
+    end
   else
-    -- This is not the root artifact.
-    uiID = #atArtifacts + 1
-    strParentID = tostring(uiParentID)
+    uiID = tResolv.uiID
+    if uiID==nil then
+      self.tLogger:fatal('[COLLECT]: The ID of %s is not set and it is not a double.', strGMA)
+      error('internal error')
+    end
   end
   self.tLogger:debug('[COLLECT]: Processing %s with ID %d.', strGMA, uiID)
+  local strReportPath = string.format('artifacts/artifact@id=%d', uiID)
+
+  -- Set the parent ID.
+  -- NOTE: As the "Report" module can only handle unique paths, the ID is set
+  --       as the attribute in the path and the leaf value.
+  self.tReport:addData(string.format('%s/parent@id=%s', strReportPath, strParent), strParent)
 
   -- Do not add the root artifact.
-  if uiParentID==nil then
+  if uiID==0 then
     self.tLogger:debug('[COLLECT]: %s is the root artifact. Do not add it to the collect list.', strGMA)
     -- Expect that the root artifact is no double.
     local cArtifact = atV.cArtifact
     -- List the root artifact in the report.
-    cArtifact:writeToReport(self.tReport, string.format('artifacts/artifact@id=%d@parent=%s', uiID, strParentID))
+    cArtifact:writeToReport(self.tReport, strReportPath)
 
   else
     -- Do not add doubles.
@@ -837,6 +886,7 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
       local cArtifact = atV.cArtifact
       local strVersion = cArtifact.tInfo.tVersion:get()
 
+      -- NOTE: This is only a safety check, that no artifact is added twice.
       for _, tAttr in pairs(atArtifacts) do
         local tInfoCnt = tAttr.cArtifact.tInfo
         -- Compare the group, module and artifact.
@@ -852,7 +902,7 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
       end
 
       -- Write the artifact to the report.
-      cArtifact:writeToReport(self.tReport, string.format('artifacts/artifact@id=%d@parent=%s', uiID, strParentID))
+      cArtifact:writeToReport(self.tReport, strReportPath)
 
       self.tLogger:debug('[COLLECT]: Found dependency %s/%s.', strGMA, strVersion)
 
@@ -871,12 +921,30 @@ function Resolver:get_all_dependencies(tResolv, atArtifacts, uiParentID)
     local atDependencies = atV.atDependencies
     if atDependencies~=nil then
       for _, tDependency in pairs(atDependencies) do
-        self:get_all_dependencies(tDependency, atArtifacts, uiID)
+        self:get_all_dependencies_recursive(tDependency, atArtifacts, atIdTab, tostring(uiID))
       end
     end
   end
 
   -- Return the list of artifacts.
+  return atArtifacts
+end
+
+
+
+function Resolver:get_all_dependencies()
+  -- Start at the root element of the resolv table.
+  local tResolvRoot = self.atResolvTab
+  -- Collect all ID assignments in this table.
+  local atIdTab = {}
+
+  -- Assign a running number to all used artifacts.
+  -- This must be done before building the link chain.
+  self:assign_id_recursive(tResolvRoot, 0, atIdTab)
+
+  -- Collect all artifacts and build the link information in the report.
+  local atArtifacts = self:get_all_dependencies_recursive(tResolvRoot, {}, atIdTab)
+
   return atArtifacts
 end
 
