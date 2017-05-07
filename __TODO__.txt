@@ -46,3 +46,7 @@ DONE
 
 * Change the Logger to a ReportWriter. This should produce something like the IVY report file.
 
+* Better linking for the report.
+The report is currently building the tree of artifacts with the "id" and "parentID" attributes.
+This is no longer working since double artifacts are just references to existing ones.
+One artifact can have multiple parents.
