@@ -13,12 +13,6 @@ Wann: Beim kompletten rebuild der DB und wenn ein Fehler festgestellt wurde (z.B
 
 * Bei Fehler Eintrag aus der DB schmeißen
 
-* Hash in .hash Datei speichern. Da stehen 1 oder mehrere Zeilen drin, die die folgende Form haben:
-   <HASH_ID>:<HASH>
-  z.B.
-   SHA1:0123456...
-   SHA384:0123456...
-
 * Artifact mit luaarchive entpacken -> mehrere Formate möglich, z.B. .tar.xz
 
 * luaarchive im Installer bereitstellen, um Archive erstellen zu können
@@ -43,6 +37,15 @@ Be careful to create something which will also work with other resolvers than "e
 
 DONE
 ----
+
+* If an artifact is present multiple times in the dependency tree, the version scan is executed each time.
+It should be executed only once instead.
+
+* Hash in .hash Datei speichern. Da stehen 1 oder mehrere Zeilen drin, die die folgende Form haben:
+   <HASH_ID>:<HASH>
+  z.B.
+   SHA1:0123456...
+   SHA384:0123456...
 
 * Change the Logger to a ReportWriter. This should produce something like the IVY report file.
 
