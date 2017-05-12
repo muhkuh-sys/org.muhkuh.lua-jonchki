@@ -319,7 +319,11 @@ end
 
 
 
-function Resolver:add_versions_from_repositories(tResolv, strGroup, strModule, strArtifact)
+function Resolver:add_versions_from_repositories(tResolv)
+  local strGroup = tResolv.strGroup
+  local strModule = tResolv.strModule
+  local strArtifact = tResolv.strArtifact
+
   -- Add all members of the set as new versions.
   local atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
   self:resolvtab_add_versions(tResolv, atNewVersions)
@@ -466,7 +470,7 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
       local strModule = tDependency.strModule
       local strArtifact = tDependency.strArtifact
       local tResolv = self:resolvtab_create_entry(strGroup, strModule, strArtifact, tResolvEntry)
-      self:add_versions_from_repositories(tResolv, strGroup, strModule, strArtifact)
+      self:add_versions_from_repositories(tResolv)
 
       -- Was this artifact used before?
       local tExistingVersion = self:_get_used_artifact(tResolv)
