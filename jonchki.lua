@@ -44,6 +44,10 @@ tParser:option('-f --finalizer')
   :argname('<SCRIPT>')
   :default(nil)
   :target('strFinalizerScript')
+tParser:flag('-n --no-cache')
+  :description('Do not use a cache, even if repositories are marked as cacheable.')
+  :default(false)
+  :target('fNoCache')
 tParser:option('-p --prjcfg')
   :description('Load the project configuration from FILE.')
   :argname('<FILE>')
@@ -182,13 +186,17 @@ end
 -- Create the cache.
 -- Set the cache ID to "main".
 --
-local Cache = require 'cache.cache'
-local cCache = Cache(cLogger, 'main')
-tResult = cCache:configure(cSysCfg.tConfiguration.cache)
-if tResult==nil then
-  cLogger:fatal('Failed to open the cache!')
-  cReport:write()
-  os.exit(1)
+if tArgs.fNoCache==true then
+  cLogger:info('Do not use a cache as requested.')
+else
+  local Cache = require 'cache.cache'
+  local cCache = Cache(cLogger, 'main')
+  tResult = cCache:configure(cSysCfg.tConfiguration.cache)
+  if tResult==nil then
+    cLogger:fatal('Failed to open the cache!')
+    cReport:write()
+    os.exit(1)
+  end
 end
 
 
@@ -198,7 +206,9 @@ end
 --
 local ResolverChain = require 'resolver.resolver_chain'
 local cResolverChain = ResolverChain(cLogger, cSysCfg, 'default')
-cResolverChain:set_cache(cCache)
+if tArgs.fNoCache~=true then
+  cResolverChain:set_cache(cCache)
+end
 cResolverChain:set_repositories(cPrjCfg.atRepositories)
 
 
