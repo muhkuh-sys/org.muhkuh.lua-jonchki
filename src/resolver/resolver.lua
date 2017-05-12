@@ -324,8 +324,22 @@ function Resolver:add_versions_from_repositories(tResolv)
   local strModule = tResolv.strModule
   local strArtifact = tResolv.strArtifact
 
-  -- Add all members of the set as new versions.
-  local atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
+  local atNewVersions = {}
+
+  -- Was this artifact used before?
+  local tExistingVersion = self:_get_used_artifact(tResolv)
+  if tExistingVersion~=nil then
+    -- If the artifact was used before, a version is already selected.
+    -- Do not change a previously selected version as it might affect the
+    -- path leading to the current situation.
+
+    table.insert(atNewVersions, tExistingVersion)
+  else
+    -- Add all members of the set as new versions.
+    atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
+  end
+
+  -- Append all available versions.
   self:resolvtab_add_versions(tResolv, atNewVersions)
 end
 
@@ -458,7 +472,7 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
     else
       atDependencies = atDependencyGroup.atDependencies
     end
-    
+
     -- Create a new empty dependency list.
     atV.atDependencies = {}
     atV.ptBlockingConstraint = nil
@@ -472,6 +486,7 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
       local tResolv = self:resolvtab_create_entry(strGroup, strModule, strArtifact, tResolvEntry)
       self:add_versions_from_repositories(tResolv)
 
+      -- FIXME: Is this really necessary? The version was already filtered in add_versions_from_repositories.
       -- Was this artifact used before?
       local tExistingVersion = self:_get_used_artifact(tResolv)
       if tExistingVersion~=nil then
