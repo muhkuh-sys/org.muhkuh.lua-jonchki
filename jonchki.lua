@@ -1,5 +1,6 @@
 local function jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
-  local tResult
+  -- Be pessimistic.
+  local tResult = false
 
   -----------------------------------------------------------------------------
   --
@@ -30,138 +31,129 @@ local function jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
   if fPlatformInfoIsValid~=true then
     -- The platform information is not valid.
     cLogger:fatal('The platform information is not valid!')
-    return false
-  end
-
-
-  -----------------------------------------------------------------------------
-  --
-  -- Add the platform dependant modules.
-  --
-  local strHostPlatformID = cPlatform:get_host_id()
-  local strHostPlatformCPath = string.format('%s/?.%s', pl.path.join(strScriptPath, 'lua_plugins', strHostPlatformID), cPlatform.strHostModuleExtension)
-  cLogger:debug('Adding to cpath: "%s"', strHostPlatformCPath)
-  package.cpath = package.cpath .. ';' .. strHostPlatformCPath
-
-
-  -----------------------------------------------------------------------------
-  --
-  -- Read the system configuration.
-  --
-  local SystemConfiguration = require 'SystemConfiguration'
-  -- Create a configuration object.
-  local cSysCfg = SystemConfiguration(cLogger, cReport, tArgs.fInstallBuildDependencies)
-  -- Read the settings from 'demo.cfg'.
-  tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
-  if tResult==nil then
-    cLogger:fatal('Failed to parse the system configuration!')
-    return false
-  end
-  -- Check if all paths exist. Try to create them. Clean the depack and the install folders.
-  tResult = cSysCfg:initialize_paths()
-  if tResult==nil then
-    cLogger:fatal('Failed to initialize the paths!')
-    return false
-  end
-
-
-  -----------------------------------------------------------------------------
-  --
-  -- Read the project configuration.
-  --
-  local ProjectConfiguration = require 'ProjectConfiguration'
-  local cPrjCfg = ProjectConfiguration(cLogger, cReport)
-  tResult = cPrjCfg:parse_configuration(tArgs.strProjectConfigurationFile)
-  if tResult==nil then
-    cLogger:fatal('Failed to parse the project configuration!')
-    return false
-  end
-
-
-  -----------------------------------------------------------------------------
-  --
-  -- Create the cache.
-  -- Set the cache ID to "main".
-  --
-  if tArgs.fNoCache==true then
-    cLogger:info('Do not use a cache as requested.')
   else
-    local Cache = require 'cache.cache'
-    local cCache = Cache(cLogger, 'main')
-    tResult = cCache:configure(cSysCfg.tConfiguration.cache)
+    -----------------------------------------------------------------------------
+    --
+    -- Add the platform dependant modules.
+    --
+    local strHostPlatformID = cPlatform:get_host_id()
+    local strHostPlatformCPath = string.format('%s/?.%s', pl.path.join(strScriptPath, 'lua_plugins', strHostPlatformID), cPlatform.strHostModuleExtension)
+    cLogger:debug('Adding to cpath: "%s"', strHostPlatformCPath)
+    package.cpath = package.cpath .. ';' .. strHostPlatformCPath
+
+
+    -----------------------------------------------------------------------------
+    --
+    -- Read the system configuration.
+    --
+    local SystemConfiguration = require 'SystemConfiguration'
+    -- Create a configuration object.
+    local cSysCfg = SystemConfiguration(cLogger, cReport, tArgs.fInstallBuildDependencies)
+    -- Read the settings from 'demo.cfg'.
+    tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
     if tResult==nil then
-      cLogger:fatal('Failed to open the cache!')
-      return false
-    end
-  end
-
-
-  -----------------------------------------------------------------------------
-  --
-  -- Create the resolver chain.
-  --
-  local ResolverChain = require 'resolver.resolver_chain'
-  local cResolverChain = ResolverChain(cLogger, cSysCfg, 'default')
-  if tArgs.fNoCache~=true then
-    cResolverChain:set_cache(cCache)
-  end
-  cResolverChain:set_repositories(cPrjCfg.atRepositories)
-
-
-  -----------------------------------------------------------------------------
-  --
-  -- Read the artifact configuration.
-  --
-  local ArtifactConfiguration = require 'ArtifactConfiguration'
-  local cArtifactCfg = ArtifactConfiguration(cLogger)
-  tResult = cArtifactCfg:parse_configuration_file(tArgs.strInputFile)
-  if tResult~=true then
-    cLogger:fatal('Failed to parse the artifact configuration!')
-    return false
-  end
-
-  -----------------------------------------------------------------------------
-  --
-  -- Create the resolver.
-  --
-  local Resolver = require 'resolver.resolver'
-  local tResolver = Resolver(cLogger, cReport, 'default', tArgs.fInstallBuildDependencies)
-  -- Create all policy lists.
-  tResult = tResolver:load_policies(cPrjCfg)
-  if tResult~=true then
-    cLogger:fatal('Failed to create all policy lists.')
-    return false
-  else
-    -- Resolve all dependencies.
-    tResolver:setResolverChain(cResolverChain)
-    local tStatus = tResolver:resolve(cArtifactCfg)
-    if tStatus~=true then
-      cLogger:fatal('Failed to resolve all dependencies.')
-      return false
+      cLogger:fatal('Failed to parse the system configuration!')
     else
-      local atArtifacts = tResolver:get_all_dependencies()
-
-      -- Download and depack all dependencies.
-      tResult = cResolverChain:retrieve_artifacts(atArtifacts)
+      -- Check if all paths exist. Try to create them. Clean the depack and the install folders.
+      tResult = cSysCfg:initialize_paths()
       if tResult==nil then
-        cLogger:fatal('Failed to retrieve all artifacts.')
-        return false
+        cLogger:fatal('Failed to initialize the paths!')
       else
-        local Installer = require 'installer.installer'
-        local cInstaller = Installer(cLogger, cSysCfg)
-        tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
+        -----------------------------------------------------------------------------
+        --
+        -- Read the project configuration.
+        --
+        local ProjectConfiguration = require 'ProjectConfiguration'
+        local cPrjCfg = ProjectConfiguration(cLogger, cReport)
+        tResult = cPrjCfg:parse_configuration(tArgs.strProjectConfigurationFile)
         if tResult==nil then
-          cLogger:fatal('Failed to install all artifacts.')
-          return false
+          cLogger:fatal('Failed to parse the project configuration!')
+        else
+          -----------------------------------------------------------------------------
+          --
+          -- Create the cache.
+          -- Set the cache ID to "main".
+          --
+          if tArgs.fNoCache==true then
+            cLogger:info('Do not use a cache as requested.')
+            tResult = true
+          else
+            local Cache = require 'cache.cache'
+            local cCache = Cache(cLogger, 'main')
+            tResult = cCache:configure(cSysCfg.tConfiguration.cache)
+            if tResult==nil then
+              cLogger:fatal('Failed to open the cache!')
+            end
+          end
+          if tResult==true then
+            -----------------------------------------------------------------------------
+            --
+            -- Create the resolver chain.
+            --
+            local ResolverChain = require 'resolver.resolver_chain'
+            local cResolverChain = ResolverChain(cLogger, cSysCfg, 'default')
+            if tArgs.fNoCache~=true then
+              cResolverChain:set_cache(cCache)
+            end
+            cResolverChain:set_repositories(cPrjCfg.atRepositories)
+
+
+            -----------------------------------------------------------------------------
+            --
+            -- Read the artifact configuration.
+            --
+            local ArtifactConfiguration = require 'ArtifactConfiguration'
+            local cArtifactCfg = ArtifactConfiguration(cLogger)
+            tResult = cArtifactCfg:parse_configuration_file(tArgs.strInputFile)
+            if tResult~=true then
+              cLogger:fatal('Failed to parse the artifact configuration!')
+            else
+              -----------------------------------------------------------------------------
+              --
+              -- Create the resolver.
+              --
+              local Resolver = require 'resolver.resolver'
+              local tResolver = Resolver(cLogger, cReport, 'default', tArgs.fInstallBuildDependencies)
+              -- Create all policy lists.
+              tResult = tResolver:load_policies(cPrjCfg)
+              if tResult~=true then
+                cLogger:fatal('Failed to create all policy lists.')
+              else
+                -- Resolve all dependencies.
+                tResolver:setResolverChain(cResolverChain)
+                local tStatus = tResolver:resolve(cArtifactCfg)
+                if tStatus~=true then
+                  cLogger:fatal('Failed to resolve all dependencies.')
+                else
+                  local atArtifacts = tResolver:get_all_dependencies()
+
+                  -- Download and depack all dependencies.
+                  tResult = cResolverChain:retrieve_artifacts(atArtifacts)
+                  if tResult==nil then
+                    cLogger:fatal('Failed to retrieve all artifacts.')
+                  else
+                    local Installer = require 'installer.installer'
+                    local cInstaller = Installer(cLogger, cSysCfg)
+                    tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
+                    if tResult==nil then
+                      cLogger:fatal('Failed to install all artifacts.')
+                    else
+                      -- Show some statistics.
+                      cResolverChain:show_statistics(cReport)
+
+                      tResult = true
+                    end
+                  end
+                end
+              end
+            end
+          end
         end
       end
     end
   end
 
-  -- Show some statistics.
-  cResolverChain:show_statistics(cReport)
-
-  return true
+  return tResult
 end
 
 
