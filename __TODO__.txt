@@ -1,6 +1,26 @@
 TODO
 ----
 
+* Dump the complete Resolv Tree to the report.
+This is neccessary to examine error situations.
+
+The dump should happen at the end of the jonchki_core function regardless of the result in tResult.
+The representation in the report should be something like this:
+
+  a.b.c
+    v1.2.3: blocked
+      dependency group 0:
+        d.e.f:
+          v4.5.6: blocked
+            sha sum does not match
+          v4.5.7: ok
+        g.h.i:
+          v2.3.4: blocked
+
+
+
+
+
 * Cache max size einhalten
   Immer nach neuem Artifact oder Configuration testen.
 
@@ -37,6 +57,8 @@ Be careful to create something which will also work with other resolvers than "e
 
 DONE
 ----
+
+* Write the report even when an error occurs.
 
 * If an artifact is present multiple times in the dependency tree, the version scan is executed each time.
 It should be executed only once instead.
