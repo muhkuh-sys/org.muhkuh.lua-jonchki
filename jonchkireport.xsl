@@ -251,8 +251,12 @@
 				<div id="repository_caption">Repository <xsl:value-of select="concat('&quot;', id, '&quot;')"/></div>
 				<div id="repository_content_body">
 					<div id="repository_content_row">
-						<div id="repository_content_key">Type</div>
+						<div id="repository_content_key">type</div>
 						<div id="repository_content_value"><xsl:value-of select="type"/></div>
+					</div>
+					<div id="repository_content_row">
+						<div id="repository_content_key">cacheable</div>
+						<div id="repository_content_value"><xsl:value-of select="cacheable"/></div>
 					</div>
 					<div id="repository_content_row">
 						<div id="repository_content_key">root</div>

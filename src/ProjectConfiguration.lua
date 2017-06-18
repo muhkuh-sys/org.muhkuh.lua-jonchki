@@ -197,7 +197,7 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
       local strCurrentPolicyOverrideItem = aLxpAttr.strCurrentPolicyOverrideItem
       if aLxpAttr.atPolicyListOverrides[strCurrentPolicyOverrideItem] ~= nil then
         aLxpAttr.tResult = nil
-        aLxpAttr.tLogger:fatal('Error in line %d, col %d: overriding %s more than once', iPosLine, iPosColumn, strCurrentPolicyOverrideItem)        
+        aLxpAttr.tLogger:fatal('Error in line %d, col %d: overriding %s more than once', iPosLine, iPosColumn, strCurrentPolicyOverrideItem)
       else
         aLxpAttr.atPolicyListOverrides[strCurrentPolicyOverrideItem] = aLxpAttr.atCurrentPolicyOverrides
       end
@@ -306,6 +306,7 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
         for uiCnt, tRepository in ipairs(self.atRepositories) do
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/id', uiCnt), tRepository.strID)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/type', uiCnt), tRepository.strType)
+          self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/cacheable', uiCnt), tRepository.cacheable)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/root', uiCnt), tRepository.strRoot)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/versions', uiCnt), tRepository.strVersions)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/config', uiCnt), tRepository.strConfig)
