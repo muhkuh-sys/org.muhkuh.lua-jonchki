@@ -33,6 +33,9 @@ function Cache:_init(tLogger, strID)
   -- Initialize the path template string.
   self.strPathTemplate = nil
 
+  -- No maximum size set yet.
+  self.ulMaximumSize = nil
+
   -- Initialize the statistics.
   self.uiStatistics_RequestsConfigHit = 0
   self.uiStatistics_RequestsArtifactHit = 0
@@ -278,28 +281,23 @@ end
 
 
 
-function Cache:_database_add_configuration(cArtifact)
+function Cache:_database_add_configuration(tSQLDatabase, cArtifact)
   local tResult = nil
 
 
   local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
 
-  local tSQLDatabase = self.tSQLDatabase
-  if tSQLDatabase==nil then
-    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+  local tInfo = cArtifact.tInfo
+  local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
+
+  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize)
+
+  local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+  if tSqlResult==nil then
+    self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
   else
-    local tInfo = cArtifact.tInfo
-    local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
-    
-    local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize)
-    
-    local tSqlResult, strError = tSQLDatabase:execute(strQuery)
-    if tSqlResult==nil then
-      self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
-    else
-      tSQLDatabase:commit()
-      tResult = true
-    end
+    tSQLDatabase:commit()
+    tResult = true
   end
 
   return tResult
@@ -307,7 +305,7 @@ end
 
 
 
-function Cache:_database_add_artifact(cArtifact)
+function Cache:_database_add_artifact(tSQLDatabase, cArtifact)
   local tResult = nil
 
 
@@ -315,23 +313,20 @@ function Cache:_database_add_artifact(cArtifact)
   local strPathArtifact, strPathArtifactHash = self:_get_artifact_paths(cArtifact)
   local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
 
-  local tSQLDatabase = self.tSQLDatabase
-  if tSQLDatabase==nil then
-    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+  local tInfo = cArtifact.tInfo
+  self.tLogger:debug('%s Adding artifact %s/%s/%s V%s', self.strLogID, tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get())
+
+  local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
+  local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
+
+  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strArtifactPath, strArtifactHashPath, iArtifactSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strPathArtifact, strPathArtifactHash, iArtifactFileSize)
+
+  local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+  if tSqlResult==nil then
+    self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
   else
-    local tInfo = cArtifact.tInfo
-    local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
-    local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
-
-    local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strArtifactPath, strArtifactHashPath, iArtifactSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strPathArtifact, strPathArtifactHash, iArtifactFileSize)
-
-    local tSqlResult, strError = tSQLDatabase:execute(strQuery)
-    if tSqlResult==nil then
-      self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
-    else
-      tSQLDatabase:commit()
-      tResult = true
-    end
+    tSQLDatabase:commit()
+    tResult = true
   end
 
   return tResult
@@ -470,6 +465,8 @@ function Cache:_rebuild_complete_cache(tSQLDatabase)
   local tResult = true
 
 
+  self.tLogger:debug('%s Rebuilding cache from path "%s".', self.strLogID, self.strRepositoryRootPath)
+
   -- Loop over all files in the repository.
   for strRoot,astrDirs,astrFiles in self.pl.dir.walk(self.strRepositoryRootPath, false, true) do
     -- Loop over all files in the current directory.
@@ -478,8 +475,9 @@ function Cache:_rebuild_complete_cache(tSQLDatabase)
       local strFullPath = self.pl.path.join(strRoot, strFile)
       -- Get the extension of the file.
       local strExtension = self.pl.path.extension(strFullPath)
+
       -- Is this a configuration file?
-      if strExtension=='xml' then
+      if strExtension=='.xml' then
         -- Try to parse the file as a configuration.
         local cArtifact = self.ArtifactConfiguration()
         local tArtifactResult = cArtifact:parse_configuration_file(strFullPath)
@@ -516,9 +514,184 @@ function Cache:_rebuild_complete_cache(tSQLDatabase)
                   self.tLogger:debug('%s The hash for the artifact %s does not match.', self.strLogID, strGMAV)
                 else
                   -- Add it to the database.
-                  tResult = self:_database_add_artifact(cArtifact)
+                  tResult = self:_database_add_artifact(tSQLDatabase, cArtifact)
                   if tResult~=true then
                     self.tLogger:error('%s Failed to add the artifact %s to the database.', self.strLogID, strGMAV)
+                    break
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  self.tLogger:debug('%s Finished rebuilding the cache.', self.strLogID)
+  return tResult
+end
+
+
+
+--- Remove files from the cache which do not belong there.
+function Cache:_remove_odd_files(tSQLDatabase)
+  -- Be optimistic.
+  local tResult = true
+
+  -- Get the full path of the SQLITE3 database file. This one should not be removed.
+  local strDatabaseFilename = self.pl.path.join(self.strRepositoryRootPath, self.strDatabaseName)
+
+  self.tLogger:debug('%s Clean the cache by removing odd files from "%s".', self.strLogID, self.strRepositoryRootPath)
+
+  -- Loop over all files in the repository.
+  for strRoot,astrDirs,astrFiles in self.pl.dir.walk(self.strRepositoryRootPath, false, true) do
+    -- Loop over all files in the current directory.
+    for _,strFile in pairs(astrFiles) do
+      -- Get the full path of the file.
+      local strFullPath = self.pl.path.join(strRoot, strFile)
+
+      -- Keep the database file.
+      if strFullPath==strDatabaseFilename then
+        self.tLogger:debug('%s Keeping database file "%s".', self.strLogID, strDatabaseFilename)
+      else
+        -- Search the full path in the database.
+        local strQuery = string.format('SELECT COUNT(*) FROM cache WHERE strConfigurationPath="%s" OR strConfigurationHashPath="%s" OR strArtifactPath="%s" OR strArtifactHashPath="%s"', strFullPath, strFullPath, strFullPath, strFullPath)
+        local tCursor, strError = tSQLDatabase:execute(strQuery)
+        if tCursor==nil then
+          self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
+          tResult = nil
+          break
+        else
+          local atData = tCursor:fetch({})
+          if atData==nil then
+            self.tLogger:error('%s No result from database for query "%s".', self.strLogID, strQuery)
+            tCursor:close()
+            tResult = nil
+            break
+          else
+            -- Close the cursor.
+            tCursor:close()
+
+            local strResult = atData[1]
+            local iCnt = tonumber(strResult)
+            if iCnt==0 then
+              -- The path was not found in the database.
+              self.tLogger:debug('%s Removing stray file "%s".', self.strLogID, strFullPath)
+              local tDeleteResult, strError = self.pl.file.delete(strFullPath)
+              if tDeleteResult~=true then
+                self.tLogger:warn('%s Failed to remove stray file "%s": %s', self.strLogID, strFullPath, strError)
+              end
+            elseif iCnt==1 then
+              -- The path was found in the database.
+            else
+              self.tLogger:error('%s Invalid result from database for query "%s": "%s"', self.strLogID, strQuery, tostring(strResult))
+              tResult = nil
+              break
+            end
+          end
+        end
+      end
+    end
+  end
+
+  self.tLogger:debug('%s Finished cleaning the cache.', self.strLogID)
+  return tResult
+end
+
+
+
+function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
+  -- Be pessimistic.
+  local tResult = nil
+
+  local strQuery = string.format('SELECT TOTAL(iConfigurationSize)+TOTAL(iArtifactSize) FROM cache')
+  local tCursor, strError = tSQLDatabase:execute(strQuery)
+  if tCursor==nil then
+    self.tLogger:error('%s Failed to get the total size of the cache: %s', self.strLogID, strError)
+  else
+    local atData = tCursor:fetch({})
+    if atData==nil then
+      self.tLogger:error('%s No result from database for query "%s".', self.strLogID, strQuery)
+      tCursor:close()
+    else
+      -- Close the cursor.
+      tCursor:close()
+
+      local strResult = atData[1]
+      local iTotalSize = tonumber(strResult)
+      if iTotalSize==nil then
+        self.tLogger:error('%s Invalid result from database for query "%s": "%s"', self.strLogID, strQuery, tostring(strResult))
+      else
+        self.tLogger:debug('%s The total size of the cache is %d bytes.', self.strLogID, iTotalSize)
+        -- Check if the requested free space would grow the cache over the allowed maximum.
+        local iBytesToSave = (iTotalSize + ulFreeSpaceNeeded) - self.ulMaximumSize
+        if iBytesToSave>0 then
+          self.tLogger:debug('%s Need to shrink the cache by %d bytes.', self.strLogID, iBytesToSave)
+
+          -- Collect all files to delete in this table.
+          local astrDeleteFiles = {}
+          local aIdDeleteSql = {}
+          local iBytesSaved = 0
+
+          -- Loop over all artifacts starting with the oldest "last used" date.
+          strQuery = string.format('SELECT iId, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strArtifactPath, strArtifactHashPath, iArtifactSize FROM cache ORDER BY iLastUsedDate ASC')
+          tCursor, strError = tSQLDatabase:execute(strQuery)
+          if tCursor==nil then
+            self.tLogger:error('%s Failed to get all cache entries: %s', self.strLogID, strError)
+          else
+            repeat
+              local atData = tCursor:fetch({}, 'a')
+              if atData~=nil then
+                -- Add all paths to the delete list.
+                table.insert(astrDeleteFiles, atData.strConfigurationPath)
+                table.insert(astrDeleteFiles, atData.strConfigurationHashPath)
+                table.insert(astrDeleteFiles, atData.strArtifactPath)
+                table.insert(astrDeleteFiles, atData.strArtifactHashPath)
+                -- Add the row ID to the list of SQL entries to delete.
+                table.insert(aIdDeleteSql, atData.iId)
+                -- Count the saved bytes.
+                iBytesSaved = iBytesSaved + atData.iConfigurationSize + atData.iArtifactSize
+                -- Saved already enough bytes?
+                if iBytesSaved >= iBytesToSave then
+                  break
+                end
+              end
+            until atData==nil
+
+            -- Close the cursor.
+            tCursor:close()
+
+            -- Found enough files?
+            if iBytesSaved < iBytesToSave then
+              self.tLogger:error('%s Failed to free %d bytes in the cache.', self.strLogID, iBytesToSave)
+            else
+              tResult = true
+
+              -- Delete all SQL lines in the list.
+              for _, iId in pairs(aIdDeleteSql) do
+                self.tLogger:debug('%s Deleting SQL ID %d.', self.strLogID, iId)
+
+                strQuery = string.format('DELETE FROM cache WHERE iId=%d', iId)
+                local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+                if tSqlResult==nil then
+                  self.tLogger:error('%s Failed to delete an entry in the cache: %s', self.strLogID, strError)
+                  tResult = nil
+                  break
+                else
+                  tSQLDatabase:commit()
+                end
+              end
+
+              if tResult==true then
+                -- Delete all files in the list.
+                for _, strPath in pairs(astrDeleteFiles) do
+                  self.tLogger:debug('%s Deleting "%s".', self.strLogID, strPath)
+
+                  local tDeleteResult, strError = self.pl.file.delete(strPath)
+                  if tDeleteResult~=true then
+                    self.tLogger:error('%s Failed to remove file "%s": %s', self.strLogID, strPath, strError)
+                    tResult = nil
                     break
                   end
                 end
@@ -537,9 +710,12 @@ end
 
 --- Set the configuration of the cache instance.
 -- @param strRepositoryRootPath The root path of the repository.
-function Cache:configure(strRepositoryRootPath)
+function Cache:configure(strRepositoryRootPath, ulMaximumSize)
   local tResult = nil
 
+
+  self.tLogger:debug('%s Set the maximum size to %d bytes.', self.strLogID, ulMaximumSize)
+  self.ulMaximumSize = ulMaximumSize
 
   -- Convert this to an absolute path.
   local strAbsRepositoryRootPath = self.pl.path.abspath(strRepositoryRootPath)
@@ -575,6 +751,12 @@ function Cache:configure(strRepositoryRootPath)
       elseif tTableResult==true then
         self.tLogger:debug('%s Rebuild the cache information.', self.strLogID)
         tResult = self:_rebuild_complete_cache(tSQLDatabase)
+        if tResult==true then
+          tResult = self:_remove_odd_files(tSQLDatabase)
+          if tResult==true then
+            tResult = self:_enforce_maximum_size(tSQLDatabase, 0)
+          end
+        end
       elseif tTableResult==false then
         -- The table already exists.
         tResult = true
@@ -596,7 +778,7 @@ end
 function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
   local strError
-  
+
 
   local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
 
@@ -652,7 +834,7 @@ end
 
 function Cache:get_artifact(cArtifact, strDestinationFolder)
   local tResult = nil
-  
+
 
   local tInfo = cArtifact.tInfo
   local strGroup = tInfo.strGroup
@@ -739,7 +921,7 @@ function Cache:add_configuration(cArtifact)
     tResult = self:_cachefs_write_configuration(cArtifact)
     if tResult==true then
       -- Add the configuration to the database.
-      tResult = self:_database_add_configuration(cArtifact)
+      tResult = self:_database_add_configuration(self.tSQLDatabase, cArtifact)
     end
   end
 
@@ -775,7 +957,7 @@ function Cache:add_artifact(cArtifact, strArtifactSourcePath)
         tResult = self:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
         if tResult==true then
           -- Create a new entry.
-          self:_database_add_artifact(cArtifact)
+          self:_database_add_artifact(self.tSQLDatabase, cArtifact)
         end
       end
     else

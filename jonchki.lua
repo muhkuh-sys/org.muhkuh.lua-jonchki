@@ -81,7 +81,7 @@ local function jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
           else
             local Cache = require 'cache.cache'
             cCache = Cache(cLogger, 'main')
-            tResult = cCache:configure(cSysCfg.tConfiguration.cache)
+            tResult = cCache:configure(cSysCfg.tConfiguration.cache, cSysCfg.tConfiguration.cache_max_size)
             if tResult~=true then
               cLogger:fatal('Failed to open the cache!')
             end
