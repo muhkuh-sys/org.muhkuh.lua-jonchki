@@ -74,14 +74,15 @@ local function jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
           -- Create the cache.
           -- Set the cache ID to "main".
           --
+          local cCache
           if tArgs.fNoCache==true then
             cLogger:info('Do not use a cache as requested.')
             tResult = true
           else
             local Cache = require 'cache.cache'
-            local cCache = Cache(cLogger, 'main')
+            cCache = Cache(cLogger, 'main')
             tResult = cCache:configure(cSysCfg.tConfiguration.cache)
-            if tResult==nil then
+            if tResult~=true then
               cLogger:fatal('Failed to open the cache!')
             end
           end

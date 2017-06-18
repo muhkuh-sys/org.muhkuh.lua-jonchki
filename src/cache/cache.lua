@@ -322,9 +322,9 @@ function Cache:_database_add_artifact(cArtifact)
     local tInfo = cArtifact.tInfo
     local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
     local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
-    
+
     local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strArtifactPath, strArtifactHashPath, iArtifactSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strPathArtifact, strPathArtifactHash, iArtifactFileSize)
-    
+
     local tSqlResult, strError = tSQLDatabase:execute(strQuery)
     if tSqlResult==nil then
       self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
@@ -482,8 +482,8 @@ function Cache:_rebuild_complete_cache(tSQLDatabase)
       if strExtension=='xml' then
         -- Try to parse the file as a configuration.
         local cArtifact = self.ArtifactConfiguration()
-        local tResult = cArtifact:parse_configuration_file(strFullPath)
-        if tResult~=true then
+        local tArtifactResult = cArtifact:parse_configuration_file(strFullPath)
+        if tArtifactResult~=true then
           self.tLogger:debug('%s Ignoring file "%s". It is no valid artifact configuration.', self.strLogID)
         else
           self.tLogger:debug('%s Found configuration file "%s".', self.strLogID, strFullPath)
@@ -501,7 +501,7 @@ function Cache:_rebuild_complete_cache(tSQLDatabase)
             self.tLogger:debug('%s Failed to read the hash for the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
           else
             -- Check the hash of the configuration.
-            tResult = self.hash:check_file(strPathConfiguration, strHash, strPathConfigurationHash)
+            local tCheckResult = self.hash:check_file(strPathConfiguration, strHash, strPathConfigurationHash)
             if tResult~=true then
               self.tLogger:debug('%s The hash for the configuration of artifact %s does not match.', self.strLogID, strGMAV)
             else
@@ -511,13 +511,13 @@ function Cache:_rebuild_complete_cache(tSQLDatabase)
                 self.tLogger:debug('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAV, strError)
               else
                 -- Check the hash of the artifact.
-                tResult = self.hash:check_file(strPathArtifact, strHash, strPathArtifactHash)
-                if tResult~=true then
+                local tHashResult = self.hash:check_file(strPathArtifact, strHash, strPathArtifactHash)
+                if tHashResult~=true then
                   self.tLogger:debug('%s The hash for the artifact %s does not match.', self.strLogID, strGMAV)
                 else
                   -- Add it to the database.
                   tResult = self:_database_add_artifact(cArtifact)
-                  if tResult==nil then
+                  if tResult~=true then
                     self.tLogger:error('%s Failed to add the artifact %s to the database.', self.strLogID, strGMAV)
                     break
                   end
@@ -568,16 +568,21 @@ function Cache:configure(strRepositoryRootPath)
     else
       -- Construct the "CREATE" statement for the "cache" table.
       local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strConfigurationPath TEXT NOT NULL, strConfigurationHashPath TEXT NOT NULL, iConfigurationSize INTEGER NOT NULL, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
-      tResult = self:_sql_create_table(tSQLDatabase, 'cache', strCreateStatement)
-      if tResult==nil then
+      local tTableResult = self:_sql_create_table(tSQLDatabase, 'cache', strCreateStatement)
+      if tTableResult==nil then
         tSQLDatabase:close()
         self.tLogger:error('%s Failed to create the table.', self.strLogID)
-      elseif tResult==true then
+      elseif tTableResult==true then
         self.tLogger:debug('%s Rebuild the cache information.', self.strLogID)
         tResult = self:_rebuild_complete_cache(tSQLDatabase)
+      elseif tTableResult==false then
+        -- The table already exists.
+        tResult = true
+      else
+        self.tLogger:fatal('%s Invalid result from _sql_create_table!', self.strLogID)
       end
 
-      if tResult~=nil then
+      if tResult==true then
         self.tSQLDatabase = tSQLDatabase
       end
     end
