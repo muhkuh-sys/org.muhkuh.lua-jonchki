@@ -602,18 +602,20 @@ end
 
 
 function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
-  -- Be pessimistic.
-  local tResult = nil
+  -- Be optimistic.
+  local tResult = true
 
   local strQuery = string.format('SELECT TOTAL(iConfigurationSize)+TOTAL(iArtifactSize) FROM cache')
   local tCursor, strError = tSQLDatabase:execute(strQuery)
   if tCursor==nil then
     self.tLogger:error('%s Failed to get the total size of the cache: %s', self.strLogID, strError)
+    tResult = nil
   else
     local atData = tCursor:fetch({})
     if atData==nil then
       self.tLogger:error('%s No result from database for query "%s".', self.strLogID, strQuery)
       tCursor:close()
+      tResult = nil
     else
       -- Close the cursor.
       tCursor:close()
@@ -622,6 +624,7 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
       local iTotalSize = tonumber(strResult)
       if iTotalSize==nil then
         self.tLogger:error('%s Invalid result from database for query "%s": "%s"', self.strLogID, strQuery, tostring(strResult))
+        tResult = nil
       else
         self.tLogger:debug('%s The total size of the cache is %d bytes.', self.strLogID, iTotalSize)
         -- Check if the requested free space would grow the cache over the allowed maximum.
@@ -639,6 +642,7 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
           tCursor, strError = tSQLDatabase:execute(strQuery)
           if tCursor==nil then
             self.tLogger:error('%s Failed to get all cache entries: %s', self.strLogID, strError)
+            tResult = nil
           else
             repeat
               local atData = tCursor:fetch({}, 'a')
@@ -665,6 +669,7 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
             -- Found enough files?
             if iBytesSaved < iBytesToSave then
               self.tLogger:error('%s Failed to free %d bytes in the cache.', self.strLogID, iBytesToSave)
+              tResult = nil
             else
               tResult = true
 
@@ -755,7 +760,14 @@ function Cache:configure(strRepositoryRootPath, ulMaximumSize)
           tResult = self:_remove_odd_files(tSQLDatabase)
           if tResult==true then
             tResult = self:_enforce_maximum_size(tSQLDatabase, 0)
+            if tResult~=true then
+              self.tLogger:error('%s Failed to enforce the maximum size of the cache.', self.strLogID)
+            end
+          else
+            self.tLogger:error('%s Failed to remove odd files from the cache.', self.strLogID)
           end
+        else
+          self.tLogger:error('%s Failed to rebuild the cache.', self.strLogID)
         end
       elseif tTableResult==false then
         -- The table already exists.
