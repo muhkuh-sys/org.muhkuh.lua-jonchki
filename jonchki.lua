@@ -125,6 +125,7 @@ local function jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
                 local tStatus = tResolver:resolve(cArtifactCfg)
                 if tStatus~=true then
                   cLogger:fatal('Failed to resolve all dependencies.')
+                  tResult = nil
                 else
                   local atArtifacts = tResolver:get_all_dependencies()
 
