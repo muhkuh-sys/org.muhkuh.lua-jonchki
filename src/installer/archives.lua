@@ -28,10 +28,10 @@ function Archive:_get_archive_handler()
   local tResult, curl = pcall(require, 'archive')
   if tResult==true then
     self.tLogger:info('Detected archive.')
-    
+
     self.depack_archive = self.depack_archive_archive
     -- self.pack_archive = self.pack_archive_archive
-    
+
     fFoundHandler = true
   end
 
@@ -77,7 +77,13 @@ end
 
 
 
+function Archive:depack_archive_archive(strArchivePath, strDepackPath)
+  error("Continue here...")
+end
 
+
+
+-- This table assigns a depack command to a specific file suffix.
 Archive.atCliFormats = {
     ['.tar.gz'] = { depack='tar --extract --directory %OUTPATH% --file %ARCHIVE% --gzip' },
     ['.tar.bz2'] = { depack='tar --extract --directory %OUTPATH% --file %ARCHIVE% --bzip2' },
