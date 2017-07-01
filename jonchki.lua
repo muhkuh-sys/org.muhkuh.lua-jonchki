@@ -34,16 +34,6 @@ local function jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
   else
     -----------------------------------------------------------------------------
     --
-    -- Add the platform dependant modules.
-    --
-    local strHostPlatformID = cPlatform:get_host_id()
-    local strHostPlatformCPath = string.format('%s/?.%s', pl.path.join(strScriptPath, 'lua_plugins', strHostPlatformID), cPlatform.strHostModuleExtension)
-    cLogger:debug('Adding to cpath: "%s"', strHostPlatformCPath)
-    package.cpath = package.cpath .. ';' .. strHostPlatformCPath
-
-
-    -----------------------------------------------------------------------------
-    --
     -- Read the system configuration.
     --
     local SystemConfiguration = require 'SystemConfiguration'
@@ -177,6 +167,7 @@ if iLastSlash~=nil then
   strScriptPath = string.sub(strScriptPath, 1, iLastSlash)
 end
 package.path = package.path .. ';' .. strScriptPath .. '/src/?.lua;' .. strScriptPath .. '/src/?/init.lua;' .. strScriptPath .. '/lualogging/?.lua;' .. strScriptPath .. '/argparse/?.lua;' .. strScriptPath .. '/penlight/?.lua'
+package.cpath = package.cpath .. ';' .. strScriptPath .. '/lua_plugins/?.so;' .. strScriptPath .. '/lua_plugins/?.dll'
 
 
 ------------------------------------------------------------------------------
