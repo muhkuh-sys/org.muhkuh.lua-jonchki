@@ -19,6 +19,7 @@
 local class = require 'pl.class'
 local Policy = require 'resolver.policies.policy'
 local Policy002 = class(Policy)
+local Version = require 'Version'
 
 
 --- Initialize a new instance of a Policy002.
@@ -49,7 +50,7 @@ function Policy002:select_version_by_constraints(atVersions, strConstraint)
       if atV.eStatus==0 or atV.eStatus==1 then
         local atVCVersion = tV.atVersion
         local sizVCVersion = #atVCVersion
-  
+
         -- The version must have at least as much digits as the constraint.
         if sizVCVersion<sizVCConstraint then
           self.tLogger:debug('%sIgnoring version %s as it has too less components for the constraint %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
@@ -67,7 +68,7 @@ function Policy002:select_version_by_constraints(atVersions, strConstraint)
           elseif tVBest==nil then
             self.tLogger:debug('%sStarting with version %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
             tVBest = tV
-          elseif v.compare(tV, tVBest)>0 then
+          elseif Version.compare(tV, tVBest)>0 then
             self.tLogger:debug('%sVersion %s wins over %s.', self.strLogID, tostring(tV), tostring(tVBest))
             tVBest = tV
           end
