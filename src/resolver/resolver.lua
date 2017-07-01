@@ -861,10 +861,12 @@ function Resolver:assign_id_recursive(tResolv, uiID, atIdTab)
     if atDependencies~=nil then
       for _, tDependency in pairs(atDependencies) do
         uiID = uiID + 1
-        self:assign_id_recursive(tDependency, uiID, atIdTab)
+        uiID = self:assign_id_recursive(tDependency, uiID, atIdTab)
       end
     end
   end
+
+  return uiID
 end
 
 
