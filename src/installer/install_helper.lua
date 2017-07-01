@@ -293,30 +293,8 @@ end
 
 
 function InstallHelper:copy(strSrc, strDst)
-  local tResult
-  local strError
-
   self.cLogger:debug('copy "%s" -> "%s"', strSrc, strDst)
-
-  local tSrc
-  local tDst
-  tSrc, strError = io.open(strSrc, 'rb')
-  if tSrc~=nil then
-    tDst, strError = io.open(strDst, 'wb')
-    if tDst~=nil then
-      repeat
-        local strData = tSrc:read(4096)
-        if strData~=nil then
-          tDst:write(strData)
-        end
-      until strData==nil
-
-      tSrc:close()
-      tDst:close()
-
-      tResult = true
-    end
-  end
+  local tResult, strError = self.pl.file.copy(strSrc, strDst)
 
   return tResult, strError
 end
