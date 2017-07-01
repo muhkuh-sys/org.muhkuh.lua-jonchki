@@ -54,6 +54,17 @@ Be careful to create something which will also work with other resolvers than "e
 * Store error messages for the resolve process in the resolve table.
 
 
+INSTALLER
+---------
+
+Make Jonchki build packages of itself. This is possible by using system components for downloading, archive handling, XML and database access. Pure LUA libraries are just part of the repository.
+The system components can be installed on a standard Ubuntu >=14.04 with...
+
+  apt-get install --assume-yes lua5.1 lua-filesystem lua-expat lua-sql-sqlite3 lua51-mhash lua-sql-sqlite3
+
+Please note that lua51-mhash is available here: https://build.opensuse.org/package/show/home:doc_bacardi/lua51-mhash
+Maybe we should add a system replacement for lua51-mhash if it is not available. Possible candidates would be "sha1sum" and friends.
+
 
 DONE
 ----
