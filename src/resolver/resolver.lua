@@ -486,7 +486,9 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
       local tResolv = self:resolvtab_create_entry(strGroup, strModule, strArtifact, tResolvEntry)
       self:add_versions_from_repositories(tResolv)
 
-      -- FIXME: Is this really necessary? The version was already filtered in add_versions_from_repositories.
+      -- Set the constraint.
+      self:resolvtab_set_constraint(tResolv, tDependency.tVersion:get())
+
       -- Was this artifact used before?
       local tExistingVersion = self:_get_used_artifact(tResolv)
       if tExistingVersion~=nil then
@@ -497,23 +499,36 @@ function Resolver:resolvetab_get_dependency_versions(tResolvEntry)
         -- Instead set all available versions except the existing one
         -- to blocked.
 
+        -- The existing version must match the constraint.
+
         local strExistingVersion = tExistingVersion:get()
         self.tLogger:debug('[RESOLVE] The artifact %s/%s/%s is already in use with version %s. Blocking all other available versions.', strGroup, strModule, strArtifact, strExistingVersion)
 
+        local atVMatching
         for tVersionCnt, atVCnt in pairs(tResolv.atVersions) do
           local strVersionCnt = tVersionCnt:get()
           if strVersionCnt==strExistingVersion then
-            self.tLogger:debug('[RESOLVE] %s -> keep', strVersionCnt)
+            self.tLogger:debug('[RESOLVE] %s is already in use.', strVersionCnt)
+            atVMatching = atVCnt
           else
             self.tLogger:debug('[RESOLVE] %s -> block', strVersionCnt)
             atVCnt.eStatus = self.V_Blocked
           end
         end
 
-        tResolv.fIsDouble = true
+        if atVMatching~=nil then
+          local tMatchingVersion = self:select_version(tResolv)
+          if tMatchingVersion==nil then
+            self.tLogger:error('[RESOLVE] %s does not match the constraint -> block', atVMatching.tVersion:get())
+            -- The item is now blocked.
+            atVMatching.eStatus = self.V_Blocked
+          else
+            self.tLogger:debug('[RESOLVE] The existing version matches the constraint.')
+            tResolv.fIsDouble = true
+          end
+        end
       end
 
-      self:resolvtab_set_constraint(tResolv, tDependency.tVersion:get())
       table.insert(atV.atDependencies, tResolv)
     end
   end
@@ -564,6 +579,39 @@ end
 
 function Resolver:select_version_by_constraints(atVersions, strConstraint)
   error('This is the function "select_version_by_constraints" in the Resolver base class. Overwrite the function!')
+end
+
+
+
+function Resolver:select_version(tResolv)
+  local strGMA = string.format('%s/%s/%s', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact)
+
+  -- Check if another policy list than the default one should be used for this G/M/A combination.
+  local atPolicyList = self.atPolicyOverrides[strGMA]
+  if atPolicyList==nil then
+    atPolicyList = self.atPolicyDefaultList
+    self.tLogger:debug('[RESOLVE] Using the default policy list.')
+  else
+    self.tLogger:debug('[RESOLVE] Overriding the default policy list.')
+  end
+
+  -- Select a version based on the policies.
+  -- Loop over all policies until a version was found.
+  local tVersion
+  for _, tPolicy in ipairs(atPolicyList) do
+    local strID = tPolicy:get_id()
+    self.tLogger:debug('[RESOLVE] Trying policy "%s".', strID)
+
+    tVersion = tPolicy:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
+    if tVersion==nil then
+      self.tLogger:debug('[RESOLVE] No available version found for %s with policy "%s".', strGMA, strID)
+    else
+      self.tLogger:debug('[RESOLVE] Select version %s for %s with policy "%s".', tVersion:get(), strGMA, strID)
+      break
+    end
+  end
+
+  return tVersion
 end
 
 
@@ -630,32 +678,7 @@ function Resolver:resolve_step(tResolv)
   local tStatus = tResolv.eStatus
   if tStatus==self.RT_Initialized then
     self.tLogger:debug('[RESOLVE] Select a version for %s', strGMA)
-
-    -- Check if another policy list than the default one should be used for this G/M/A combination.
-    local atPolicyList = self.atPolicyOverrides[strGMA]
-    if atPolicyList==nil then
-      atPolicyList = self.atPolicyDefaultList
-      self.tLogger:debug('[RESOLVE] Using the default policy list.')
-    else
-      self.tLogger:debug('[RESOLVE] Overriding the default policy list.')
-    end
-
-    -- Select a version based on the policies.
-    -- Loop over all policies until a version was found.
-    local tVersion
-    for _, tPolicy in ipairs(atPolicyList) do
-      local strID = tPolicy:get_id()
-      self.tLogger:debug('[RESOLVE] Trying policy "%s".', strID)
-
-      tVersion = tPolicy:select_version_by_constraints(tResolv.atVersions, tResolv.strConstraint)
-      if tVersion==nil then
-        self.tLogger:debug('[RESOLVE] No available version found for %s with policy "%s".', strGMA, strID)
-      else
-        self.tLogger:debug('[RESOLVE] Select version %s for %s with policy "%s".', tVersion:get(), strGMA, strID)
-        break
-      end
-    end
-
+    local tVersion = self:select_version(tResolv)
     if tVersion==nil then
       self.tLogger:error('[RESOLVE] Failed to select a new version for %s . The item is now blocked.', strGMA)
       -- The item is now blocked.
