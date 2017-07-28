@@ -14,7 +14,11 @@ function Archive:_init(cLogger)
 
   self.tLogger = cLogger
 
+  -- LFS is there with penlight.
+  self.lfs = require 'lfs'
+
   -- Get a way to handle archives.
+  self.archive = nil
   self:_get_archive_handler()
 end
 
@@ -25,10 +29,11 @@ function Archive:_get_archive_handler()
 
 
   -- Prefer the LUA module archive.
-  local tResult, curl = pcall(require, 'archive')
+  local tResult, archive = pcall(require, 'archive')
   if tResult==true then
     self.tLogger:info('Detected archive.')
 
+    self.archive = archive
     self.depack_archive = self.depack_archive_archive
     -- self.pack_archive = self.pack_archive_archive
 
@@ -78,7 +83,49 @@ end
 
 
 function Archive:depack_archive_archive(strArchivePath, strDepackPath)
-  error("Continue here...")
+  local tResult = true
+
+  local tArc = self.archive.ArchiveRead()
+  tArc:support_filter_all()
+  tArc:support_format_all()
+
+  local iExtractFlags = self.archive.ARCHIVE_EXTRACT_SECURE_SYMLINKS + self.archive.ARCHIVE_EXTRACT_SECURE_NODOTDOT + self.archive.ARCHIVE_EXTRACT_SECURE_NOABSOLUTEPATHS
+
+  -- Keep the old working directory for later.
+  local strOldWorkingDir = self.lfs.currentdir()
+  -- Move to the extract folder.
+  local tLfsResult, strError = self.lfs.chdir(strDepackPath)
+  if tLfsResult~=true then
+    self.tLogger:error('Failed to change to the depack path "%s": %s', strDepackPath, strError)
+    tResult = nil
+  else
+    self.tLogger:debug('Extracting archive "%s".', strArchivePath)
+    local r = tArc:open_filename(strArchivePath, 16384)
+    if r~=0 then
+      self.tLogger:error('Failed to open the archive "%s": %s', strArchivePath, tArc:error_string())
+      tResult = nil
+    else
+      for tEntry in tArc:iter_header() do
+        self.tLogger:debug('Processing entry "%s".', tEntry:pathname())
+
+        local iResult = tArc:extract(tEntry, iExtractFlags)
+        if iResult~=0 then
+          self.tLogger:error('Failed to extract entry "%s" from archive "%s".', tEntry:pathname(), strArchivePath)
+          tResult = nil
+          break
+        end
+      end
+    end
+
+    -- Restore the old working directory.
+    local tLfsResult, strError = self.lfs.chdir(strOldWorkingDir)
+    if tLfsResult~=true then
+      self.tLogger:error('Failed to restore the working directory "%s" after depacking: %s', strOldWorkingDir, strError)
+      tResult = nil
+    end
+  end
+
+  return tResult
 end
 
 
