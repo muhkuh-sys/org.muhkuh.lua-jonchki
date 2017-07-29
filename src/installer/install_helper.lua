@@ -11,8 +11,10 @@ local InstallHelper = class()
 
 --- Initialize a new instance of the install class.
 -- @param strID The ID identifies the resolver.
-function InstallHelper:_init(cLogger, cSystemConfiguration, cPlatform, fInstallBuildDependencies)
+function InstallHelper:_init(cLogger, cSystemConfiguration, cPlatform, fInstallBuildDependencies, atPostTriggers)
   self.cLogger = cLogger
+
+  self.atPostTriggers = atPostTriggers
 
   -- Get the installation paths from the system configuration.
   local atReplacements = {}
@@ -107,6 +109,39 @@ function InstallHelper:get_platform_distribution_version()
   return self.atReplacements.platform_distribution_version
 end
 
+
+
+function InstallHelper:register_post_trigger(fnAction, tUserData, uiLevel)
+  -- The first argument must be an "Install" class.
+  if not(type(self)=='table' and type(self.is_a)=='function' and self:is_a(InstallHelper)==true) then
+    self.cLogger:debug('Wrong self argument for the "install" method!')
+    self.cLogger:debug('type(self) = "%s".', type(self))
+    self.cLogger:debug('type(self.is_a) = "%s"', type(self.is_a))
+    self.cLogger:debug('self:is_a(InstallHelper) = %s', tostring(self:is_a(InstallHelper)))
+    error('The "register_post_trigger" method was called without a proper "self" argument. Use "t:register_post_trigger(function, userdata, level)" to call the function.')
+  end
+
+  -- The second argument must be a function.
+  if type(fnAction)~='function' then
+    error('The second argument of the "register_post_trigger" method must be a function.')
+  end
+
+  -- The fourth argument must be a number.
+  if type(uiLevel)~='number' then
+    error('The 4th argument of the "register_post_trigger" method must be a number.')
+  end
+
+  -- Does the level already exist?
+  local atLevel = self.atPostTriggers[uiLevel]
+  if atLevel==nil then
+    -- No, the level does not yet exist. Create it now.
+    atLevel = {}
+    self.atPostTriggers[uiLevel] = atLevel
+  end
+
+  -- Append the new post trigger to the level.
+  table.insert(atLevel, {fn=fnAction, userdata=tUserData})
+end
 
 
 function InstallHelper:replace_template(strPath)

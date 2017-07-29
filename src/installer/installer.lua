@@ -17,6 +17,9 @@ function Installer:_init(cLogger, cSystemConfiguration)
   local cArchives = require 'installer.archives'
   self.archives = cArchives(cLogger)
 
+  -- Create an empty list of post triggers.
+  self.atPostTriggers = {}
+
   -- The install helper class.
   self.InstallHelper = require 'installer.install_helper'
 
@@ -90,7 +93,7 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
   local tResult = true
 
   -- Create the installation helper.
-  local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, cPlatform, fInstallBuildDependencies)
+  local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, cPlatform, fInstallBuildDependencies, self.atPostTriggers)
 
   for _,tAttr in pairs(atArtifacts) do
     local tInfo = tAttr.cArtifact.tInfo
@@ -153,6 +156,21 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
               end
             end
           end
+        end
+      end
+    end
+  end
+
+  if tResult==true then
+    -- Run all post triggers.
+    self.cLogger:debug('Running post trigger scripts.')
+    for uiLevel, atLevel in self.pl.tablex.sort(self.atPostTriggers) do
+      self.cLogger:debug('Running post trigger actions for level %d.', uiLevel)
+      for _, tPostAction in ipairs(atLevel) do
+        tResult = tPostAction.fn(tPostAction.userdata, cInstallHelper)
+        if tResult==nil then
+          self.cLogger:error('Error running the post trigger action script.')
+          break
         end
       end
     end
