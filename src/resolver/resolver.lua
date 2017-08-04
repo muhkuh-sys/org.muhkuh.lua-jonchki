@@ -753,6 +753,8 @@ function Resolver:resolve_step(tResolv)
         elseif fIsDone==false then
           -- The child is not completely resolved yet.
           tCombinedStatus = self.RT_ResolvingDependencies
+          -- Do not process the other children until this one is done.
+          break
         else
           -- That's an error. Stop processing the other children.
           tCombinedStatus = self.RT_Blocked
