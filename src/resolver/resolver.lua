@@ -777,7 +777,8 @@ function Resolver:resolve_step(tResolv)
     -- Pass this up.
 
   else
-    self.tLogger:debug('[RESOLVE] %s has an invalid state of %d', strGMA, tStatus)
+    self.tLogger:error('[RESOLVE] %s has an invalid state of %d', strGMA, tStatus)
+    error('Internal error!')
   end
 
   -- Get the old status to detect changes.
