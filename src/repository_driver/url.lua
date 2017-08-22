@@ -186,6 +186,7 @@ function RepositoryDriverUrl:download_url_lcurlv3(strUrl, strLocalFile)
   if tFile==nil then
     self.tLogger:error('Failed to open "%s" for writing: %s', strLocalFile, strError)
   else
+    tCURL:setopt(self.curl.OPT_FOLLOWLOCATION, true)
     tCURL:setopt_writefunction(tFile)
     tCURL:setopt_progressfunction(self.curl_progress, self)
     local tCallResult, strError = pcall(tCURL.perform, tCURL)
