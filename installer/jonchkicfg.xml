@@ -1,5 +1,13 @@
 <jonchkicfg>
 	<repositories>
+		<!-- The local repository can be used to add snapshot packages. -->
+		<repository id="local" type="file" cacheable="false">
+			<root>../local_repository</root>
+			<versions>[group]/[module]</versions>
+			<config>[group]/[module]/[version]/[artifact]-[version].[extension]</config>
+			<artifact>[group]/[module]/[version]/[artifact]-[version].[extension]</artifact>
+		</repository>
+
 		<!-- The bintray repository contains stable artifacts. -->
 		<repository id="bintray" type="url" cacheable="true">
 			<root>https://dl.bintray.com/muhkuh/jonchki</root>
