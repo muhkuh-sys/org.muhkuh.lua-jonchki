@@ -5,6 +5,9 @@ local cLogger = t.cLogger
 -- Copy all jonchki scripts.
 local atScripts = {
   ['../jonchki.lua']                                  = '${install_base}/',
+  ['../doc/jonchkicfg.xml']                           = '${install_doc}/',
+  ['../doc/jonchkireport.xsl']                        = '${install_doc}/',
+  ['../doc/jonchkisys.cfg']                           = '${install_doc}/',
   ['../lua/cache/cache.lua']                          = '${install_lua_path}/cache/',
   ['../lua/installer/archives.lua']                   = '${install_lua_path}/installer/',
   ['../lua/installer/installer.lua']                  = '${install_lua_path}/installer/',
