@@ -234,11 +234,16 @@ tParser:option('--distribution-id')
   :argname('<ID>')
   :default(nil)
   :target('strDistributionId')
-tParser:option('--distribution-version')
-  :description('Set the distribution version for the installation to VERSION. The default is to autodetect it.')
-  :argname('<VERSION>')
-  :default(nil)
-  :target('strDistributionVersion')
+tParser:mutex(
+  tParser:option('--distribution-version')
+    :description('Set the distribution version for the installation to VERSION. The default is to autodetect it.')
+    :argname('<VERSION>')
+    :default(nil)
+    :target('strDistributionVersion'),
+  tParser:flag('--empty-distribution-version')
+    :description('Set the distribution version for the installation to the empty string. The default is to autodetect it.')
+    :target('fEmptyDistributionVersion')
+)
 tParser:option('-v --verbose')
   :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
   :argname('<LEVEL>')
@@ -246,6 +251,11 @@ tParser:option('-v --verbose')
   :convert(atLogLevels)
   :target('tLogLevel')
 local tArgs = tParser:parse()
+
+-- Set the distribution version to empty if requested.
+if tArgs.fEmptyDistributionVersion==true then
+  tArgs.strDistributionVersion = ''
+end
 
 
 -----------------------------------------------------------------------------
