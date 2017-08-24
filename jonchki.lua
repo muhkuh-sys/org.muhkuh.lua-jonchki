@@ -1,4 +1,4 @@
-local function jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
+local function jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
   -- Be pessimistic.
   local tResult = false
 
@@ -38,8 +38,9 @@ local function jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
     --
     local SystemConfiguration = require 'SystemConfiguration'
     -- Create a configuration object.
-    local cSysCfg = SystemConfiguration(cLogger, cReport, tArgs.fInstallBuildDependencies)
-    -- Read the settings from 'demo.cfg'.
+    local strAbsJonchkiPath = pl.path.abspath(strJonchkiPath)
+    local cSysCfg = SystemConfiguration(cLogger, cReport, strAbsJonchkiPath, tArgs.fInstallBuildDependencies)
+    -- Read the settings from the system configuration file.
     tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
     if tResult==nil then
       cLogger:fatal('Failed to parse the system configuration!')

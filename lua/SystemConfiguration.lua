@@ -11,13 +11,14 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLogger, cReport, fInstallBuildDependencies)
+function SystemConfiguration:_init(cLogger, cReport, strJonchkiPath, fInstallBuildDependencies)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
   self.tLogger = cLogger
   self.tReport = cReport
 
+  self.strJonchkiPath = strJonchkiPath
   self.fInstallBuildDependencies = fInstallBuildDependencies
 
   -- There is no configuration yet.
