@@ -1,6 +1,7 @@
 local t = ...
 local strDistId, strDistVersion, strCpuArch = t:get_platform()
 local cLogger = t.cLogger
+local tResult
 
 -- Copy all jonchki scripts.
 local atScripts = {
@@ -39,10 +40,6 @@ local archives = require 'installer.archives'
 local Archive = archives(cLogger)
 local pl = require'pl.import_into'()
 
-local strArtifact = string.format('jonchki_%s%s_%s', strDistId, strDistVersion, strCpuArch)
-local strDiskPath = t:replace_template('${install_base}')
-local strArchiveMemberPrefix = 'jonchki'
-
 -- Create a ZIP archive for Windows platforms. Build a "tar.gz" for Linux.
 local strArchiveExtension
 local tFormat
@@ -57,8 +54,21 @@ else
   atFilter = { Archive.archive.ARCHIVE_FILTER_GZIP }
 end
 
--- Create the full path to the archive.
-local strArchive = t:replace_template(string.format('${install_base}/../%s.%s', strArtifact, strArchiveExtension))
-local tResult = Archive:pack_archive(strArchive, tFormat, atFilter, strDiskPath, strArchiveMemberPrefix)
+-- Translate the CPU architecture to bits.
+local atCpuArchToBits = {
+  ['x86'] = 32,
+  ['x86_64'] = 64
+}
+local uiPlatformBits = atCpuArchToBits[strCpuArch]
+if uiPlatformBits==nil then
+  cLogger:error('Failed to translate the CPU architecture "%s" to bits.', strCpuArch)
+else
+  local strArtifactVersion = t:replace_template('${root_artifact_artifact}-${root_artifact_version}')
+  local strArchive = t:replace_template(string.format('${install_base}/../%s_%s%s_%dbit.%s', strArtifactVersion, strDistId, strDistVersion, uiPlatformBits, strArchiveExtension))
+  local strDiskPath = t:replace_template('${install_base}')
+  local strArchiveMemberPrefix = strArtifactVersion
+
+  tResult = Archive:pack_archive(strArchive, tFormat, atFilter, strDiskPath, strArchiveMemberPrefix)
+end
 
 return tResult
