@@ -26,7 +26,9 @@ local atScripts = {
   ['../lua/ProjectConfiguration.lua']                 = '${install_lua_path}/',
   ['../lua/Report.lua']                               = '${install_lua_path}/',
   ['../lua/Version.lua']                              = '${install_lua_path}/',
-  ['../lua/SystemConfiguration.lua']                  = '${install_lua_path}/'
+  ['../lua/SystemConfiguration.lua']                  = '${install_lua_path}/',
+  ['${report_path}']                                  = '${install_base}/.jonchki/',
+  ['${report_xslt}']                                  = '${install_base}/.jonchki/'
 }
 for strSrc, strDst in pairs(atScripts) do
   t:install(strSrc, strDst)
