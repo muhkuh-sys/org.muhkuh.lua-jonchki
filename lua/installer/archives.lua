@@ -35,7 +35,7 @@ function Archive:_get_archive_handler()
 
     self.archive = archive
     self.depack_archive = self.depack_archive_archive
-    -- self.pack_archive = self.pack_archive_archive
+    self.pack_archive = self.pack_archive_archive
 
     fFoundHandler = true
   end
@@ -174,6 +174,130 @@ function Archive:depack_archive_cli(strArchivePath, strDepackPath)
     local tCliResult = os.execute(strCmd)
     if tCliResult==0 then
       tResult = true
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSourcePath, strArchiveMemberPrefix)
+  local tResult = true
+
+  -- Create a new reader.
+  local tReader = self.archive.ArchiveReadDisk()
+  local tArcResult = tReader:set_standard_lookup()
+  if tArcResult~=0 then
+    self.tLogger:error('Failed to set standard lookup: %s', tReader:error_string())
+    tResult = nil
+  else
+    local uiBehavior = 0
+    tArcResult = tReader:set_behavior(uiBehavior)
+    if tArcResult~=0 then
+      self.tLogger:error('Failed to set the standard behaviour: %s', tReader:error_string())
+      tResult = nil
+    else
+      -- Create a new archive.
+      local tArchive = archive.ArchiveWrite()
+
+      tArcResult = tArchive:set_format(tFormat)
+      if tArcResult~=0 then
+        self.tLogger:error('Failed to set the archive format to ID %d: %s', tFormat, tArchive:error_string())
+        tResult = nil
+      else
+        for _, tFilter in ipairs(atFilter) do
+          tArcResult = tArchive:add_filter(tFilter)
+          if tArcResult~=0 then
+            self.tLogger:error('Failed to add filter with ID %d: %s', tFilter, tArchive:error_string())
+            tResult = nil
+            break
+          end
+        end
+
+        if tResult==true then
+          -- Remove any existing archive.
+          if self.pl.path.exists(strArchivePath)==strArchivePath then
+            local tFsResult, strError = self.pl.file.delete(strArchivePath)
+            if tFsResult==nil then
+              self.tLogger:error('Failed to delete the old archive "%s": %s', strArchivePath, strError)
+              tResult = nil
+            end
+          end
+
+          if tResult==true then
+            tArcResult = tArchive:open_filename(strArchivePath)
+            if tArcResult~=0 then
+              self.tLogger:error('Failed to open the archive "%s": %s', strArchivePath, tArchive:error_string())
+              tResult = nil
+            else
+              tArcResult = tReader:open(strSourcePath)
+              if tArcResult~=0 then
+                self.tLogger:error('Failed to open the path "%s": %s', strSourcePath, tReader:error_string())
+                tResult = nil
+              else
+                self.tLogger:debug('Compressing "%s" to archive "%s"...', strSourcePath, strArchivePath)
+
+                for tEntry in tReader:iter_header() do
+                  -- Cut off the root path of the archive from the entry path.
+                  local strPath = tEntry:pathname()
+                  local strRelPath = self.pl.path.join(strArchiveMemberPrefix, self.pl.path.relpath(strPath, strSourcePath))
+                  if strRelPath~='' then
+                    tEntry:set_pathname(strRelPath)
+
+                    self.tLogger:debug('  %s', strRelPath)
+
+                    tArcResult = tArchive:write_header(tEntry)
+                    if tArcResult~=0 then
+                      self.tLogger:error('Failed to write the header for archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
+                      tResult = nil
+                      break
+                    else
+                      for strData in tReader:iter_data(16384) do
+                        tArcResult = tArchive:write_data(strData)
+                        if tArcResult~=0 then
+                          self.tLogger:error('Failed to write a chunk of data to archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
+                          tResult = nil
+                          break
+                        end
+                      end
+                      if tArcResult~=0 then
+                        break
+                      else
+                        tArcResult = tArchive:finish_entry()
+                        if tArcResult~=0 then
+                          self.tLogger:error('Failed to finish archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
+                          tResult = nil
+                          break
+                        elseif tReader:can_descend()~=0 then
+                          tArcResult = tReader:descend()
+                          if tArcResult~=0 then
+                            self.tLogger:error('Failed to descend on path "%s": %s', tEntry:pathname(), tReader:error_string())
+                            tResult = nil
+                            break
+                          end
+                        end
+                      end
+                    end
+                  end
+                end
+
+                tArcResult = tReader:close()
+                if tArcResult~=0 then
+                  self.tLogger:error('Failed to close the reader: %s', tReader:error_string())
+                  tResult = nil
+                end
+              end
+
+              tArcResult = tArchive:close()
+              if tArcResult~=0 then
+                self.tLogger:error('Failed to close the archive "%s": %s', strArchive, tArchive:error_string())
+                tResult = nil
+              end
+            end
+          end
+        end
+      end
     end
   end
 
