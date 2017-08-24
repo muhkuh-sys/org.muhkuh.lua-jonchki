@@ -8,7 +8,7 @@ local Installer = class()
 
 
 --- Initialize a new instance of the installer.
-function Installer:_init(cLogger, cSystemConfiguration)
+function Installer:_init(cLogger, cReport, cSystemConfiguration)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -22,8 +22,10 @@ function Installer:_init(cLogger, cSystemConfiguration)
 
   -- The install helper class.
   self.InstallHelper = require 'installer.install_helper'
+  self.tCurrentInstallHelper = nil
 
   self.cLogger = cLogger
+  self.cReport = cReport
 
   -- The system configuration.
   self.cSystemConfiguration = cSystemConfiguration
@@ -31,8 +33,11 @@ end
 
 
 
-function Installer:run_install_script(strInstallScriptFile, strDepackPath, cInstallHelper, strGMAV)
+function Installer:run_install_script(strInstallScriptFile, strDepackPath, strGMAV)
   local tResult
+
+  -- Get the current install helper.
+  local cInstallHelper = self.tCurrentInstallHelper
 
   -- Get the path to the installation script.
   self.cLogger:info('Running the install script "%s".', strInstallScriptFile)
@@ -89,71 +94,99 @@ end
 
 
 
-function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDependencies, strFinalizerScript)
+function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDependencies)
   local tResult = true
 
   -- Create the installation helper.
   local cInstallHelper = self.InstallHelper(self.cLogger, self.cSystemConfiguration, cPlatform, fInstallBuildDependencies, self.atPostTriggers)
-
-  for _,tAttr in pairs(atArtifacts) do
-    local tInfo = tAttr.cArtifact.tInfo
-    local strGroup = tInfo.strGroup
-    local strModule = tInfo.strModule
-    local strArtifact = tInfo.strArtifact
-    local strVersion = tInfo.tVersion:get()
-    local strArtifactPath = tAttr.strArtifactPath
-
-    local strGMAV = string.format('%s-%s-%s-%s', strGroup, strModule, strArtifact, strVersion)
-    self.cLogger:info('Installing %s for target %s', strGMAV, tostring(cPlatform))
-
-    -- Create a unique temporary path for the artifact.
-    local strGroupPath = self.pl.stringx.replace(strGroup, '.', self.pl.path.sep)
-    local strDepackPath = self.pl.path.join(self.cSystemConfiguration.tConfiguration.depack, strGroupPath, strModule, strArtifact, strVersion)
-
-    -- Does the depack path already exist?
-    if self.pl.path.exists(strDepackPath)==strDepackPath then
-      tResult = nil
-      self.cLogger:error('The unique depack path %s already exists.', strDepackPath)
-      break
+  -- Add the report as a replacement variable.
+  tResult = cInstallHelper:add_replacement('report_path', self.cReport:getFileName())
+  if tResult~=true then
+    self.cLogger:error('Failed to add the replacement variable "report_path".')
+  else
+    -- Add the XSLT style sheet as a replacement to allow a finalizer to include it into a distribution.
+    tResult = cInstallHelper:add_replacement('report_xslt', self.pl.path.join(self.cSystemConfiguration.strJonchkiPath, 'doc', 'jonchkireport.xsl'))
+    if tResult~=true then
+      self.cLogger:error('Failed to add the replacement variable "report_xslt".')
     else
-      local strError
-      tResult, strError = self.pl.dir.makepath(strDepackPath)
-      if tResult~=true then
-        tResult = nil
-        self.cLogger:error('Failed to create the depack path for %s: %s', strGMAV, strError)
-        break
-      else
-        -- Add the depack path and the version to the replacement list.
-        local strVariableArtifactPath = string.format('artifact_path_%s.%s.%s', strGroup, strModule, strArtifact)
-        tResult = cInstallHelper:add_replacement(strVariableArtifactPath, strArtifactPath)
-        if tResult~=true then
-          self.cLogger:error('Failed to add the artifact path variable for %s.', strGMAV)
+      self.tCurrentInstallHelper = cInstallHelper
+
+      for _,tAttr in pairs(atArtifacts) do
+        local tInfo = tAttr.cArtifact.tInfo
+        local strGroup = tInfo.strGroup
+        local strModule = tInfo.strModule
+        local strArtifact = tInfo.strArtifact
+        local strVersion = tInfo.tVersion:get()
+        local strArtifactPath = tAttr.strArtifactPath
+
+        local strGMAV = string.format('%s-%s-%s-%s', strGroup, strModule, strArtifact, strVersion)
+        self.cLogger:info('Installing %s for target %s', strGMAV, tostring(cPlatform))
+
+        -- Create a unique temporary path for the artifact.
+        local strGroupPath = self.pl.stringx.replace(strGroup, '.', self.pl.path.sep)
+        local strDepackPath = self.pl.path.join(self.cSystemConfiguration.tConfiguration.depack, strGroupPath, strModule, strArtifact, strVersion)
+
+        -- Does the depack path already exist?
+        if self.pl.path.exists(strDepackPath)==strDepackPath then
+          tResult = nil
+          self.cLogger:error('The unique depack path %s already exists.', strDepackPath)
           break
         else
-          local strVariableNameDepackPath = string.format('depack_path_%s.%s.%s', strGroup, strModule, strArtifact)
-          tResult = cInstallHelper:add_replacement(strVariableNameDepackPath, strDepackPath)
+          local strError
+          tResult, strError = self.pl.dir.makepath(strDepackPath)
           if tResult~=true then
-            self.cLogger:error('Failed to add the depack path variable for %s.', strGMAV)
+            tResult = nil
+            self.cLogger:error('Failed to create the depack path for %s: %s', strGMAV, strError)
             break
           else
-            local strVariableNameVersion = string.format('version_%s.%s.%s', strGroup, strModule, strArtifact)
-            tResult = cInstallHelper:add_replacement(strVariableNameVersion, strVersion)
+            -- Add the depack path and the version to the replacement list.
+            local strVariableArtifactPath = string.format('artifact_path_%s.%s.%s', strGroup, strModule, strArtifact)
+            tResult = cInstallHelper:add_replacement(strVariableArtifactPath, strArtifactPath)
             if tResult~=true then
-              self.cLogger:error('Failed to add the version variable for %s.', strGMAV)
+              self.cLogger:error('Failed to add the artifact path variable for %s.', strGMAV)
               break
             else
-              tResult = self.archives:depack_archive(strArtifactPath, strDepackPath)
-              if tResult==nil then
-                self.cLogger:error('Error depacking %s .', strGMAV)
+              local strVariableNameDepackPath = string.format('depack_path_%s.%s.%s', strGroup, strModule, strArtifact)
+              tResult = cInstallHelper:add_replacement(strVariableNameDepackPath, strDepackPath)
+              if tResult~=true then
+                self.cLogger:error('Failed to add the depack path variable for %s.', strGMAV)
                 break
-              end
+              else
+                local strVariableNameVersion = string.format('version_%s.%s.%s', strGroup, strModule, strArtifact)
+                tResult = cInstallHelper:add_replacement(strVariableNameVersion, strVersion)
+                if tResult~=true then
+                  self.cLogger:error('Failed to add the version variable for %s.', strGMAV)
+                  break
+                else
+                  tResult = self.archives:depack_archive(strArtifactPath, strDepackPath)
+                  if tResult==nil then
+                    self.cLogger:error('Error depacking %s .', strGMAV)
+                    break
+                  end
 
-              local strInstallScriptFile = self.pl.path.join(strDepackPath, 'install.lua')
-              tResult = self:run_install_script(strInstallScriptFile, strDepackPath, cInstallHelper, strGMAV)
-              if tResult==nil then
-                self.cLogger:error('Error installing %s .', strGMAV)
-                break
+                  local strInstallScriptFile = self.pl.path.join(strDepackPath, 'install.lua')
+                  tResult = self:run_install_script(strInstallScriptFile, strDepackPath, strGMAV)
+                  if tResult==nil then
+                    self.cLogger:error('Error installing %s .', strGMAV)
+                    break
+                  end
+                end
               end
+            end
+          end
+        end
+      end
+
+      if tResult==true then
+        -- Run all post triggers.
+        self.cLogger:debug('Running post trigger scripts.')
+        for uiLevel, atLevel in self.pl.tablex.sort(self.atPostTriggers) do
+          self.cLogger:debug('Running post trigger actions for level %d.', uiLevel)
+          for _, tPostAction in ipairs(atLevel) do
+            tResult = tPostAction.fn(tPostAction.userdata, cInstallHelper)
+            if tResult==nil then
+              self.cLogger:error('Error running the post trigger action script.')
+              break
             end
           end
         end
@@ -161,32 +194,23 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
     end
   end
 
-  if tResult==true then
-    -- Run all post triggers.
-    self.cLogger:debug('Running post trigger scripts.')
-    for uiLevel, atLevel in self.pl.tablex.sort(self.atPostTriggers) do
-      self.cLogger:debug('Running post trigger actions for level %d.', uiLevel)
-      for _, tPostAction in ipairs(atLevel) do
-        tResult = tPostAction.fn(tPostAction.userdata, cInstallHelper)
-        if tResult==nil then
-          self.cLogger:error('Error running the post trigger action script.')
-          break
-        end
-      end
-    end
-  end
+  return tResult
+end
 
-  if tResult==true then
-    if strFinalizerScript~=nil then
-      -- Get the absolute path for the finalizer script.
-      local strFinalizerScriptAbs = self.pl.path.abspath(strFinalizerScript)
-      -- Get the path component of the finalizer script.
-      local strWorkingPath = self.pl.path.dirname(strFinalizerScriptAbs)
-      self.cLogger:info('Run the finalizer script "%s".', strFinalizerScriptAbs)
-      tResult = self:run_install_script(strFinalizerScriptAbs, strWorkingPath, cInstallHelper, 'finalizer script')
-      if tResult==nil then
-        self.cLogger:error('Error running the finalizer script.')
-      end
+
+
+function Installer:run_finalizer(strFinalizerScript)
+  local tResult = true
+
+  if strFinalizerScript~=nil then
+    -- Get the absolute path for the finalizer script.
+    local strFinalizerScriptAbs = self.pl.path.abspath(strFinalizerScript)
+    -- Get the path component of the finalizer script.
+    local strWorkingPath = self.pl.path.dirname(strFinalizerScriptAbs)
+    self.cLogger:info('Run the finalizer script "%s".', strFinalizerScriptAbs)
+    tResult = self:run_install_script(strFinalizerScriptAbs, strWorkingPath, 'finalizer script')
+    if tResult==nil then
+      self.cLogger:error('Error running the finalizer script.')
     end
   end
 

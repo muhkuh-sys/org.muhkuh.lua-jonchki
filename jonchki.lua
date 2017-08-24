@@ -4,51 +4,53 @@ local function jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
 
   -----------------------------------------------------------------------------
   --
-  -- Get the target ID.
+  -- Read the system configuration.
   --
-  local strCpuArchitecture = tArgs.strCpuArchitecture
-  local strDistributionId = tArgs.strDistributionId
-  local strDistributionVersion = tArgs.strDistributionVersion
-  local Platform = require 'platform.platform'
-  local cPlatform = Platform(cLogger, cReport)
-
-  -- Detect the host platform.
-  cPlatform:detect()
-  cLogger:info('Detected platform: %s', tostring(cPlatform))
-
-  -- Override the initial values (empty or from the detection)
-  if strCpuArchitecture~=nil then
-    cPlatform:override_cpu_architecture(strCpuArchitecture)
-  end
-  if strDistributionId~=nil then
-    cPlatform:override_distribution_id(strDistributionId)
-  end
-  if strDistributionVersion~=nil then
-    cPlatform:override_distribution_version(strDistributionVersion)
-  end
-
-  local fPlatformInfoIsValid = cPlatform:is_valid()
-  if fPlatformInfoIsValid~=true then
-    -- The platform information is not valid.
-    cLogger:fatal('The platform information is not valid!')
+  local SystemConfiguration = require 'SystemConfiguration'
+  -- Create a configuration object.
+  local cSysCfg = SystemConfiguration(cLogger, strJonchkiPath, tArgs.fInstallBuildDependencies)
+  -- Read the settings from the system configuration file.
+  tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
+  if tResult==nil then
+    cLogger:fatal('Failed to parse the system configuration!')
   else
-    -----------------------------------------------------------------------------
-    --
-    -- Read the system configuration.
-    --
-    local SystemConfiguration = require 'SystemConfiguration'
-    -- Create a configuration object.
-    local strAbsJonchkiPath = pl.path.abspath(strJonchkiPath)
-    local cSysCfg = SystemConfiguration(cLogger, strAbsJonchkiPath, tArgs.fInstallBuildDependencies)
-    -- Read the settings from the system configuration file.
-    tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
+    -- Check if all paths exist. Try to create them. Clean the depack and the install folders.
+    tResult = cSysCfg:initialize_paths()
     if tResult==nil then
-      cLogger:fatal('Failed to parse the system configuration!')
+      cLogger:fatal('Failed to initialize the paths!')
     else
-      -- Check if all paths exist. Try to create them. Clean the depack and the install folders.
-      tResult = cSysCfg:initialize_paths()
-      if tResult==nil then
-        cLogger:fatal('Failed to initialize the paths!')
+      -- Write the report to the working folder.
+      cReport:setFileName(pl.path.join(cSysCfg.tConfiguration.work, 'jonchkireport.xml'))
+
+      -----------------------------------------------------------------------------
+      --
+      -- Get the target ID.
+      --
+      local strCpuArchitecture = tArgs.strCpuArchitecture
+      local strDistributionId = tArgs.strDistributionId
+      local strDistributionVersion = tArgs.strDistributionVersion
+      local Platform = require 'platform.platform'
+      local cPlatform = Platform(cLogger, cReport)
+
+      -- Detect the host platform.
+      cPlatform:detect()
+      cLogger:info('Detected platform: %s', tostring(cPlatform))
+
+      -- Override the initial values (empty or from the detection)
+      if strCpuArchitecture~=nil then
+        cPlatform:override_cpu_architecture(strCpuArchitecture)
+      end
+      if strDistributionId~=nil then
+        cPlatform:override_distribution_id(strDistributionId)
+      end
+      if strDistributionVersion~=nil then
+        cPlatform:override_distribution_version(strDistributionVersion)
+      end
+
+      local fPlatformInfoIsValid = cPlatform:is_valid()
+      if fPlatformInfoIsValid~=true then
+        -- The platform information is not valid.
+        cLogger:fatal('The platform information is not valid!')
       else
         -----------------------------------------------------------------------------
         --
@@ -126,15 +128,23 @@ local function jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
                     cLogger:fatal('Failed to retrieve all artifacts.')
                   else
                     local Installer = require 'installer.installer'
-                    local cInstaller = Installer(cLogger, cSysCfg)
-                    tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies, tArgs.strFinalizerScript)
+                    local cInstaller = Installer(cLogger, cReport, cSysCfg)
+                    tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies)
                     if tResult==nil then
                       cLogger:fatal('Failed to install all artifacts.')
                     else
                       -- Show some statistics.
                       cResolverChain:show_statistics(cReport)
 
-                      tResult = true
+                      -- Write the report.
+                      cReport:write()
+
+                      tResult = cInstaller:run_finalizer(tArgs.strFinalizerScript)
+                      if tResult==nil then
+                        cLogger:fatal('Failed to run the finalizer script "%s".', tArgs.strFinalizerScript)
+                      else
+                        tResult = true
+                      end
                     end
                   end
                 end
@@ -261,7 +271,7 @@ local cReport = Report(cLogger)
 -- Call the core logic.
 --
 local tResult = jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
--- Write the report.
+-- Write the report. This is important if an error occured somewhere in the core.
 cReport:write()
 -- Exit.
 if tResult~=true then

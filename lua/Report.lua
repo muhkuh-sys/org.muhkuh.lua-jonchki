@@ -29,6 +29,19 @@ end
 
 
 
+function Report:getFileName()
+  return self.strFileName
+end
+
+
+
+function Report:setFileName(strFileName)
+  self.tLogger:debug('[REPORT] Set the filename to "%s".', strFileName)
+  self.strFileName = strFileName
+end
+
+
+
 function Report:addData(strKey, strValue)
   local atData = self.atData
 

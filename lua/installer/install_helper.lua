@@ -48,9 +48,6 @@ function InstallHelper:_init(cLogger, cSystemConfiguration, cPlatform, fInstallB
 
   -- The current working folder is the source path if the installation. Here the artifact archive is depacked.
   self.strCwd = ''
-
-  -- Add the XSLT style sheet as a replacement to allow a finalizer to include it into a distribution.
-  atReplacements.report_xslt = self.pl.path.join(cSystemConfiguration.strJonchkiPath, 'doc', 'jonchkireport.xsl')
 end
 
 
