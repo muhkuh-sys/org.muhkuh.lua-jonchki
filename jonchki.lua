@@ -154,20 +154,22 @@ end
 --
 -- Add some subfolders to the search list.
 --
-local strScriptPath = debug.getinfo(1, "S").source:sub(2)
-strScriptPath = string.gsub(strScriptPath, '\\', '/')
+local strJonchkiPath = debug.getinfo(1, "S").source:sub(2)
+strJonchkiPath = string.gsub(strJonchkiPath, '\\', '/')
 local iLastSlash = nil
-for iCnt = string.len(strScriptPath), 1, -1 do
-  if string.sub(strScriptPath, iCnt, iCnt)=='/' then
+for iCnt = string.len(strJonchkiPath), 1, -1 do
+  if string.sub(strJonchkiPath, iCnt, iCnt)=='/' then
     iLastSlash = iCnt
     break
   end
 end
-if iLastSlash~=nil then
-  strScriptPath = string.sub(strScriptPath, 1, iLastSlash)
+if iLastSlash==nil then
+  strJonchkiPath = '.'
+else
+  strJonchkiPath = string.sub(strJonchkiPath, 1, iLastSlash - 1)
 end
-package.path = package.path .. ';' .. strScriptPath .. '/lua/?.lua;' .. strScriptPath .. '/lua/?/init.lua'
-package.cpath = package.cpath .. ';' .. strScriptPath .. '/lua_plugins/?.so;' .. strScriptPath .. '/lua_plugins/?.dll'
+package.path = package.path .. ';' .. strJonchkiPath .. '/lua/?.lua;' .. strJonchkiPath .. '/lua/?/init.lua'
+package.cpath = package.cpath .. ';' .. strJonchkiPath .. '/lua_plugins/?.so;' .. strJonchkiPath .. '/lua_plugins/?.dll'
 
 
 ------------------------------------------------------------------------------
@@ -257,7 +259,7 @@ local cReport = Report(cLogger)
 --
 -- Call the core logic.
 --
-local tResult = jonchki_core(tArgs, pl, strScriptPath, cLogger, cReport)
+local tResult = jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
 -- Write the report.
 cReport:write()
 -- Exit.
