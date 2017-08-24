@@ -39,7 +39,7 @@ local function jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
     local SystemConfiguration = require 'SystemConfiguration'
     -- Create a configuration object.
     local strAbsJonchkiPath = pl.path.abspath(strJonchkiPath)
-    local cSysCfg = SystemConfiguration(cLogger, cReport, strAbsJonchkiPath, tArgs.fInstallBuildDependencies)
+    local cSysCfg = SystemConfiguration(cLogger, strAbsJonchkiPath, tArgs.fInstallBuildDependencies)
     -- Read the settings from the system configuration file.
     tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
     if tResult==nil then

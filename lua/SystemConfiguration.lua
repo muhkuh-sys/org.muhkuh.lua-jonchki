@@ -11,12 +11,11 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLogger, cReport, strJonchkiPath, fInstallBuildDependencies)
+function SystemConfiguration:_init(cLogger, strJonchkiPath, fInstallBuildDependencies)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
   self.tLogger = cLogger
-  self.tReport = cReport
 
   self.strJonchkiPath = strJonchkiPath
   self.fInstallBuildDependencies = fInstallBuildDependencies
@@ -215,21 +214,6 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
           else
             -- Store the configuration.
             self.tConfiguration = atConfiguration
-
-            self.tReport:addData('system/configuration/work', atConfiguration.work)
-            self.tReport:addData('system/configuration/cache', atConfiguration.cache)
-            self.tReport:addData('system/configuration/cache_max_size', atConfiguration.cache_max_size)
-            self.tReport:addData('system/configuration/depack', atConfiguration.depack)
-            self.tReport:addData('system/configuration/install_base', atConfiguration.install_base)
-            self.tReport:addData('system/configuration/install_executables', atConfiguration.install_executables)
-            self.tReport:addData('system/configuration/install_shared_objects', atConfiguration.install_shared_objects)
-            self.tReport:addData('system/configuration/install_lua_path', atConfiguration.install_lua_path)
-            self.tReport:addData('system/configuration/install_lua_cpath', atConfiguration.install_lua_cpath)
-            self.tReport:addData('system/configuration/install_doc', atConfiguration.install_doc)
-            self.tReport:addData('system/configuration/install_dev', atConfiguration.install_dev)
-            self.tReport:addData('system/configuration/install_dev_include', atConfiguration.install_dev_include)
-            self.tReport:addData('system/configuration/install_dev_lib', atConfiguration.install_dev_lib)
-            self.tReport:addData('system/configuration/install_dev_cmake', atConfiguration.install_dev_cmake)
 
             -- Success!
             tResult = true
