@@ -11,27 +11,13 @@ local InstallHelper = class()
 
 --- Initialize a new instance of the install class.
 -- @param strID The ID identifies the resolver.
-function InstallHelper:_init(cLogger, cSystemConfiguration, cPlatform, fInstallBuildDependencies, atPostTriggers)
+function InstallHelper:_init(cLogger, fInstallBuildDependencies, atPostTriggers)
   self.cLogger = cLogger
 
   self.atPostTriggers = atPostTriggers
 
-  -- Get the installation paths from the system configuration.
-  local atReplacements = {}
-  atReplacements.install_base = cSystemConfiguration.tConfiguration.install_base
-  atReplacements.install_executables = cSystemConfiguration.tConfiguration.install_executables
-  atReplacements.install_shared_objects = cSystemConfiguration.tConfiguration.install_shared_objects
-  atReplacements.install_lua_path = cSystemConfiguration.tConfiguration.install_lua_path
-  atReplacements.install_lua_cpath = cSystemConfiguration.tConfiguration.install_lua_cpath
-  atReplacements.install_doc = cSystemConfiguration.tConfiguration.install_doc
-  atReplacements.install_dev = cSystemConfiguration.tConfiguration.install_dev
-  atReplacements.install_dev_include = cSystemConfiguration.tConfiguration.install_dev_include
-  atReplacements.install_dev_lib = cSystemConfiguration.tConfiguration.install_dev_lib
-  atReplacements.install_dev_cmake = cSystemConfiguration.tConfiguration.install_dev_cmake
-  atReplacements.platform_cpu_architecture = cPlatform:get_cpu_architecture()
-  atReplacements.platform_distribution_id = cPlatform:get_distribution_id()
-  atReplacements.platform_distribution_version = cPlatform:get_distribution_version()
-  self.atReplacements = atReplacements
+  -- No replacement variables yet.
+  self.atReplacements = {}
 
   -- Copy the flag for installation of development components.
   self.fInstallBuildDependencies = fInstallBuildDependencies

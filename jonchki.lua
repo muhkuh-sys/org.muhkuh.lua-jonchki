@@ -128,7 +128,7 @@ local function jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
                     cLogger:fatal('Failed to retrieve all artifacts.')
                   else
                     local Installer = require 'installer.installer'
-                    local cInstaller = Installer(cLogger, cReport, cSysCfg)
+                    local cInstaller = Installer(cLogger, cReport, cSysCfg, cArtifactCfg)
                     tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies)
                     if tResult==nil then
                       cLogger:fatal('Failed to install all artifacts.')
