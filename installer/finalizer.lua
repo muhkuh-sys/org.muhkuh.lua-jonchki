@@ -85,7 +85,7 @@ else
     cLogger:error('Failed to translate the CPU architecture "%s" to bits.', strCpuArch)
   else
     local strArtifactVersion = t:replace_template('${root_artifact_artifact}-${root_artifact_version}')
-    local strArchive = t:replace_template(string.format('${install_base}/../%s_%s%s_%dbit.%s', strArtifactVersion, strDistId, strDistVersion, uiPlatformBits, strArchiveExtension))
+    local strArchive = t:replace_template(string.format('${install_base}/../%s-%s%s_%dbit.%s', strArtifactVersion, strDistId, strDistVersion, uiPlatformBits, strArchiveExtension))
     local strDiskPath = t:replace_template('${install_base}')
     local strArchiveMemberPrefix = strArtifactVersion
 
