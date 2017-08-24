@@ -169,73 +169,12 @@
 </xsl:template>
 
 
-<xsl:template name="system_configuration">
-	<div id="system_configuration">
-		<div id="system_configuration_caption">System configuration</div>
-		<div id="system_configuration_content_body">
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">work</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/work"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">cache</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/cache"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">cache_max_size</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/cache_max_size"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">depack</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/depack"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_base</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_base"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_lua_path</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_lua_path"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_lua_cpath</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_lua_cpath"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_shared_objects</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_shared_objects"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_doc</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_doc"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_dev</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_dev"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_dev_include</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_dev_include"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_dev_lib</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_dev_lib"/></div>
-			</div>
-			<div id="system_configuration_content_row">
-				<div id="system_configuration_content_key">install_dev_cmake</div>
-				<div id="system_configuration_content_value"><xsl:value-of select="system/configuration/install_dev_cmake"/></div>
-			</div>
-		</div>
-	</div>
-</xsl:template>
-
 
 <xsl:template name="system">
 	<div id="system">
 		<a name="system"/>
 		<h2>System Information</h2>
 		<xsl:call-template name="platform"/>
-		<xsl:call-template name="system_configuration"/>
 	</div>
 </xsl:template>
 
