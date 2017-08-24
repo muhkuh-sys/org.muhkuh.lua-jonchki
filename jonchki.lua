@@ -190,6 +190,18 @@ local Logging = require 'logging'
 local pl = require'pl.import_into'()
 
 
+-- Try to read the package file.
+local strPackageInfoFile = pl.path.join(strJonchkiPath, '.jonchki', 'package.txt')
+local strPackageInfo, strError = pl.utils.readfile(strPackageInfoFile, false)
+-- Default to version "unknown".
+local strJonchkiVersion = 'unknown'
+local strJonchkiVcsVersion = 'unknown'
+if strPackageInfo~=nil then
+  strJonchkiVersion = string.match(strPackageInfo, 'PACKAGE_VERSION=([0-9.]+)')
+  strJonchkiVcsVersion = string.match(strPackageInfo, 'PACKAGE_VCS_ID=([a-zA-Z0-9+]+)')
+end
+
+
 local atLogLevels = {
   debug = Logging.DEBUG,
   info = Logging.INFO,
@@ -250,6 +262,12 @@ tParser:option('-v --verbose')
   :default('warn')
   :convert(atLogLevels)
   :target('tLogLevel')
+tParser:flag('--version')
+  :description('Show the version and exit.')
+  :action(function()
+    print(string.format('jonchki V%s %s', strJonchkiVersion, strJonchkiVcsVersion))
+    os.exit(0)
+  end)
 local tArgs = tParser:parse()
 
 -- Set the distribution version to empty if requested.
