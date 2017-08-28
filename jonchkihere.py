@@ -19,9 +19,12 @@
 #   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             #
 # ----------------------------------------------------------------------- #
 
+import argparse
+import logging
 import os
 import platform
 import re
+import shutil
 import string
 import subprocess
 import sys
@@ -31,8 +34,8 @@ import time
 import urllib2
 
 
-strJonchkiVersion = '0.0.1.1'
-strOutputFolder = '/tmp'
+strDefaultJonchkiVersion = '0.0.1.1'
+
 
 class ProgressOutput:
     # This is the minimum time between 2 flushes in seconds.
@@ -58,7 +61,7 @@ class ProgressOutput:
 
     def __init__(self, sizTotal):
         # Set the size for one dot according to the total size.
-        print('sizTotal', sizTotal)
+        print('Size in bytes: %d' % sizTotal)
         if sizTotal == 0:
             # Unknown total size -> default to 2048.
             self.m_sizDot = 2048
@@ -295,28 +298,64 @@ def download_to_file(strUrl, tFile):
 
     return bResult
 
+
+tParser = argparse.ArgumentParser(description='Install a jonchki version to a local folder.')
+tParser.add_argument('strOutputFolder', metavar='OUTPUT_FOLDER',
+                     help='Install the jonchki tool to the folder OUTPUT_FOLDER.')
+tParser.add_argument('-j', '--jonchki-version', dest='strJonchkiVersion', default=strDefaultJonchkiVersion,
+                     metavar='VERSION', help='Install version VERSION of the jonchki tool. (default is %s)' % strDefaultJonchkiVersion)
+
+atArgs = tParser.parse_args()
+
+logging.basicConfig(level=logging.DEBUG)
+
+strOutputFolder = atArgs.strOutputFolder
+strJonchkiVersion = atArgs.strJonchkiVersion
+
+logging.info('Install jonchki v%s to %s.' % (strJonchkiVersion, strOutputFolder))
+
 # Create the expected tool path.
 fFoundJonchki = False
 strJonchkiPath = os.path.join(strOutputFolder, 'jonchki-%s' % (strJonchkiVersion))
 strJonchkiTool = os.path.join(strJonchkiPath, 'jonchki')
-if os.path.isdir(strJonchkiPath)==True:
-    if os.path.isfile(strJonchkiTool)==True:
+logging.debug('Jonchki path: %s' % strJonchkiPath)
+logging.debug('Jonchki tool: %s' % strJonchkiTool)
+if os.path.isdir(strJonchkiPath) is not True:
+    logging.info('The jonchki path does not exist.')
+else:
+    logging.debug('The jonchki path exists.')
+
+    if os.path.isfile(strJonchkiTool) is not True:
+        logging.info('The jonchki tool does not point to a file.')
+    else:
         try:
-            strOutput = subprocess.check_output([strJonchkiTool, '--version'], shell=True)
+            strOutput = string.strip(subprocess.check_output([strJonchkiTool, '--version'], shell=False))
+            logging.debug('The jonchki tool reported the version string "%s".' % strOutput)
         except CalledProcessError:
+            logging.debug('Failed to get the version from the jonchki tool.')
             strOutput = ''
-        tMatch = re.match(strOutput, 'jonchki V(\d+.\d+.\d+.\d+)')
-        if tMatch is not None:
+        tMatch = re.match('jonchki V(\d+.\d+.\d+.\d+)', strOutput)
+        if tMatch is None:
+            logging.debug('Failed to extract the version from the jonchi output.')
+        else:
             strFoundVersion = tMatch.group(1)
-            if strJonchkiVersion == strFoundVersion:
+            logging.debug('The jonchi tool reported version %s.' % strFoundVersion)
+            if strJonchkiVersion != strFoundVersion:
+                logging.debug('The reported version "%s" does not match the requested version "%s".' % (strFoundVersion, strJonchkiVersion))
+            else:
                 fFoundJonchki = True
-                print('Jonchki v%s is already installed.' % strJonchkiVersion)
+                logging.info('Jonchki v%s is already installed.' % strJonchkiVersion)
 
     if fFoundJonchki == False:
-        # TODO: recursively delete the jonchki folder.
-        pass
+        logging.info('The jonchki path "%s" does not contain a useable version.' % strJonchkiPath)
+        logging.info('Remove the jonchi path recursively.')
+
+        # Recursively delete the jonchki folder.
+        shutil.rmtree(strJonchkiPath)
 
 if fFoundJonchki == False:
+    logging.info('The tool is not yet installed in the requested version.')
+
     c = PlatformDetect()
     c.detect()
     print('Host CPU architecture: %s' % c.strHostCpuArchitecture)
