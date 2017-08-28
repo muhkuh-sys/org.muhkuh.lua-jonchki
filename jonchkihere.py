@@ -260,6 +260,7 @@ class PlatformDetect:
         else:
             raise Exception('Unknown platform: "%s"' % (strSystem))
 
+
 #
 # Download the URL 'strUrl' to the file tFile.
 #
@@ -331,7 +332,7 @@ else:
         try:
             strOutput = string.strip(subprocess.check_output([strJonchkiTool, '--version'], shell=False))
             logging.debug('The jonchki tool reported the version string "%s".' % strOutput)
-        except CalledProcessError:
+        except subprocess.CalledProcessError:
             logging.debug('Failed to get the version from the jonchki tool.')
             strOutput = ''
         tMatch = re.match('jonchki V(\d+.\d+.\d+.\d+)', strOutput)
@@ -346,14 +347,14 @@ else:
                 fFoundJonchki = True
                 logging.info('Jonchki v%s is already installed.' % strJonchkiVersion)
 
-    if fFoundJonchki == False:
+    if fFoundJonchki is not True:
         logging.info('The jonchki path "%s" does not contain a useable version.' % strJonchkiPath)
         logging.info('Remove the jonchi path recursively.')
 
         # Recursively delete the jonchki folder.
         shutil.rmtree(strJonchkiPath)
 
-if fFoundJonchki == False:
+if fFoundJonchki is not True:
     logging.info('The tool is not yet installed in the requested version.')
 
     c = PlatformDetect()
