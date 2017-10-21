@@ -131,8 +131,15 @@ end
 
 
 function RepositoryDriverUrl:curl_progress(ulDlTotal, ulDlNow)
-  print('curl_progress', self)
-  print(string.format('%d%% (%d/%d)', ulDlTotal/ulDlNow*100, ulDlNow, ulDlTotal))
+  tNow = os.time()
+  if os.difftime(tNow, self.tLastProgressTime)>3 then
+    if ulDlTotal==0 then
+      print(string.format('%d/unknown', ulDlNow))
+    else
+      print(string.format('%d%% (%d/%d)', ulDlNow/ulDlTotal*100, ulDlNow, ulDlTotal))
+    end
+    self.tLastProgressTime = tNow
+  end
   return true
 end
 
@@ -153,8 +160,10 @@ function RepositoryDriverUrl:get_url_lcurlv3(strUrl)
 
   -- Collect the received data in a table.
   self.atDownloadData = {}
+  self.tLastProgressTime = 0
   tCURL:setopt(self.curl.OPT_FOLLOWLOCATION, true)
   tCURL:setopt_writefunction(self.curl_download, self)
+  tCURL:setopt_noprogress(false)
   tCURL:setopt_progressfunction(self.curl_progress, self)
 
   local tCallResult, strError = pcall(tCURL.perform, tCURL)
@@ -186,8 +195,10 @@ function RepositoryDriverUrl:download_url_lcurlv3(strUrl, strLocalFile)
   if tFile==nil then
     self.tLogger:error('Failed to open "%s" for writing: %s', strLocalFile, strError)
   else
+    self.tLastProgressTime = 0
     tCURL:setopt(self.curl.OPT_FOLLOWLOCATION, true)
     tCURL:setopt_writefunction(tFile)
+    tCURL:setopt_noprogress(false)
     tCURL:setopt_progressfunction(self.curl_progress, self)
     local tCallResult, strError = pcall(tCURL.perform, tCURL)
     if tCallResult~=true then
