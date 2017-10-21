@@ -23,6 +23,7 @@ function Cache:_init(tLogger, strID)
   self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.date = require 'date'
   self.sqlite3 = require 'luasql.sqlite3'
+  self.Version = require 'Version'
 
   self.tLogger:debug('[Cache] Created cache "%s".', strID)
   self.strLogID = string.format('[Cache "%s"]', strID)
@@ -777,8 +778,127 @@ function Cache:configure(strRepositoryRootPath, ulMaximumSize)
       end
 
       if tResult==true then
+        strCreateStatement = 'CREATE TABLE scans (iId INTEGER PRIMARY KEY, strRemoteId TEXT NOT NULL, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, iLastScan INTEGER NOT NULL)'
+        tTableResult = self:_sql_create_table(tSQLDatabase, 'scans', strCreateStatement)
+        if tTableResult==nil then
+          tSQLDatabase:close()
+          self.tLogger:error('%s Failed to create the table.', self.strLogID)
+          tResult = nil
+        elseif tTableResult~=true and tTableResult~=false then
+          self.tLogger:fatal('%s Invalid result from _sql_create_table!', self.strLogID)
+        end
+      end
+
+      if tResult==true then
         self.tSQLDatabase = tSQLDatabase
       end
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:get_last_scan(strRemoteId, strGroup, strModule, strArtifact)
+  local tResult
+  local strQuery = string.format('SELECT iLastScan FROM scans WHERE strRemoteId="%s" AND strGroup="%s" AND strModule="%s" AND strArtifact="%s"', strRemoteId, strGroup, strModule, strArtifact)
+  local tCursor, strError = self.tSQLDatabase:execute(strQuery)
+  if tCursor==nil then
+    self.tLogger:error('%s Failed to search the scans for an entry: %s', self.strLogID, strError)
+  else
+    local atAttr
+    repeat
+      local atData = tCursor:fetch({}, 'a')
+      if atData~=nil then
+        if atAttr~=nil then
+          self.tLogger:error('%s The scans database is broken. It has multiple entries for %s/%s/%s/%s.', self.strLogID, strRemoteId, strGroup, strModule, strArtifact)
+            -- TODO: remove all matching entries
+          break
+        else
+          atAttr = atData
+        end
+      end
+    until atData==nil
+
+    -- Close the cursor.
+    tCursor:close()
+
+    -- Found exactly one match?
+    if atAttr==nil then
+      -- Nothing found. This is no error.
+      self.tLogger:debug('%s No last scan found for %s/%s/%s/%s.', self.strLogID, strRemoteId, strGroup, strModule, strArtifact)
+      tResult = false
+    else
+      -- Exactly one match found. Return the ID.
+      local iLastScan = atAttr.iLastScan
+      self.tLogger:debug('%s Found last scan for %s/%s/%s/%s: %d (now is %d).', self.strLogID, strRemoteId, strGroup, strModule, strArtifact, iLastScan, os.time())
+      tResult = iLastScan
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:set_last_scan(strRemoteId, strGroup, strModule, strArtifact, iLastScan)
+  local tResult = self:get_last_scan(strRemoteId, strGroup, strModule, strArtifact)
+  if tResult~=nil then
+    local strQuery
+    if tResult==false then
+      strQuery = string.format('INSERT INTO scans (strRemoteId, strGroup, strModule, strArtifact, iLastScan) VALUES ("%s", "%s", "%s", "%s", %d)', strRemoteId, strGroup, strModule, strArtifact, iLastScan)
+    else
+      strQuery = string.format('UPDATE scans SET iLastScan=%d WHERE strRemoteId="%s" AND strGroup="%s" AND strModule="%s" AND strArtifact="%s"', iLastScan, strRemoteId, strGroup, strModule, strArtifact)
+    end
+
+    local tSqlResult, strError = self.tSQLDatabase:execute(strQuery)
+    if tSqlResult==nil then
+      self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+      tResult = nil
+    else
+      self.tSQLDatabase:commit()
+      self.tLogger:debug('%s Set last scan for %s/%s/%s/%s to %d (now is %d).', self.strLogID, strRemoteId, strGroup, strModule, strArtifact, iLastScan, os.time())
+      tResult = true
+    end
+  end
+
+  return tResult
+end
+
+
+
+function Cache:get_available_versions(strGroup, strModule, strArtifact)
+  local tResult = nil
+
+
+  local tSQLDatabase = self.tSQLDatabase
+  if tSQLDatabase==nil then
+    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+  else
+    local atVersions = {}
+    local strQuery = string.format('SELECT strVersion FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s"', strGroup, strModule, strArtifact)
+    local tCursor, strError = tSQLDatabase:execute(strQuery)
+    if tCursor==nil then
+      self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
+    else
+      repeat
+        local atData = tCursor:fetch({}, 'a')
+        if atData~=nil then
+          local tVersion = self.Version()
+          local tVersionResult, strError = tVersion:set(atData.strVersion)
+          if tVersionResult~=true then
+            self.tLogger:warn('Error in database: ignoring invalid "version" for %s/%s/%s: %s', strGroup, strModule, strArtifact, strError)
+          else
+            table.insert(atVersions, tVersion)
+          end
+        end
+      until atData==nil
+
+      -- Close the cursor.
+      tCursor:close()
+
+      tResult = atVersions
     end
   end
 

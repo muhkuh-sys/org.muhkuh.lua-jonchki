@@ -245,6 +245,7 @@ end
 function ResolverChain:get_available_versions(strGroup, strModule, strArtifact)
   local atDuplicateCheck = {}
   local atNewVersions = {}
+  local tTimeNow = os.time()
 
   -- TODO: Check the GA->V table first.
 
@@ -253,13 +254,64 @@ function ResolverChain:get_available_versions(strGroup, strModule, strArtifact)
     -- Get the ID of the current repository.
     local strSourceID = tRepository:get_id()
 
-    -- Get all available versions in this repository.
-    local tResult = tRepository:get_available_versions(strGroup, strModule, strArtifact)
-    if tResult==nil then
-      self.tLogger:warn('Error: failed to scan repository "%s".', strSourceID)
+    -- nil: do not use the cache at all.
+    -- false: use only the cache
+    -- true: do a rescan and update the cache
+    local fDoRescan = nil
+
+    -- Does the driver instance allow a cache? Does a cache exist?
+    local fCacheable = tRepository.fCacheable and (self.cCache~=nil)
+    if fCacheable==true then
+      -- Get the rescan time from the driver.
+      local ulRescan = tRepository.ulRescan
+      if ulRescan>0 then
+        -- Ask the cache for the time of the last scan.
+        local tTimeLastScan = self.cCache:get_last_scan(strSourceID, strGroup, strModule, strArtifact)
+        if tTimeLastScan==nil then
+          self.tLogger:warn('Failed to get the last scan time for "%s", do a rescan.', strSourceID)
+          fDoRescan = true
+        elseif tTimeLastScan==false then
+          -- There was no scan before.
+          self.tLogger:debug('Rescan repository "%s", there was no scan up to now.', strSourceID)
+          fDoRescan = true
+        else
+          local tDiff = os.difftime(tTimeNow, tTimeLastScan)
+          if tDiff>=ulRescan then
+            -- The rescan time elapsed, rescan now.
+            self.tLogger:debug('Rescan repository "%s", the rescan time elapsed.', strSourceID)
+            fDoRescan = true
+          else
+            -- No rescan, use the cache only.
+            self.tLogger:debug('Do not rescan repository "%s", the rescan time did not elapse yet.', strSourceID)
+            fDoRescan = false
+          end
+        end
+      else
+        self.tLogger:debug('Rescan repository "%s", the rescan time is 0.', strSourceID)
+      end
     else
-      -- Loop over all versions found in this repository.
-      for _, tVersion in pairs(tResult) do
+      self.tLogger:debug('Rescan repository "%s", it has no cache.', strSourceID)
+    end
+
+    local atDetectedVersions = nil
+    if fDoRescan==false then
+      atDetectedVersions = self.cCache:get_available_versions(strGroup, strModule, strArtifact)
+    else
+      -- Get all available versions in this repository.
+      atDetectedVersions = tRepository:get_available_versions(strGroup, strModule, strArtifact)
+      if atDetectedVersions==nil then
+        self.tLogger:warn('Error: failed to scan repository "%s".', strSourceID)
+      else
+        -- Remember the scan time if the cache can be used.
+        if fDoRescan==true then
+          self.cCache:set_last_scan(strSourceID, strGroup, strModule, strArtifact, tTimeNow)
+        end
+      end
+    end
+
+    if atDetectedVersions~=nil then
+      -- Loop over all detected versions.
+      for _, tVersion in pairs(atDetectedVersions) do
         -- Register the version in the GA->V table.
         self:add_to_ga_v(strGroup, strModule, strArtifact, tVersion, strSourceID)
 
