@@ -354,13 +354,22 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
         local cA = self.ArtifactConfiguration(self.tLogger)
         tResult = cA:parse_configuration(strCfgData, strCfgUrl)
         if tResult~=true then
-          tResult = nil
           self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
+          tResult = nil
         else
-          tResult = cA
-          self.uiStatistics_GetConfiguration_Success = self.uiStatistics_GetConfiguration_Success + 1
-          self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + string.len(strCfgData)
-          self.uiStatistics_ServedBytesConfigHash = self.uiStatistics_ServedBytesConfigHash + string.len(strHash)
+          -- Compare the GMAV from the configuration with the requested values.
+          tResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion)
+          if tResult~=true then
+            local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+            self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version.', self.strID, strGMAV)
+            self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
+            tResult = nil
+          else
+            tResult = cA
+            self.uiStatistics_GetConfiguration_Success = self.uiStatistics_GetConfiguration_Success + 1
+            self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + string.len(strCfgData)
+            self.uiStatistics_ServedBytesConfigHash = self.uiStatistics_ServedBytesConfigHash + string.len(strHash)
+          end
         end
       end
     end

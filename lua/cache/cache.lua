@@ -830,9 +830,17 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
           local cA = self.ArtifactConfiguration(self.tLogger)
           local tParseResult = cA:parse_configuration(strConfiguration, atAttr.strConfigurationPath)
           if tParseResult==true then
-            tResult = cA
-            self.uiStatistics_RequestsConfigHit = self.uiStatistics_RequestsConfigHit + 1
-            self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + atAttr.iConfigurationSize
+            -- Compare the GMAV from the configuration with the requested values.
+            local tCheckResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion)
+            if tCheckResult~=true then
+              self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version.', self.strLogID, strGMAV)
+              self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
+              -- FIXME: Remove the artifact from the cache and run a complete rescan.
+            else
+              tResult = cA
+              self.uiStatistics_RequestsConfigHit = self.uiStatistics_RequestsConfigHit + 1
+              self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + atAttr.iConfigurationSize
+            end
           end
         end
       end

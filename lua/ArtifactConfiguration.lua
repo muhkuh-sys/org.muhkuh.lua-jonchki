@@ -374,6 +374,42 @@ end
 
 
 
+-- Compare GMAV with expected values.
+function ArtifactConfiguration:check_configuration(strGroup, strModule, strArtifact, tVersion)
+  -- Be optimistic.
+  local tResult = true
+
+  -- Compare the group.
+  if strGroup~=self.tInfo.strGroup then
+    self.tLogger:error('Error in configuration from %s: expected group "%s", got "%s".', self.strSourceUrl, strGroup, self.tInfo.strGroup)
+    tResult = false
+  end
+
+  -- Compare the module.
+  if strModule~=self.tInfo.strModule then
+    self.tLogger:error('Error in configuration from %s: expected module "%s", got "%s".', self.strSourceUrl, strModule, self.tInfo.strModule)
+    tResult = false
+  end
+
+  -- Compare the artifact.
+  if strArtifact~=self.tInfo.strArtifact then
+    self.tLogger:error('Error in configuration from %s: expected artifact "%s", got "%s".', self.strSourceUrl, strArtifact, self.tInfo.strArtifact)
+    tResult = false
+  end
+
+  -- Compare the version.
+  local strVersion = tVersion:get()
+  local strSelfVersion = self.tInfo.tVersion:get()
+  if strVersion~=strSelfVersion then
+    self.tLogger:error('Error in configuration from %s: expected version "%s", got "%s".', self.strSourceUrl, strVersion, strSelfVersion)
+    tResult = false
+  end
+
+  return tResult
+end
+
+
+
 --- Return the complete configuration as a string.
 -- @return The configuration as a string. 
 function ArtifactConfiguration:__tostring()
