@@ -157,6 +157,7 @@ end
 function RepositoryDriverUrl:get_url_lcurlv3(strUrl)
   local tResult = nil
   local tCURL = self.curl.easy()
+  local uiHttpResult
 
   tCURL:setopt_url(strUrl)
 
@@ -172,7 +173,7 @@ function RepositoryDriverUrl:get_url_lcurlv3(strUrl)
   if tCallResult~=true then
     self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
   else
-    local uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
+    uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
     if uiHttpResult==200 then
       tResult = table.concat(self.atDownloadData)
     else
@@ -181,7 +182,7 @@ function RepositoryDriverUrl:get_url_lcurlv3(strUrl)
   end
   tCURL:close()
 
-  return tResult
+  return tResult, uiHttpResult
 end
 
 
@@ -189,6 +190,7 @@ end
 function RepositoryDriverUrl:download_url_lcurlv3(strUrl, strLocalFile)
   local tResult = nil
   local tCURL = self.curl.easy()
+  local uiHttpResult
 
   tCURL:setopt_url(strUrl)
 
@@ -206,7 +208,7 @@ function RepositoryDriverUrl:download_url_lcurlv3(strUrl, strLocalFile)
     if tCallResult~=true then
       self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
     else
-      local uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
+      uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
       if uiHttpResult==200 then
         tResult = true
       else
@@ -218,7 +220,7 @@ function RepositoryDriverUrl:download_url_lcurlv3(strUrl, strLocalFile)
     tFile:close()
   end
 
-  return tResult
+  return tResult, uiHttpResult
 end
 
 
@@ -283,11 +285,17 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
 
       -- Get the page and extract the versions from the links.
       self.tLogger:debug('Get versions from URL "%s".', strUrlVersions)
-      tResult = self:get_url(strUrlVersions)
-      if tResult==nil then
-        self.tLogger:warn('Failed to get available versions for %s.', strGMA)
+      local tGetResult, uiHttpStatus = self:get_url(strUrlVersions)
+      if tGetResult==nil then
+        if uiHttpStatus==404 then
+          -- A 404 status is no error in this case. It simply means that the artifact is not present in this repository.
+          self.tLogger:debug('The artifact %s was not found in the repository (404).', strGMA)
+          tResult = {}
+        else
+          self.tLogger:warn('Failed to get available versions for %s.', strGMA)
+        end
       else
-        local strHtmlPage = tResult
+        local strHtmlPage = tGetResult
         local atVersions = {}
 
         -- Extract all links.
