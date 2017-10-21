@@ -23,6 +23,7 @@ function RepositoryDriverUrl:_init(tLogger, strID)
 
   -- Clear the URLs for the configuration and artifact.
   self.fCacheable = nil
+  self.ulRescan = nil
   self.strRoot = nil
   self.strVersions = nil
   self.strConfig = nil
@@ -118,6 +119,7 @@ end
 
 function RepositoryDriverUrl:configure(atSettings)
   self.fCacheable = atSettings.cacheable
+  self.ulRescan = atSettings.ulRescan
   self.strRoot = atSettings.strRoot
   self.strVersions = atSettings.strVersions
   self.strConfig = atSettings.strConfig

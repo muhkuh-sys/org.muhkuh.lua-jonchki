@@ -83,11 +83,27 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
             aLxpAttr.tResult = nil
             aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "cacheable": "%s".', iPosLine, iPosColumn, strCacheable)
           else
-            tCurrentRepository.cacheable = fCacheable
-            tCurrentRepository.strRoot = nil
-            tCurrentRepository.strVersions = nil
-            tCurrentRepository.strConfig = nil
-            tCurrentRepository.strArtifact = nil
+            local ulRescan
+            local strRescan = atAttributes['rescan']
+            if strRescan==nil or strRescan=='' then
+              ulRescan = 0
+            else
+              ulRescan = tonumber(strRescan)
+              if ulRescan==nil then
+                aLxpAttr.tResult = nil
+                aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "rescan", not a number: "%s".', iPosLine, iPosColumn, strRescan)
+              elseif ulRescan<0 then
+                aLxpAttr.tResult = nil
+                aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "rescan", must not be negative: %d.', iPosLine, iPosColumn, ulRescan)
+              else
+                tCurrentRepository.cacheable = fCacheable
+                tCurrentRepository.ulRescan = ulRescan
+                tCurrentRepository.strRoot = nil
+                tCurrentRepository.strVersions = nil
+                tCurrentRepository.strConfig = nil
+                tCurrentRepository.strArtifact = nil
+              end
+            end
 
             aLxpAttr.tCurrentRepository = tCurrentRepository
           end
@@ -307,6 +323,7 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/id', uiCnt), tRepository.strID)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/type', uiCnt), tRepository.strType)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/cacheable', uiCnt), tRepository.cacheable)
+          self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/rescan', uiCnt), tRepository.ulRescan)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/root', uiCnt), tRepository.strRoot)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/versions', uiCnt), tRepository.strVersions)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/config', uiCnt), tRepository.strConfig)

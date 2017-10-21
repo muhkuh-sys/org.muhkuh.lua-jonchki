@@ -18,6 +18,7 @@ function RepositoryDriverFilesystem:_init(tLogger, strID)
 
   -- Clear the patterns for the configuration and artifact.
   self.fCacheable = nil
+  self.ulRescan = nil
   self.strRoot = nil
   self.strVersions = nil
   self.strConfig = nil
@@ -35,6 +36,7 @@ end
 
 function RepositoryDriverFilesystem:configure(atSettings)
   self.fCacheable = atSettings.cacheable
+  self.ulRescan = atSettings.ulRescan
   -- Replace "~" with the users home folder and make an absolute path from the root.
   self.strRoot = self.pl.path.abspath(self.pl.path.expanduser(atSettings.strRoot))
   -- Replace "~" with the users home folder for the other settings, but do not
