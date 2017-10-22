@@ -1,6 +1,22 @@
 TODO
 ----
 
+* The cache database (including the scans) identifies the repositories only with a short ID.
+If the URL behind this ID changes, all information in the cache does not make sense any more. The result is a big mess.
+Changes in the configuration should be detected somehow. The database must be invalidated.
+
+Maybe something like this will work:
+Combine all relevant parts of the configuration to a hash sum and store it in a new table. For example, the paths are relevant, but not the rescan time.
+The hash is checked always at the start of the tool. If it does not match, all information connected to the ID is removed from the cache.
+
+* Download files in parallel.
+For this something like a download phase is needed.
+
+* Measure download times and pick the fastest mirror.
+Distinguish the total time for a download in 2 items:
+1) the initial reaction time until the first chunk of data arrives.
+2) the download time for the complete data phase.
+
 * Dump the complete Resolv Tree to the report.
 This is neccessary to examine error situations.
 
@@ -68,6 +84,12 @@ Maybe we should add a system replacement for lua51-mhash if it is not available.
 
 DONE
 ----
+
+* Compare the group, module, artifact and version of a new artifact configuration with the expected values.
+This prevents strange errors in several cases:
+1) The artifact configuration is wrong. This might happen for new aritfacts.
+2) The group, module or artifact name of an aritfact changed. This happened with the luasql module, which had the group "com.github.keplerproject.lua" and was renamed to "com.github.keplerproject" later.
+Services like GitHub provide a redirect from the old name to the new one. An old Jonchki configuration still had the old group name, but got the new configuration over the GitHub redirect.
 
 * Write the report even when an error occurs.
 
