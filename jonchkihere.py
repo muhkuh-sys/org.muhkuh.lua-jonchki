@@ -268,7 +268,6 @@ class PlatformDetect:
 #
 def download_to_file(strUrl, tFile):
     bResult = False
-    fOutput = None
     sizDownloaded = 0
 
     try:
@@ -293,9 +292,6 @@ def download_to_file(strUrl, tFile):
         bResult = True
     except urllib2.HTTPError as e:
         print('Failed to download %s: %d' % (strUrl, e.code))
-
-    if fOutput:
-        fOutput.close()
 
     return bResult
 
