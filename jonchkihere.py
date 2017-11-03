@@ -268,6 +268,7 @@ class PlatformDetect:
 #
 def download_to_file(strUrl, tFile):
     bResult = False
+    fOutput = None
     sizDownloaded = 0
 
     try:
@@ -293,6 +294,9 @@ def download_to_file(strUrl, tFile):
     except urllib2.HTTPError as e:
         print('Failed to download %s: %d' % (strUrl, e.code))
 
+    if fOutput:
+        fOutput.close()
+
     return bResult
 
 
@@ -301,19 +305,22 @@ tParser.add_argument('strOutputFolder', metavar='OUTPUT_FOLDER',
                      help='Install the jonchki tool to the folder OUTPUT_FOLDER.')
 tParser.add_argument('-j', '--jonchki-version', dest='strJonchkiVersion', default=strDefaultJonchkiVersion,
                      metavar='VERSION', help='Install version VERSION of the jonchki tool. (default is %s)' % strDefaultJonchkiVersion)
+tParser.add_argument('-l', '--local-archives', dest='strLocalArchivesFolder', default=None,
+                     metavar='PATH', help='Look in PATH for the jonchki archives before downloading them.')
 
 atArgs = tParser.parse_args()
 
 logging.basicConfig(level=logging.DEBUG)
 
-strOutputFolder = atArgs.strOutputFolder
-strJonchkiVersion = atArgs.strJonchkiVersion
+strCfg_OutputFolder = atArgs.strOutputFolder
+strCfg_JonchkiVersion = atArgs.strJonchkiVersion
+strCfg_LocalArchivesFolder = atArgs.strLocalArchivesFolder
 
-logging.info('Install jonchki v%s to %s.' % (strJonchkiVersion, strOutputFolder))
+logging.info('Install jonchki v%s to %s.' % (strCfg_JonchkiVersion, strCfg_OutputFolder))
 
 # Create the expected tool path.
 fFoundJonchki = False
-strJonchkiPath = os.path.join(strOutputFolder, 'jonchki-%s' % (strJonchkiVersion))
+strJonchkiPath = os.path.join(strCfg_OutputFolder, 'jonchki-%s' % (strCfg_JonchkiVersion))
 strJonchkiTool = os.path.join(strJonchkiPath, 'jonchki')
 logging.debug('Jonchki path: %s' % strJonchkiPath)
 logging.debug('Jonchki tool: %s' % strJonchkiTool)
@@ -337,11 +344,11 @@ else:
         else:
             strFoundVersion = tMatch.group(1)
             logging.debug('The jonchi tool reported version %s.' % strFoundVersion)
-            if strJonchkiVersion != strFoundVersion:
-                logging.debug('The reported version "%s" does not match the requested version "%s".' % (strFoundVersion, strJonchkiVersion))
+            if strCfg_JonchkiVersion != strFoundVersion:
+                logging.debug('The reported version "%s" does not match the requested version "%s".' % (strFoundVersion, strCfg_JonchkiVersion))
             else:
                 fFoundJonchki = True
-                logging.info('Jonchki v%s is already installed.' % strJonchkiVersion)
+                logging.info('Jonchki v%s is already installed.' % strCfg_JonchkiVersion)
 
     if fFoundJonchki is not True:
         logging.info('The jonchki path "%s" does not contain a useable version.' % strJonchkiPath)
@@ -364,17 +371,27 @@ if fFoundJonchki is not True:
         'HOST_CPU_ARCHITECTURE': c.strHostCpuArchitecture,
         'HOST_DISTRIBUTION_ID': c.strHostDistributionId,
         'HOST_DISTRIBUTION_VERSION': c.strHostDistributionVersion,
-        'JONCHKI_VERSION': strJonchkiVersion,
+        'JONCHKI_VERSION': strCfg_JonchkiVersion,
         'ARCHIVE_EXTENSION': c.strStandardArchiveFormat
     }
+    strLocalFileTemplate = 'jonchki-{JONCHKI_VERSION}-{HOST_DISTRIBUTION_ID}{HOST_DISTRIBUTION_VERSION}_{HOST_CPU_ARCHITECTURE}.{ARCHIVE_EXTENSION}'
     strUrlTemplate = 'https://github.com/muhkuh-sys/org.muhkuh.lua-jonchki/releases/download/v{JONCHKI_VERSION}/jonchki-{JONCHKI_VERSION}-{HOST_DISTRIBUTION_ID}{HOST_DISTRIBUTION_VERSION}_{HOST_CPU_ARCHITECTURE}.{ARCHIVE_EXTENSION}'
+    strLocalFile = strLocalFileTemplate.format(**astrReplace)
     strUrl = strUrlTemplate.format(**astrReplace)
-    print(strUrl)
 
-    # Download the archive to a temporary file.
-    tFile = tempfile.TemporaryFile()
-    tResult = download_to_file(strUrl, tFile)
-    tFile.seek(0, 0)
+    # Does the local file already exist?
+    tFile = None
+    if strCfg_LocalArchivesFolder is not None:
+        strAbsFile = os.path.join(strCfg_LocalArchivesFolder, strLocalFile)
+        if os.path.exists(strAbsFile) is True:
+            logging.info('Found the requested version in the local files folder.')
+            tFile = open(strAbsFile, 'rb')
+
+    if tFile is None:
+        # Download the archive to a temporary file.
+        tFile = tempfile.TemporaryFile()
+        tResult = download_to_file(strUrl, tFile)
+        tFile.seek(0, 0)
 
     # Extract the archive contents to the destiation folder.
     if c.strStandardArchiveFormat == 'tar.gz':
@@ -383,11 +400,11 @@ if fFoundJonchki is not True:
             tInfo = tArchive.next()
             if tInfo is None:
                 break
-            strDstPath = os.path.join(strOutputFolder, tInfo.name)
-            strRel = os.path.relpath(strDstPath, strOutputFolder)
+            strDstPath = os.path.join(strCfg_OutputFolder, tInfo.name)
+            strRel = os.path.relpath(strDstPath, strCfg_OutputFolder)
             if strRel[0:2] == '..':
                 raise Exception('Invalid archive member: "%s".' % (tInfo.name))
-            tArchive.extract(tInfo, path=strOutputFolder)
+            tArchive.extract(tInfo, path=strCfg_OutputFolder)
         tArchive.close()
 
     tFile.close()
