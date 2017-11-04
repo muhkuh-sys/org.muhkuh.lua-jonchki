@@ -10,6 +10,7 @@ Scan the remote repository anyway if the artifact could not be found in the cach
 
 * Add a command mode with something like a maintenance mode. One command for the maintenance mode is to clear the complete cache.
 Another command is a repository sync mode. It takes a list of artifacts and checks the available versions in the different repositories. The output could be XML with a nice stylesheet.
+To prevent complete downloads, only the headers could be fetched (curl -I <URL>).
 
 * The cache database (including the scans) identifies the repositories only with a short ID.
 If the URL behind this ID changes, all information in the cache does not make sense any more. The result is a big mess.
