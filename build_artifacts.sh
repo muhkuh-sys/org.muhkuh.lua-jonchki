@@ -60,6 +60,7 @@ JONCHKI=${JONCHKI_PATH}/jonchki.lua
 
 # This is the base path where all packages will be assembled.
 WORK_BASE=${PRJ_DIR}/targets/jonchki
+mkdir -p ${WORK_BASE}
 
 # Write the GIT version into the template.
 rm -f ${WORK_BASE}/jonchki.xml
