@@ -72,9 +72,12 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
           aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "type".', iPosLine, iPosColumn)
         else
           tCurrentRepository.strType = strType
-          local strCacheable = atAttributes['cacheable']
           local fCacheable = nil
-          if strCacheable=='0' or string.lower(strCacheable)=='false' or string.lower(strCacheable)=='no' then
+          local strCacheable = atAttributes['cacheable']
+          -- Default to no cache if the attribute is not present.
+          if strCacheable==nil then
+            fCacheable = false
+          elseif strCacheable=='0' or string.lower(strCacheable)=='false' or string.lower(strCacheable)=='no' then
             fCacheable = false
           elseif strCacheable=='1' or string.lower(strCacheable)=='true' or string.lower(strCacheable)=='yes' then
             fCacheable = true
