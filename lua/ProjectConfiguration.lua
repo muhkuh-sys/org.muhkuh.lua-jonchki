@@ -86,9 +86,12 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
             aLxpAttr.tResult = nil
             aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "cacheable": "%s".', iPosLine, iPosColumn, strCacheable)
           else
-            local ulRescan
+            tCurrentRepository.cacheable = fCacheable
+
+            local ulRescan = nil
             local strRescan = atAttributes['rescan']
-            if strRescan==nil or strRescan=='' then
+            -- Default to a rescan time of 0.
+            if strRescan==nil then
               ulRescan = 0
             else
               ulRescan = tonumber(strRescan)
@@ -96,16 +99,17 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
                 aLxpAttr.tResult = nil
                 aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "rescan", not a number: "%s".', iPosLine, iPosColumn, strRescan)
               elseif ulRescan<0 then
+                ulRescan = nil
                 aLxpAttr.tResult = nil
                 aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "rescan", must not be negative: %d.', iPosLine, iPosColumn, ulRescan)
-              else
-                tCurrentRepository.cacheable = fCacheable
-                tCurrentRepository.ulRescan = ulRescan
-                tCurrentRepository.strRoot = nil
-                tCurrentRepository.strVersions = nil
-                tCurrentRepository.strConfig = nil
-                tCurrentRepository.strArtifact = nil
               end
+            end
+            if ulRescan~=nil then
+              tCurrentRepository.ulRescan = ulRescan
+              tCurrentRepository.strRoot = nil
+              tCurrentRepository.strVersions = nil
+              tCurrentRepository.strConfig = nil
+              tCurrentRepository.strArtifact = nil
             end
 
             aLxpAttr.tCurrentRepository = tCurrentRepository
