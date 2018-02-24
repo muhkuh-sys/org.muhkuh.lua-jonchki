@@ -1,153 +1,42 @@
-local function jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
-  -- Be pessimistic.
-  local tResult = false
-
-  -----------------------------------------------------------------------------
-  --
+local function command_install(cCore, tArgs)
   -- Read the system configuration.
-  --
-  local SystemConfiguration = require 'SystemConfiguration'
-  -- Create a configuration object.
-  local cSysCfg = SystemConfiguration(cLogger, strJonchkiPath, tArgs.fInstallBuildDependencies)
-  -- Read the settings from the system configuration file.
-  tResult = cSysCfg:parse_configuration(tArgs.strSystemConfigurationFile)
-  if tResult==nil then
-    cLogger:fatal('Failed to parse the system configuration!')
-  else
-    -- Check if all paths exist. Try to create them. Clean the depack and the install folders.
-    tResult = cSysCfg:initialize_paths()
-    if tResult==nil then
-      cLogger:fatal('Failed to initialize the paths!')
-    else
-      -- Write the report to the working folder.
-      cReport:setFileName(pl.path.join(cSysCfg.tConfiguration.work, 'jonchkireport.xml'))
+  local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies)
+  if tResult~=nil then
 
-      -----------------------------------------------------------------------------
-      --
-      -- Get the target ID.
-      --
-      local strCpuArchitecture = tArgs.strCpuArchitecture
-      local strDistributionId = tArgs.strDistributionId
-      local strDistributionVersion = tArgs.strDistributionVersion
-      local Platform = require 'platform.platform'
-      local cPlatform = Platform(cLogger, cReport)
+    -- Get the platform ID.
+    tResult = cCore:get_platform_id(tArgs.strCpuArchitecture, tArgs.strDistributionId, tArgs.strDistributionVersion)
+    if tResult~=nil then
 
-      -- Detect the host platform.
-      cPlatform:detect()
-      cLogger:info('Detected platform: %s', tostring(cPlatform))
+      -- Read the project configuration.
+      tResult = cCore:read_project_configuration(tArgs.strProjectConfigurationFile)
+      if tResult~=nil then
 
-      -- Override the initial values (empty or from the detection)
-      if strCpuArchitecture~=nil then
-        cPlatform:override_cpu_architecture(strCpuArchitecture)
-      end
-      if strDistributionId~=nil then
-        cPlatform:override_distribution_id(strDistributionId)
-      end
-      if strDistributionVersion~=nil then
-        cPlatform:override_distribution_version(strDistributionVersion)
-      end
-
-      local fPlatformInfoIsValid = cPlatform:is_valid()
-      if fPlatformInfoIsValid~=true then
-        -- The platform information is not valid.
-        cLogger:fatal('The platform information is not valid!')
-      else
-        -----------------------------------------------------------------------------
-        --
-        -- Read the project configuration.
-        --
-        local ProjectConfiguration = require 'ProjectConfiguration'
-        local cPrjCfg = ProjectConfiguration(cLogger, cReport)
-        tResult = cPrjCfg:parse_configuration(tArgs.strProjectConfigurationFile)
-        if tResult==nil then
-          cLogger:fatal('Failed to parse the project configuration!')
+        -- Create the cache.
+        if tArgs.fNoCache==true then
+          cLogger:info('Do not use a cache as requested.')
+          tResult = true
         else
-          -----------------------------------------------------------------------------
-          --
-          -- Create the cache.
-          -- Set the cache ID to "main".
-          --
-          local cCache
-          if tArgs.fNoCache==true then
-            cLogger:info('Do not use a cache as requested.')
-            tResult = true
-          else
-            local Cache = require 'cache.cache'
-            cCache = Cache(cLogger, 'main')
-            tResult = cCache:configure(cSysCfg.tConfiguration.cache, cSysCfg.tConfiguration.cache_max_size)
-            if tResult~=true then
-              cLogger:fatal('Failed to open the cache!')
-            end
-          end
+          tResult = cCore:create_cache()
+        end
+        if tResult==true then
+
+          -- Create the resolver chain.
+          cCore:create_resolver_chain()
+
+          -- Read the artifact configuration.
+          tResult = cCore:read_artifact_configuration(tArgs.strInputFile)
           if tResult==true then
-            -----------------------------------------------------------------------------
-            --
-            -- Create the resolver chain.
-            --
-            local ResolverChain = require 'resolver.resolver_chain'
-            local cResolverChain = ResolverChain(cLogger, cSysCfg, 'default')
-            if tArgs.fNoCache~=true then
-              cResolverChain:set_cache(cCache)
-            end
-            cResolverChain:set_repositories(cPrjCfg.atRepositories)
 
+            -- Create the resolver.
+            tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies)
+            if tResult==true then
 
-            -----------------------------------------------------------------------------
-            --
-            -- Read the artifact configuration.
-            --
-            local ArtifactConfiguration = require 'ArtifactConfiguration'
-            local cArtifactCfg = ArtifactConfiguration(cLogger)
-            tResult = cArtifactCfg:parse_configuration_file(tArgs.strInputFile)
-            if tResult~=true then
-              cLogger:fatal('Failed to parse the artifact configuration!')
-            else
-              -----------------------------------------------------------------------------
-              --
-              -- Create the resolver.
-              --
-              local Resolver = require 'resolver.resolver'
-              local tResolver = Resolver(cLogger, cReport, 'default', tArgs.fInstallBuildDependencies)
-              -- Create all policy lists.
-              tResult = tResolver:load_policies(cPrjCfg)
-              if tResult~=true then
-                cLogger:fatal('Failed to create all policy lists.')
-              else
-                -- Resolve all dependencies.
-                tResolver:setResolverChain(cResolverChain)
-                local tStatus = tResolver:resolve(cArtifactCfg)
-                if tStatus~=true then
-                  cLogger:fatal('Failed to resolve all dependencies.')
-                  tResult = nil
-                else
-                  local atArtifacts = tResolver:get_all_dependencies(true)
+              -- Resolve all dependencies.
+              tResult = cCore:resolve_all_dependencies()
+              if tResult==true then
 
-                  -- Download and depack all dependencies.
-                  tResult = cResolverChain:retrieve_artifacts(atArtifacts)
-                  if tResult==nil then
-                    cLogger:fatal('Failed to retrieve all artifacts.')
-                  else
-                    local Installer = require 'installer.installer'
-                    local cInstaller = Installer(cLogger, cReport, cSysCfg, cArtifactCfg)
-                    tResult = cInstaller:install_artifacts(atArtifacts, cPlatform, tArgs.fInstallBuildDependencies)
-                    if tResult==nil then
-                      cLogger:fatal('Failed to install all artifacts.')
-                    else
-                      -- Show some statistics.
-                      cResolverChain:show_statistics(cReport)
-
-                      -- Write the report.
-                      cReport:write()
-
-                      tResult = cInstaller:run_finalizer(tArgs.strFinalizerScript)
-                      if tResult==nil then
-                        cLogger:fatal('Failed to run the finalizer script "%s".', tArgs.strFinalizerScript)
-                      else
-                        tResult = true
-                      end
-                    end
-                  end
-                end
+                -- Download and install all artifacts.
+                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, not tArgs.fSkipRootArtifact, tArgs.strFinalizerScript)
               end
             end
           end
@@ -211,64 +100,121 @@ local atLogLevels = {
 }
 
 local tParser = argparse('jonchki', 'A dependency manager for LUA packages.')
-tParser:argument('input', 'Input file.')
-  :target('strInputFile')
-tParser:flag('-b --build-dependencies')
-  :description('Install the build dependencies.')
-  :default(false)
-  :target('fInstallBuildDependencies')
-tParser:option('-f --finalizer')
-  :description('Run the installer script SCRIPT as a finalizer.')
-  :argname('<SCRIPT>')
-  :default(nil)
-  :target('strFinalizerScript')
-tParser:flag('-n --no-cache')
-  :description('Do not use a cache, even if repositories are marked as cacheable.')
-  :default(false)
-  :target('fNoCache')
-tParser:option('-p --prjcfg')
-  :description('Load the project configuration from FILE.')
-  :argname('<FILE>')
-  :default('jonchkicfg.xml')
-  :target('strProjectConfigurationFile')
-tParser:option('-s --syscfg')
-  :description('Load the system configuration from FILE.')
-  :argname('<FILE>')
-  :default('jonchkisys.cfg')
-  :target('strSystemConfigurationFile')
-tParser:option('--cpu-architecture')
-  :description('Set the CPU architecture for the installation to ARCH. The default is to autodetect it.')
-  :argname('<ARCH>')
-  :default(nil)
-  :target('strCpuArchitecture')
-tParser:option('--distribution-id')
-  :description('Set the distribution id for the installation to ID. The default is to autodetect it.')
-  :argname('<ID>')
-  :default(nil)
-  :target('strDistributionId')
-tParser:mutex(
-  tParser:option('--distribution-version')
-    :description('Set the distribution version for the installation to VERSION. The default is to autodetect it.')
-    :argname('<VERSION>')
-    :default(nil)
-    :target('strDistributionVersion'),
-  tParser:flag('--empty-distribution-version')
-    :description('Set the distribution version for the installation to the empty string. The default is to autodetect it.')
-    :target('fEmptyDistributionVersion')
-)
-tParser:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
-  :argname('<LEVEL>')
-  :default('warn')
-  :convert(atLogLevels)
-  :target('tLogLevel')
+  :command_target("strSubcommand")
+
+-- "--version" is special. It behaves like a command and is processed immediately during parsing.
 tParser:flag('--version')
   :description('Show the version and exit.')
   :action(function()
     print(string.format('jonchki V%s %s', strJonchkiVersion, strJonchkiVcsVersion))
     os.exit(0)
   end)
+
+-- Add the "install" command and all its options.
+local tParserCommandInstall = tParser:command('install i', 'Install an artifact and all dependencies.')
+  :target('fCommandInstallSelected')
+tParserCommandInstall:argument('input', 'Input file.')
+  :target('strInputFile')
+tParserCommandInstall:flag('-b --build-dependencies')
+  :description('Install the build dependencies.')
+  :default(false)
+  :target('fInstallBuildDependencies')
+tParserCommandInstall:flag('-r --skip-root-artifact')
+  :description('Do not install the root artifact but only its dependencies.')
+  :default(false)
+  :target('fSkipRootArtifact')
+tParserCommandInstall:option('-f --finalizer')
+  :description('Run the installer script SCRIPT as a finalizer.')
+  :argname('<SCRIPT>')
+  :default(nil)
+  :target('strFinalizerScript')
+tParserCommandInstall:flag('-n --no-cache')
+  :description('Do not use a cache, even if repositories are marked as cacheable.')
+  :default(false)
+  :target('fNoCache')
+tParserCommandInstall:option('-p --prjcfg')
+  :description('Load the project configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkicfg.xml')
+  :target('strProjectConfigurationFile')
+tParserCommandInstall:option('-s --syscfg')
+  :description('Load the system configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkisys.cfg')
+  :target('strSystemConfigurationFile')
+tParserCommandInstall:option('--cpu-architecture')
+  :description('Set the CPU architecture for the installation to ARCH. The default is to autodetect it.')
+  :argname('<ARCH>')
+  :default(nil)
+  :target('strCpuArchitecture')
+tParserCommandInstall:option('--distribution-id')
+  :description('Set the distribution id for the installation to ID. The default is to autodetect it.')
+  :argname('<ID>')
+  :default(nil)
+  :target('strDistributionId')
+tParserCommandInstall:mutex(
+  tParserCommandInstall:option('--distribution-version')
+    :description('Set the distribution version for the installation to VERSION. The default is to autodetect it.')
+    :argname('<VERSION>')
+    :default(nil)
+    :target('strDistributionVersion'),
+  tParserCommandInstall:flag('--empty-distribution-version')
+    :description('Set the distribution version for the installation to the empty string. The default is to autodetect it.')
+    :target('fEmptyDistributionVersion')
+)
+tParserCommandInstall:option('-v --verbose')
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :argname('<LEVEL>')
+  :default('warn')
+  :convert(atLogLevels)
+  :target('tLogLevel')
+
+-- Add the "cache" command and all its options.
+local tParserCommandCache = tParser:command('cache c', 'Examine and modify the cache.')
+  :target('fCommandCacheSelected')
+  :command_target("strCacheSubcommand")
+local tParserCommandCacheCheck = tParserCommandCache:command('check', 'Check the complete cache for invalid entries, missing or stray files and total size.')
+  :target('fCommandCacheCheckSelected')
+tParserCommandCacheCheck:option('-s --syscfg')
+  :description('Load the system configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkisys.cfg')
+  :target('strSystemConfigurationFile')
+tParserCommandCacheCheck:option('-v --verbose')
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :argname('<LEVEL>')
+  :default('warn')
+  :convert(atLogLevels)
+  :target('tLogLevel')
+local tParserCommandCacheClear = tParserCommandCache:command('clear', 'Remove all entries from the cache.')
+  :target('fCommandCacheClearSelected')
+tParserCommandCacheClear:option('-s --syscfg')
+  :description('Load the system configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkisys.cfg')
+  :target('strSystemConfigurationFile')
+tParserCommandCacheClear:option('-v --verbose')
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :argname('<LEVEL>')
+  :default('warn')
+  :convert(atLogLevels)
+  :target('tLogLevel')
+local tParserCommandCacheShow = tParserCommandCache:command('show', 'Show all contents of the cache.')
+  :target('fCommandCacheShowSelected')
+tParserCommandCacheShow:option('-s --syscfg')
+  :description('Load the system configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkisys.cfg')
+  :target('strSystemConfigurationFile')
+tParserCommandCacheShow:option('-v --verbose')
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :argname('<LEVEL>')
+  :default('warn')
+  :convert(atLogLevels)
+  :target('tLogLevel')
+
 local tArgs = tParser:parse()
+
 
 -- Set the distribution version to empty if requested.
 if tArgs.fEmptyDistributionVersion==true then
@@ -281,7 +227,7 @@ end
 -- Create a logger.
 --
 
--- TODO: the logger type and level should depend on some command line options.
+-- Set the logger level from the command line options.
 local cLogger = require 'logging.console'()
 cLogger:setLevel(tArgs.tLogLevel)
 
@@ -296,11 +242,27 @@ local cReport = Report(cLogger)
 
 -----------------------------------------------------------------------------
 --
+-- Create a core.
+--
+local Core = require 'Core'
+local cCore = Core(cLogger, cReport, strJonchkiPath)
+
+
+-----------------------------------------------------------------------------
+--
 -- Call the core logic.
 --
-local tResult = jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
--- Write the report. This is important if an error occured somewhere in the core.
-cReport:write()
+local tResult = nil
+
+-- Is the "install" command active?
+if tArgs.fCommandInstallSelected==true then
+  tResult = command_install(cCore, tArgs)
+  -- Write the report. This is important if an error occured somewhere in the core.
+  cReport:write()
+elseif tArgs.fCommandCacheSelected==true then
+  error('The cache commands are not implemented yet.')
+end
+
 -- Exit.
 if tResult~=true then
   os.exit(1)
