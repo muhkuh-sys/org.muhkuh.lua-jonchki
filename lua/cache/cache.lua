@@ -143,48 +143,6 @@ function Cache.sort_age_table(tEntry1, tEntry2)
 end
 
 
---[[
--- This is an example path with lots of content.
-strRepoPath = "/home/baccy/Coding/secmem_contents"
-
--- Scan the repository.
-local atFileAge = {}
-local fOk,uiTotalSize = scan_repo(strRepoPath, ".lua", atFileAge)
-if fOk~=true then
-	print("Failed to scan the repository: " .. uiTotalSize)
-else
-	print(string.format("The repository uses %d bytes now.", uiTotalSize))
-
-	-- Set the maximum repository size to 100MB.
-	local uiMaximumSize = 100*1024*1024
-
-	if uiTotalSize>uiMaximumSize then
-		local uiOversize = uiTotalSize - uiMaximumSize
-		print(string.format("The repository exceeds the maximum size of %d bytes. Looking for %d bytes.", uiMaximumSize, uiOversize))
-
-		-- Sort the entries to get the oldest entries.
-		table.sort(atFileAge, sort_age_table)
-
-		-- Collect the first entries of the sorted table until the oversize is reached.
-		local uiCollectedSize = 0
-		local atDelete = {}
-		for iCnt, tAttr in pairs(atFileAge) do
-			table.insert(atDelete, tAttr)
-			uiCollectedSize = uiCollectedSize + tAttr.size
-			if uiCollectedSize>=uiOversize then
-				break
-			end
-		end
-
-		print("Files to delete:")
-		for iCnt, tAttr in pairs(atDelete) do
-			print(string.format("Delete %s ... (not really)", tAttr.file))
-		end
-	end
-end
---]]
-
-
 
 function Cache:_replace_path(cArtifact, strExtension)
   local tInfo = cArtifact.tInfo
