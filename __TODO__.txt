@@ -1,12 +1,21 @@
 TODO
 ----
 
-* Remember the time when a remote repository was scanned for the versions of a specific artifact.
-Use only the cache if a configureable time has not elapsed.
+* Disable a repository if the initial access to the root location failed.
+This prevents multiple accesses to non-existing URLs.
 
-This allows a local-only operation if a specific artifact is used more often.
+* Replace lualogging with lua-log.
+It makes different log prefixes easier.
 
-Scan the remote repository anyway if the artifact could not be found in the cache.
+* Maybe it would be better in some cases to allow one packet for each distribution instead of bundeling all of them in one archive.
+One of the major drawbacks of the current solution is that a new version of a distribution forces a new version of each architecture-dependant package at the moment.
+For example: Ubuntu 18.04 is released. All packages with compiled code must be updated.
+
+* Show the source of an artifact in the report.
+To include detailed information about artifacts served by the cache, a source field should be added there. This would allow inforation like this:
+ SHORT_ID
+or
+ SHORT_ID (cached)
 
 * Add a command mode with something like a maintenance mode. One command for the maintenance mode is to clear the complete cache.
 Another command is a repository sync mode. It takes a list of artifacts and checks the available versions in the different repositories. The output could be XML with a nice stylesheet.
@@ -95,6 +104,17 @@ Maybe we should add a system replacement for lua51-mhash if it is not available.
 
 DONE
 ----
+
+* Select the "install root artifact" parameter with a command mode.
+A complete install (i.e. including the root artifact) should be "install".
+If the install should skip the root artifact, it should be "install-dependencies" or something like this.
+
+* Remember the time when a remote repository was scanned for the versions of a specific artifact.
+Use only the cache if a configureable time has not elapsed.
+
+This allows a local-only operation if a specific artifact is used more often.
+
+Scan the remote repository anyway if the artifact could not be found in the cache.
 
 * Compare the group, module, artifact and version of a new artifact configuration with the expected values.
 This prevents strange errors in several cases:
