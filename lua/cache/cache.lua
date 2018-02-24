@@ -240,6 +240,25 @@ end
 
 
 
+function Cache:_database_add_version(tSQLDatabase, strGroup, strModule, strArtifact, tVersion)
+  local tResult = nil
+
+
+  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', strGroup, strModule, strArtifact, tVersion:get())
+
+  local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+  if tSqlResult==nil then
+    self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+  else
+    tSQLDatabase:commit()
+    tResult = true
+  end
+
+  return tResult
+end
+
+
+
 function Cache:_database_add_configuration(tSQLDatabase, cArtifact)
   local tResult = nil
 
@@ -250,6 +269,30 @@ function Cache:_database_add_configuration(tSQLDatabase, cArtifact)
   local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
 
   local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize)
+
+  local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+  if tSqlResult==nil then
+    self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+  else
+    tSQLDatabase:commit()
+    tResult = true
+  end
+
+  return tResult
+end
+
+
+
+function Cache:_database_update_configuration(tSQLDatabase, iId, cArtifact)
+  local tResult = nil
+
+
+  local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
+
+  local tInfo = cArtifact.tInfo
+  local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
+
+  local strQuery = string.format('UPDATE cache SET strConfigurationPath="%s", strConfigurationHashPath="%s", iConfigurationSize=%d, iLastUsedDate=strftime("%%s","now") WHERE iId=%d', strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, iId)
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
@@ -880,6 +923,9 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
   elseif fFound==false then
     self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAV)
     self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
+  elseif atAttr.strConfigurationPath==nil then
+    self.tLogger:debug('%s The cache entry does not have the configuration.', self.strLogID, strGMAV)
+    self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
   else
     self.tLogger:debug('%s Found the configuration for artifact %s in the cache.', self.strLogID, strGMAV)
 
@@ -950,7 +996,7 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
     self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAV)
     self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   elseif atAttr.strArtifactPath==nil then
-    self.tLogger:debug('%s The cache entry for %s has only the configuration, but not the artifact.', self.strLogID, strGMAV)
+    self.tLogger:debug('%s The cache entry does not have the artifact.', self.strLogID, strGMAV)
     self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   else
     self.tLogger:debug('%s Found the artifact %s in the cache.', self.strLogID, strGMAV)
@@ -996,6 +1042,29 @@ end
 
 
 
+function Cache:add_version(strGroup, strModule, strArtifact, tVersion)
+  local tResult = nil
+  local strError
+
+  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+
+  -- First check if the artifact is not yet part of the cache.
+  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  if fFound==nil then
+    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+  elseif fFound==true and atAttr.strConfigurationPath~=nil then
+    self.tLogger:debug('%s The version of the artifact %s is already in the cache.', self.strLogID, strGMAV)
+  else
+    self.tLogger:debug('%s Adding the version for the artifact %s to the cache.', self.strLogID, strGMAV)
+    -- Add the version to the database.
+    tResult = self:_database_add_version(self.tSQLDatabase, strGroup, strModule, strArtifact, tVersion)
+  end
+
+  return tResult
+end
+
+
+
 function Cache:add_configuration(cArtifact)
   local tResult = nil
   local strError
@@ -1008,11 +1077,20 @@ function Cache:add_configuration(cArtifact)
   local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
 
   -- First check if the artifact is not yet part of the cache.
-  local fFound = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
   elseif fFound==true then
-    self.tLogger:debug('%s The artifact %s is already in the cache.', self.strLogID, strGMAV)
+    -- Found an entry in the cache.
+    self.tLogger:debug('%s The configuration of the artifact %s is already in the cache.', self.strLogID, strGMAV)
+    --  Does the entry have already a configuration path?
+    if atAttr.strConfigurationPath==nil then
+      -- No configuration path yet. This is only a version entry.
+      tResult = self:_cachefs_write_configuration(cArtifact)
+      if tResult==true then
+        self:_database_update_configuration(self.tSQLDatabase, atAttr.iId, cArtifact)
+      end
+    end
   else
     self.tLogger:debug('%s Adding the configuration for the artifact %s to the cache.', self.strLogID, strGMAV)
 
