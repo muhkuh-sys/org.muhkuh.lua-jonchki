@@ -120,7 +120,7 @@ local function jonchki_core(tArgs, pl, strJonchkiPath, cLogger, cReport)
                   cLogger:fatal('Failed to resolve all dependencies.')
                   tResult = nil
                 else
-                  local atArtifacts = tResolver:get_all_dependencies()
+                  local atArtifacts = tResolver:get_all_dependencies(true)
 
                   -- Download and depack all dependencies.
                   tResult = cResolverChain:retrieve_artifacts(atArtifacts)

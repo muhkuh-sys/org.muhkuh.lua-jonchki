@@ -875,7 +875,7 @@ end
 
 
 -- Get all dependencies. This is a list of all artifacts except the root in the resolve table.
-function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, strParent)
+function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, fInstallRootArtifact, strParent)
   strParent = strParent or 'none'
 
   local strGroup = tResolv.strGroup
@@ -914,8 +914,8 @@ function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, 
   --       as the attribute in the path and the leaf value.
   self.tReport:addData(string.format('%s/parent@id=%s', strReportPath, strParent), strParent)
 
-  -- Do not add the root artifact.
-  if uiID==0 then
+  -- Do not add the root artifact if not requested.
+  if uiID==0 and fInstallRootArtifact==true then
     self.tLogger:debug('[COLLECT]: %s is the root artifact. Do not add it to the collect list.', strGMA)
     -- Expect that the root artifact is no double.
     local cArtifact = atV.cArtifact
@@ -968,7 +968,7 @@ function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, 
     local atDependencies = atV.atDependencies
     if atDependencies~=nil then
       for _, tDependency in pairs(atDependencies) do
-        self:get_all_dependencies_recursive(tDependency, atArtifacts, atIdTab, tostring(uiID))
+        self:get_all_dependencies_recursive(tDependency, atArtifacts, atIdTab, fInstallRootArtifact, tostring(uiID))
       end
     end
   end
@@ -979,7 +979,7 @@ end
 
 
 
-function Resolver:get_all_dependencies()
+function Resolver:get_all_dependencies(fInstallRootArtifact)
   -- Start at the root element of the resolv table.
   local tResolvRoot = self.atResolvTab
   -- Collect all ID assignments in this table.
@@ -990,7 +990,7 @@ function Resolver:get_all_dependencies()
   self:assign_id_recursive(tResolvRoot, 0, atIdTab)
 
   -- Collect all artifacts and build the link information in the report.
-  local atArtifacts = self:get_all_dependencies_recursive(tResolvRoot, {}, atIdTab)
+  local atArtifacts = self:get_all_dependencies_recursive(tResolvRoot, {}, atIdTab, fInstallRootArtifact)
 
   return atArtifacts
 end
