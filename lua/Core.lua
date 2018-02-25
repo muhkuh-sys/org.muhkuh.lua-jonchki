@@ -215,6 +215,28 @@ end
 
 -----------------------------------------------------------------------------
 --
+-- Resolve the root artifact and all dependencies.
+--
+function Core:resolve_root_and_dependencies(strGroup, strModule, strArtifact, strConstraint)
+  local tResult = nil
+
+  self.cResolver:setResolverChain(self.cResolverChain)
+  local tStatus = self.cResolver:resolve_root_and_dependencies(strGroup, strModule, strArtifact, strConstraint)
+  if tStatus~=true then
+    self.cLogger:fatal('Failed to resolve the root artifact and all dependencies.')
+  else
+    -- Set the root artifact configuration.
+    self.cRootArtifactCfg = self.cResolver:resolvetab_get_artifact_configuration()
+
+    tResult = true
+  end
+
+  return tResult
+end
+
+
+-----------------------------------------------------------------------------
+--
 -- Resolve all dependencies.
 --
 function Core:resolve_all_dependencies()
@@ -236,8 +258,8 @@ end
 --
 -- Download and install all artifacts.
 --
-function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fInstallRootArtifact, strFinalizerScript)
-  local atArtifacts = self.cResolver:get_all_dependencies(fInstallRootArtifact)
+function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSkipRootArtifact, strFinalizerScript)
+  local atArtifacts = self.cResolver:get_all_dependencies(fSkipRootArtifact)
 
   local tResult = self.cResolverChain:retrieve_artifacts(atArtifacts)
   if tResult==nil then

@@ -23,6 +23,53 @@ local function command_install(cCore, tArgs)
           -- Create the resolver chain.
           cCore:create_resolver_chain()
 
+          -- Create the resolver.
+          tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies)
+          if tResult==true then
+
+            -- Resolve the root artifact and all dependencies.
+            tResult = cCore:resolve_root_and_dependencies(tArgs.strGroup, tArgs.strModule, tArgs.strArtifact, tArgs.strVersion)
+            if tResult==true then
+
+              -- Download and install all artifacts.
+              tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, tArgs.fSkipRootArtifact, tArgs.strFinalizerScript)
+            end
+          end
+        end
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
+local function command_install_dependencies(cCore, tArgs)
+  -- Read the system configuration.
+  local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies)
+  if tResult~=nil then
+
+    -- Get the platform ID.
+    tResult = cCore:get_platform_id(tArgs.strCpuArchitecture, tArgs.strDistributionId, tArgs.strDistributionVersion)
+    if tResult~=nil then
+
+      -- Read the project configuration.
+      tResult = cCore:read_project_configuration(tArgs.strProjectConfigurationFile)
+      if tResult~=nil then
+
+        -- Create the cache.
+        if tArgs.fNoCache==true then
+          cLogger:info('Do not use a cache as requested.')
+          tResult = true
+        else
+          tResult = cCore:create_cache()
+        end
+        if tResult==true then
+
+          -- Create the resolver chain.
+          cCore:create_resolver_chain()
+
           -- Read the artifact configuration.
           tResult = cCore:read_artifact_configuration(tArgs.strInputFile)
           if tResult==true then
@@ -36,7 +83,7 @@ local function command_install(cCore, tArgs)
               if tResult==true then
 
                 -- Download and install all artifacts.
-                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, not tArgs.fSkipRootArtifact, tArgs.strFinalizerScript)
+                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, true, tArgs.strFinalizerScript)
               end
             end
           end
@@ -113,8 +160,14 @@ tParser:flag('--version')
 -- Add the "install" command and all its options.
 local tParserCommandInstall = tParser:command('install i', 'Install an artifact and all dependencies.')
   :target('fCommandInstallSelected')
-tParserCommandInstall:argument('input', 'Input file.')
-  :target('strInputFile')
+tParserCommandInstall:argument('group', 'The group of the artifact to install.')
+  :target('strGroup')
+tParserCommandInstall:argument('module', 'The module of the artifact to install.')
+  :target('strModule')
+tParserCommandInstall:argument('artifact', 'The name of the aritfact to install.')
+  :target('strArtifact')
+tParserCommandInstall:argument('version', 'The version of the aritfact to install.')
+  :target('strVersion')
 tParserCommandInstall:flag('-b --build-dependencies')
   :description('Install the build dependencies.')
   :default(false)
@@ -169,6 +222,61 @@ tParserCommandInstall:option('-v --verbose')
   :convert(atLogLevels)
   :target('tLogLevel')
 
+-- Add the "install-dependencies" command and all its options.
+local tParserCommandInstallDependencies = tParser:command('install-dependencies', 'Install all dependencies of an artifact, but not the artifact itself.')
+  :target('fCommandInstallDependenciesSelected')
+tParserCommandInstallDependencies:argument('input', 'The artifact configuration XML file.')
+  :target('strInputFile')
+tParserCommandInstallDependencies:flag('-b --build-dependencies')
+  :description('Install the build dependencies.')
+  :default(false)
+  :target('fInstallBuildDependencies')
+tParserCommandInstallDependencies:option('-f --finalizer')
+  :description('Run the installer script SCRIPT as a finalizer.')
+  :argname('<SCRIPT>')
+  :default(nil)
+  :target('strFinalizerScript')
+tParserCommandInstallDependencies:flag('-n --no-cache')
+  :description('Do not use a cache, even if repositories are marked as cacheable.')
+  :default(false)
+  :target('fNoCache')
+tParserCommandInstallDependencies:option('-p --prjcfg')
+  :description('Load the project configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkicfg.xml')
+  :target('strProjectConfigurationFile')
+tParserCommandInstallDependencies:option('-s --syscfg')
+  :description('Load the system configuration from FILE.')
+  :argname('<FILE>')
+  :default('jonchkisys.cfg')
+  :target('strSystemConfigurationFile')
+tParserCommandInstallDependencies:option('--cpu-architecture')
+  :description('Set the CPU architecture for the installation to ARCH. The default is to autodetect it.')
+  :argname('<ARCH>')
+  :default(nil)
+  :target('strCpuArchitecture')
+tParserCommandInstallDependencies:option('--distribution-id')
+  :description('Set the distribution id for the installation to ID. The default is to autodetect it.')
+  :argname('<ID>')
+  :default(nil)
+  :target('strDistributionId')
+tParserCommandInstallDependencies:mutex(
+  tParserCommandInstallDependencies:option('--distribution-version')
+    :description('Set the distribution version for the installation to VERSION. The default is to autodetect it.')
+    :argname('<VERSION>')
+    :default(nil)
+    :target('strDistributionVersion'),
+  tParserCommandInstallDependencies:flag('--empty-distribution-version')
+    :description('Set the distribution version for the installation to the empty string. The default is to autodetect it.')
+    :target('fEmptyDistributionVersion')
+)
+tParserCommandInstallDependencies:option('-v --verbose')
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :argname('<LEVEL>')
+  :default('warn')
+  :convert(atLogLevels)
+  :target('tLogLevel')
+
 -- Add the "cache" command and all its options.
 local tParserCommandCache = tParser:command('cache c', 'Examine and modify the cache.')
   :target('fCommandCacheSelected')
@@ -215,7 +323,6 @@ tParserCommandCacheShow:option('-v --verbose')
 
 local tArgs = tParser:parse()
 
-
 -- Set the distribution version to empty if requested.
 if tArgs.fEmptyDistributionVersion==true then
   tArgs.strDistributionVersion = ''
@@ -257,6 +364,11 @@ local tResult = nil
 -- Is the "install" command active?
 if tArgs.fCommandInstallSelected==true then
   tResult = command_install(cCore, tArgs)
+  -- Write the report. This is important if an error occured somewhere in the core.
+  cReport:write()
+-- Is the "install-dependencies" command active?
+elseif tArgs.fCommandInstallDependenciesSelected==true then
+  tResult = command_install_dependencies(cCore, tArgs)
   -- Write the report. This is important if an error occured somewhere in the core.
   cReport:write()
 elseif tArgs.fCommandCacheSelected==true then

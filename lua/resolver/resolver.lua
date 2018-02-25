@@ -402,6 +402,30 @@ end
 
 
 
+function Resolver:resolvetab_get_artifact_configuration(tResolv)
+  if tResolv==nil then
+    tResolv = self.atResolvTab
+  end
+
+  local cA = nil
+
+  -- Get the active version.
+  local atV = tResolv.ptActiveVersion
+  if atV==nil then
+    error('No active version set!')
+  else
+    -- Get the configuration.
+    cA = atV.cArtifact
+    if cA==nil then
+      error('No artifact configuration set.')
+    end
+  end
+
+  return cA
+end
+
+
+
 function Resolver:resolvetab_pick_dependency_group(tResolvEntry)
   local tResult = nil
 
@@ -536,7 +560,25 @@ end
 
 
 
-function Resolver:resolve_set_start_artifact(cArtifact)
+function Resolver:resolve_inject_start_gmac(strGroup, strModule, strArtifact, strConstraint)
+  -- Count the resolve steps.
+  self.uiResolveStepCounter = 0
+
+  -- Write the artifact to the resolve table.
+  local tResolv = self:resolvtab_create_entry(strGroup, strModule, strArtifact, nil)
+  -- Get all available versions for the artifact.
+  self:add_versions_from_repositories(tResolv)
+
+  -- Set the new element as the root of the resolve table.
+  self.atResolvTab = tResolv
+
+  -- Add the current version as the constraint.
+  self:resolvtab_set_constraint(tResolv, strConstraint)
+end
+
+
+
+function Resolver:resolve_inject_start_artifact(cArtifact)
   -- Count the resolve steps.
   self.uiResolveStepCounter = 0
 
@@ -800,6 +842,39 @@ end
 
 
 
+function Resolver:resolve_root_and_dependencies(strGroup, strModule, strArtifact, strConstraint)
+  local fIsDone
+
+  -- Start with clean resolver tables.
+  self:clear_resolve_tables()
+
+  -- Insert the GMAV into the resolve table.
+  self:resolve_inject_start_gmac(strGroup, strModule, strArtifact, strConstraint)
+
+  repeat
+    -- Execute one resolve step.
+    local tStatus = self:resolve_step()
+
+    -- Translate the status to a simple form.
+    fIsDone = self:is_done(tStatus)
+
+    local fFinished
+    if fIsDone==true then
+      fFinished = true
+    elseif fIsDone==false then
+      fFinished = false
+    else
+      fFinished = true
+    end
+  until fFinished==true
+
+  self.tLogger:info('[RESOLVE] Finished resolving.')
+
+  return fIsDone
+end
+
+
+
 function Resolver:resolve(cArtifact)
   local fIsDone
 
@@ -807,7 +882,7 @@ function Resolver:resolve(cArtifact)
   self:clear_resolve_tables()
 
   -- Write the artifact to the resolve table.
-  self:resolve_set_start_artifact(cArtifact)
+  self:resolve_inject_start_artifact(cArtifact)
 
   repeat
     -- Execute one resolve step.
@@ -875,7 +950,7 @@ end
 
 
 -- Get all dependencies. This is a list of all artifacts except the root in the resolve table.
-function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, fInstallRootArtifact, strParent)
+function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, fSkipRootArtifact, strParent)
   strParent = strParent or 'none'
 
   local strGroup = tResolv.strGroup
@@ -915,7 +990,7 @@ function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, 
   self.tReport:addData(string.format('%s/parent@id=%s', strReportPath, strParent), strParent)
 
   -- Do not add the root artifact if not requested.
-  if uiID==0 and fInstallRootArtifact==true then
+  if uiID==0 and fSkipRootArtifact==true then
     self.tLogger:debug('[COLLECT]: %s is the root artifact. Do not add it to the collect list.', strGMA)
     -- Expect that the root artifact is no double.
     local cArtifact = atV.cArtifact
@@ -979,7 +1054,7 @@ end
 
 
 
-function Resolver:get_all_dependencies(fInstallRootArtifact)
+function Resolver:get_all_dependencies(fSkipRootArtifact)
   -- Start at the root element of the resolv table.
   local tResolvRoot = self.atResolvTab
   -- Collect all ID assignments in this table.
@@ -990,7 +1065,7 @@ function Resolver:get_all_dependencies(fInstallRootArtifact)
   self:assign_id_recursive(tResolvRoot, 0, atIdTab)
 
   -- Collect all artifacts and build the link information in the report.
-  local atArtifacts = self:get_all_dependencies_recursive(tResolvRoot, {}, atIdTab, fInstallRootArtifact)
+  local atArtifacts = self:get_all_dependencies_recursive(tResolvRoot, {}, atIdTab, fSkipRootArtifact)
 
   return atArtifacts
 end
