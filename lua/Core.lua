@@ -153,6 +153,8 @@ function Core:create_cache()
   local tResult = cCache:configure(self.cSysCfg.tConfiguration.cache, self.cSysCfg.tConfiguration.cache_max_size)
   if tResult~=true then
     self.cLogger:fatal('Failed to open the cache!')
+  else
+    self.cCache = cCache
   end
 
   return tResult
@@ -259,12 +261,15 @@ end
 -- Download and install all artifacts.
 --
 function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSkipRootArtifact, strFinalizerScript)
-  local atArtifacts = self.cResolver:get_all_dependencies(fSkipRootArtifact)
+  local atArtifacts, atIdTab = self.cResolver:get_all_dependencies(fSkipRootArtifact)
 
   local tResult = self.cResolverChain:retrieve_artifacts(atArtifacts)
   if tResult==nil then
     self.cLogger:fatal('Failed to retrieve all artifacts.')
   else
+    -- Now each atrifact has a source repository set. This was the last missing piece of information.
+    self.cResolver:write_artifact_tree_to_report(atIdTab)
+
     local cInstaller = self.Installer(self.cLogger, self.cReport, self.cSysCfg, self.cRootArtifactCfg)
     tResult = cInstaller:install_artifacts(atArtifacts, self.cPlatform, fInstallBuildDependencies)
     if tResult==nil then
