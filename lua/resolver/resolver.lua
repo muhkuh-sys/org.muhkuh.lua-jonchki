@@ -950,9 +950,7 @@ end
 
 
 -- Get all dependencies. This is a list of all artifacts except the root in the resolve table.
-function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, fSkipRootArtifact, strParent)
-  strParent = strParent or 'none'
-
+function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, fSkipRootArtifact)
   local strGroup = tResolv.strGroup
   local strModule = tResolv.strModule
   local strArtifact = tResolv.strArtifact
@@ -965,37 +963,9 @@ function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, 
     error('internal error')
   end
 
-  -- Get the entries ID.
-  local uiID
-  -- Doubles do not have IDs assigned to them.
-  if tResolv.fIsDouble==true then
-    uiID = atIdTab[strGMA]
-    if uiID==nil then
-      self.tLogger:fatal('[COLLECT]: The double %s is not part of the atIdTab.', strGMA)
-      error('internal error')
-    end
-  else
-    uiID = tResolv.uiID
-    if uiID==nil then
-      self.tLogger:fatal('[COLLECT]: The ID of %s is not set and it is not a double.', strGMA)
-      error('internal error')
-    end
-  end
-  self.tLogger:debug('[COLLECT]: Processing %s with ID %d.', strGMA, uiID)
-  local strReportPath = string.format('artifacts/artifact@id=%d', uiID)
-
-  -- Set the parent ID.
-  -- NOTE: As the "Report" module can only handle unique paths, the ID is set
-  --       as the attribute in the path and the leaf value.
-  self.tReport:addData(string.format('%s/parent@id=%s', strReportPath, strParent), strParent)
-
   -- Do not add the root artifact if not requested.
-  if uiID==0 and fSkipRootArtifact==true then
+  if tResolv.uiID==0 and fSkipRootArtifact==true then
     self.tLogger:debug('[COLLECT]: %s is the root artifact. Do not add it to the collect list.', strGMA)
-    -- Expect that the root artifact is no double.
-    local cArtifact = atV.cArtifact
-    -- List the root artifact in the report.
-    cArtifact:writeToReport(self.tReport, strReportPath)
 
   else
     -- Do not add doubles.
@@ -1023,9 +993,6 @@ function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, 
         end
       end
 
-      -- Write the artifact to the report.
-      cArtifact:writeToReport(self.tReport, strReportPath)
-
       self.tLogger:debug('[COLLECT]: Found dependency %s/%s.', strGMA, strVersion)
 
       local tAttr = {
@@ -1043,7 +1010,7 @@ function Resolver:get_all_dependencies_recursive(tResolv, atArtifacts, atIdTab, 
     local atDependencies = atV.atDependencies
     if atDependencies~=nil then
       for _, tDependency in pairs(atDependencies) do
-        self:get_all_dependencies_recursive(tDependency, atArtifacts, atIdTab, fInstallRootArtifact, tostring(uiID))
+        self:get_all_dependencies_recursive(tDependency, atArtifacts, atIdTab, fSkipRootArtifact)
       end
     end
   end
@@ -1067,7 +1034,70 @@ function Resolver:get_all_dependencies(fSkipRootArtifact)
   -- Collect all artifacts and build the link information in the report.
   local atArtifacts = self:get_all_dependencies_recursive(tResolvRoot, {}, atIdTab, fSkipRootArtifact)
 
-  return atArtifacts
+  return atArtifacts, atIdTab
+end
+
+
+
+function Resolver:write_artifact_tree_to_report_recursive(tResolv, atIdTab, strParent)
+  local strGroup = tResolv.strGroup
+  local strModule = tResolv.strModule
+  local strArtifact = tResolv.strArtifact
+  local strGMA = string.format('%s/%s/%s', strGroup, strModule, strArtifact)
+
+  -- Get the active version.
+  local atV = tResolv.ptActiveVersion
+
+  -- Get the entries ID.
+  local uiID
+  -- Doubles do not have IDs assigned to them.
+  if tResolv.fIsDouble==true then
+    uiID = atIdTab[strGMA]
+    if uiID==nil then
+      self.tLogger:fatal('[REPORT]: The double %s is not part of the atIdTab.', strGMA)
+      error('internal error')
+    end
+  else
+    -- Get the ID from the resolve entry.
+    uiID = tResolv.uiID
+    if uiID==nil then
+      self.tLogger:fatal('[REPORT]: The ID of %s is not set and it is not a double.', strGMA)
+      error('internal error')
+    end
+  end
+  self.tLogger:debug('[REPORT]: Processing %s with ID %d.', strGMA, uiID)
+  local strReportPath = string.format('artifacts/artifact@id=%d', uiID)
+
+  -- Set the parent ID.
+  -- NOTE: As the "Report" module can only handle unique paths, the ID is set
+  --       as the attribute in the path and the leaf value.
+  self.tReport:addData(string.format('%s/parent@id=%s', strReportPath, strParent), strParent)
+
+  -- Do not add doubles.
+  if tResolv.fIsDouble==false then
+    -- Get the artifact configuration.
+    local cArtifact = atV.cArtifact
+
+    -- Write the artifact to the report.
+    cArtifact:writeToReport(self.tReport, strReportPath)
+
+    -- Loop over the dependencies of this artifact if this is no double.
+    self.tLogger:debug('[COLLECT]: Processing dependencies for %s.', strGMA)
+
+    local atDependencies = atV.atDependencies
+    if atDependencies~=nil then
+      for _, tDependency in pairs(atDependencies) do
+        self:write_artifact_tree_to_report_recursive(tDependency, atIdTab, tostring(uiID))
+      end
+    end
+  end
+end
+
+
+
+function Resolver:write_artifact_tree_to_report(atIdTab)
+  -- Collect all artifacts and build the link information in the report.
+  self:write_artifact_tree_to_report_recursive(self.atResolvTab, atIdTab, 'none')
 end
 
 

@@ -241,6 +241,8 @@
 			<div id="artifact_dependencies_content_value"><xsl:value-of select="info/artifact"/></div>
 			<div id="artifact_dependencies_content_value"><xsl:value-of select="info/version"/></div>
 			<div id="artifact_dependencies_content_value"><div id="vcs_id"><xsl:value-of select="info/vcs_id"/></div></div>
+			<div id="artifact_dependencies_content_value"><xsl:value-of select="repositories/configuration"/></div>
+			<div id="artifact_dependencies_content_value"><xsl:value-of select="repositories/artifact"/></div>
 		</div>
 		<xsl:call-template name="artifact_tree">
 			<xsl:with-param name="start_id" select="@id"/>
@@ -266,6 +268,8 @@
 					<div id="artifacts_overview_content_key">Artifact</div>
 					<div id="artifacts_overview_content_key">Version</div>
 					<div id="artifacts_overview_content_key">VCS version</div>
+					<div id="artifacts_overview_content_key">Config repo</div>
+					<div id="artifacts_overview_content_key">Artifact repo</div>
 				</div>
 				<xsl:call-template name="artifact_tree">
 					<xsl:with-param name="start_id" select="'none'"/>
@@ -315,6 +319,8 @@
 							<div id="artifact_dependencies_content_key">Artifact</div>
 							<div id="artifact_dependencies_content_key">Version</div>
 							<div id="artifact_dependencies_content_key">VCS version</div>
+							<div id="artifact_dependencies_content_key">Config repo</div>
+							<div id="artifact_dependencies_content_key">Artifact repo</div>
 						</div>
 						<xsl:choose>
 							<xsl:when test="count(/JonchkiReport/artifacts/artifact[parent=current()/@id])=0">

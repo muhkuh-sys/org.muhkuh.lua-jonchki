@@ -213,7 +213,6 @@ function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
         if atData~=nil then
           if atAttr~=nil then
             self.tLogger:error('%s The cache database is broken. It has multiple entries for %s/%s/%s/%s.', self.strLogID, strGroup, strModule, strArtifact, strVersion)
-            -- TODO: rebuild the cache here with tResult = self:_rebuild_complete_cache(tSQLDatabase)
             break
           else
             atAttr = atData
@@ -259,7 +258,7 @@ end
 
 
 
-function Cache:_database_add_configuration(tSQLDatabase, cArtifact)
+function Cache:_database_add_configuration(tSQLDatabase, cArtifact, strSourceRepository)
   local tResult = nil
 
 
@@ -268,7 +267,7 @@ function Cache:_database_add_configuration(tSQLDatabase, cArtifact)
   local tInfo = cArtifact.tInfo
   local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
 
-  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize)
+  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strConfigurationSourceRepo, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository)
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
@@ -283,7 +282,7 @@ end
 
 
 
-function Cache:_database_update_configuration(tSQLDatabase, iId, cArtifact)
+function Cache:_database_update_configuration(tSQLDatabase, iId, cArtifact, strSourceRepository)
   local tResult = nil
 
 
@@ -292,7 +291,7 @@ function Cache:_database_update_configuration(tSQLDatabase, iId, cArtifact)
   local tInfo = cArtifact.tInfo
   local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
 
-  local strQuery = string.format('UPDATE cache SET strConfigurationPath="%s", strConfigurationHashPath="%s", iConfigurationSize=%d, iLastUsedDate=strftime("%%s","now") WHERE iId=%d', strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, iId)
+  local strQuery = string.format('UPDATE cache SET strConfigurationPath="%s", strConfigurationHashPath="%s", iConfigurationSize=%d, strConfigurationSourceRepo="%s", iLastUsedDate=strftime("%%s","now") WHERE iId=%d', strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository, iId)
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
@@ -307,7 +306,7 @@ end
 
 
 
-function Cache:_database_add_artifact(tSQLDatabase, cArtifact)
+function Cache:_database_add_artifact(tSQLDatabase, cArtifact, strSourceRepository)
   local tResult = nil
 
 
@@ -321,7 +320,7 @@ function Cache:_database_add_artifact(tSQLDatabase, cArtifact)
   local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
   local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
 
-  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strArtifactPath, strArtifactHashPath, iArtifactSize, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strPathArtifact, strPathArtifactHash, iArtifactFileSize)
+  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strConfigurationSourceRepo, strArtifactPath, strArtifactHashPath, iArtifactSize, strArtifactSourceRepo, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository, strPathArtifact, strPathArtifactHash, iArtifactFileSize, strSourceRepository)
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
@@ -336,7 +335,7 @@ end
 
 
 
-function Cache:_database_update_artifact(atAttr, cArtifact)
+function Cache:_database_update_artifact(atAttr, cArtifact, strSourceRepository)
   local tResult = nil
 
 
@@ -350,7 +349,7 @@ function Cache:_database_update_artifact(atAttr, cArtifact)
     local iId = atAttr.iId
     local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
 
-    local strQuery = string.format('UPDATE cache SET strArtifactPath="%s", strArtifactHashPath="%s", iArtifactSize=%d, iLastUsedDate=strftime("%%s","now") WHERE iId=%d', strPathArtifact, strPathArtifactHash, iArtifactFileSize, iId)
+    local strQuery = string.format('UPDATE cache SET strArtifactPath="%s", strArtifactHashPath="%s", iArtifactSize=%d, strArtifactSourceRepo="%s", iLastUsedDate=strftime("%%s","now") WHERE iId=%d', strPathArtifact, strPathArtifactHash, iArtifactFileSize, strSourceRepository, iId)
 
     local tSqlResult, strError = tSQLDatabase:execute(strQuery)
     if tSqlResult==nil then
@@ -451,86 +450,6 @@ function Cache:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
     end
   end
 
-  return tResult
-end
-
-
-
---- Rebuild the complete cache database.
--- Scan one folder of the repository. Sum up all file sizes and collect the
--- ages of each entry.
--- @param tSQLDatabase The database handle.
--- @return In case of an error the function returns nil.
---         If the function succeeded it returns true.
-function Cache:_rebuild_complete_cache(tSQLDatabase)
-  -- Be optimistic.
-  local tResult = true
-
-
-  self.tLogger:debug('%s Rebuilding cache from path "%s".', self.strLogID, self.strRepositoryRootPath)
-
-  -- Loop over all files in the repository.
-  for strRoot,astrDirs,astrFiles in self.pl.dir.walk(self.strRepositoryRootPath, false, true) do
-    -- Loop over all files in the current directory.
-    for _,strFile in pairs(astrFiles) do
-      -- Get the full path of the file.
-      local strFullPath = self.pl.path.join(strRoot, strFile)
-      -- Get the extension of the file.
-      local strExtension = self.pl.path.extension(strFullPath)
-
-      -- Is this a configuration file?
-      if strExtension=='.xml' then
-        -- Try to parse the file as a configuration.
-        local cArtifact = self.ArtifactConfiguration()
-        local tArtifactResult = cArtifact:parse_configuration_file(strFullPath)
-        if tArtifactResult~=true then
-          self.tLogger:debug('%s Ignoring file "%s". It is no valid artifact configuration.', self.strLogID)
-        else
-          self.tLogger:debug('%s Found configuration file "%s".', self.strLogID, strFullPath)
-
-          -- Generate the paths from the artifact configuration.
-          local strPathArtifact, strPathArtifactHash = self:_get_artifact_paths(cArtifact)
-          local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
-
-          local tInfo = cArtifact.tInfo
-          local strGMAV = string.format('%s/%s/%s/%s', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get())
-
-          -- Read the hash of the configuration.
-          local strHash, strError = self.pl.utils.readfile(strPathConfigurationHash, false)
-          if strHash==nil then
-            self.tLogger:debug('%s Failed to read the hash for the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
-          else
-            -- Check the hash of the configuration.
-            local tCheckResult = self.hash:check_file(strPathConfiguration, strHash, strPathConfigurationHash)
-            if tResult~=true then
-              self.tLogger:debug('%s The hash for the configuration of artifact %s does not match.', self.strLogID, strGMAV)
-            else
-              -- Read the hash of the artifact.
-              strHash, strError = self.pl.utils.readfile(strPathArtifactHash, true)
-              if strHash==nil then
-                self.tLogger:debug('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAV, strError)
-              else
-                -- Check the hash of the artifact.
-                local tHashResult = self.hash:check_file(strPathArtifact, strHash, strPathArtifactHash)
-                if tHashResult~=true then
-                  self.tLogger:debug('%s The hash for the artifact %s does not match.', self.strLogID, strGMAV)
-                else
-                  -- Add it to the database.
-                  tResult = self:_database_add_artifact(tSQLDatabase, cArtifact)
-                  if tResult~=true then
-                    self.tLogger:error('%s Failed to add the artifact %s to the database.', self.strLogID, strGMAV)
-                    break
-                  end
-                end
-              end
-            end
-          end
-        end
-      end
-    end
-  end
-
-  self.tLogger:debug('%s Finished rebuilding the cache.', self.strLogID)
   return tResult
 end
 
@@ -750,26 +669,21 @@ function Cache:configure(strRepositoryRootPath, ulMaximumSize)
       self.tLogger:error('%s Failed to open the database "%s": %s', self.strLogID, strDb, strError)
     else
       -- Construct the "CREATE" statement for the "cache" table.
-      local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strConfigurationPath TEXT NOT NULL, strConfigurationHashPath TEXT NOT NULL, iConfigurationSize INTEGER NOT NULL, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
+      local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strConfigurationPath TEXT, strConfigurationHashPath TEXT, iConfigurationSize INTEGER, strConfigurationSourceRepo TEXT, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, strArtifactSourceRepo TEXT, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
       local tTableResult = self:_sql_create_table(tSQLDatabase, 'cache', strCreateStatement)
       if tTableResult==nil then
         tSQLDatabase:close()
         self.tLogger:error('%s Failed to create the table.', self.strLogID)
       elseif tTableResult==true then
         self.tLogger:debug('%s Rebuild the cache information.', self.strLogID)
-        tResult = self:_rebuild_complete_cache(tSQLDatabase)
-        if tResult==true then
-          tResult = self:_remove_odd_files(tSQLDatabase)
-          if tResult==true then
-            tResult = self:_enforce_maximum_size(tSQLDatabase, 0)
-            if tResult~=true then
-              self.tLogger:error('%s Failed to enforce the maximum size of the cache.', self.strLogID)
-            end
-          else
-            self.tLogger:error('%s Failed to remove odd files from the cache.', self.strLogID)
-          end
+        tResult = self:_remove_odd_files(tSQLDatabase)
+        if tResult~=true then
+          self.tLogger:error('%s Failed to remove odd files from the cache.', self.strLogID)
         else
-          self.tLogger:error('%s Failed to rebuild the cache.', self.strLogID)
+          tResult = self:_enforce_maximum_size(tSQLDatabase, 0)
+          if tResult~=true then
+            self.tLogger:error('%s Failed to enforce the maximum size of the cache.', self.strLogID)
+          end
         end
       elseif tTableResult==false then
         -- The table already exists.
@@ -910,6 +824,7 @@ end
 
 function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
+  local strSourceID = nil
   local strError
 
 
@@ -962,6 +877,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
               -- FIXME: Remove the artifact from the cache and run a complete rescan.
             else
               tResult = cA
+              strSourceID = atAttr.strConfigurationSourceRepo
               self.uiStatistics_RequestsConfigHit = self.uiStatistics_RequestsConfigHit + 1
               self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + atAttr.iConfigurationSize
             end
@@ -971,13 +887,14 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
     end
   end
 
-  return tResult
+  return tResult, strSourceID
 end
 
 
 
 function Cache:get_artifact(cArtifact, strDestinationFolder)
   local tResult = nil
+  local strSourceID = nil
 
 
   local tInfo = cArtifact.tInfo
@@ -1030,6 +947,7 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
         else
           -- All OK, return the path of the artifact in the depack folder.
           tResult = strLocalPath
+          strSourceID = atAttr.strArtifactSourceRepo
           self.uiStatistics_RequestsArtifactHit = self.uiStatistics_RequestsArtifactHit + 1
           self.uiStatistics_ServedBytesArtifact = self.uiStatistics_ServedBytesArtifact + atAttr.iArtifactSize
         end
@@ -1037,7 +955,7 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
     end
   end
 
-  return tResult
+  return tResult, strSourceID
 end
 
 
@@ -1065,7 +983,7 @@ end
 
 
 
-function Cache:add_configuration(cArtifact)
+function Cache:add_configuration(cArtifact, strSourceRepository)
   local tResult = nil
   local strError
 
@@ -1088,7 +1006,7 @@ function Cache:add_configuration(cArtifact)
       -- No configuration path yet. This is only a version entry.
       tResult = self:_cachefs_write_configuration(cArtifact)
       if tResult==true then
-        self:_database_update_configuration(self.tSQLDatabase, atAttr.iId, cArtifact)
+        self:_database_update_configuration(self.tSQLDatabase, atAttr.iId, cArtifact, strSourceRepository)
       end
     end
   else
@@ -1097,7 +1015,7 @@ function Cache:add_configuration(cArtifact)
     tResult = self:_cachefs_write_configuration(cArtifact)
     if tResult==true then
       -- Add the configuration to the database.
-      tResult = self:_database_add_configuration(self.tSQLDatabase, cArtifact)
+      tResult = self:_database_add_configuration(self.tSQLDatabase, cArtifact, strSourceRepository)
     end
   end
 
@@ -1106,7 +1024,7 @@ end
 
 
 
-function Cache:add_artifact(cArtifact, strArtifactSourcePath)
+function Cache:add_artifact(cArtifact, strArtifactSourcePath, strSourceRepository)
   local tResult = nil
   local strError
 
@@ -1133,14 +1051,14 @@ function Cache:add_artifact(cArtifact, strArtifactSourcePath)
         tResult = self:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
         if tResult==true then
           -- Create a new entry.
-          self:_database_add_artifact(self.tSQLDatabase, cArtifact)
+          self:_database_add_artifact(self.tSQLDatabase, cArtifact, strSourceRepository)
         end
       end
     else
       -- Update an existing entry.
       tResult = self:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
       if tResult==true then
-        self:_database_update_artifact(atAttr, cArtifact)
+        self:_database_update_artifact(atAttr, cArtifact, strSourceRepository)
       end
     end
   end

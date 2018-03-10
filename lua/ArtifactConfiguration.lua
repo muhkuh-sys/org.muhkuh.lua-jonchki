@@ -35,6 +35,52 @@ function ArtifactConfiguration:_init(tLogger)
   self.tInfo = nil
   self.atBuildDependencies = nil
   self.atDependencies = nil
+
+  -- These are the IDs of the repositories serving the configuration and the
+  -- artifact.
+  self.strRepositortyID_Configuration = nil
+  self.strRepositortyID_Artifact = nil
+end
+
+
+
+function ArtifactConfiguration:get_repository_id_configuration()
+  local strRepositoryID = self.strRepositortyID_Configuration
+  if strRepositoryID==nil then
+    strRepositoryID = 'unknown'
+  end
+
+  return strRepositoryID
+end
+
+
+
+function ArtifactConfiguration:get_repository_id_artifact()
+  local strRepositoryID = self.strRepositortyID_Artifact
+  if strRepositoryID==nil then
+    strRepositoryID = 'unknown'
+  end
+
+  return strRepositoryID
+end
+
+
+
+function ArtifactConfiguration:set_repository_id_configuration(strRepositoryID)
+  if self.strRepositortyID_Configuration~=nil then
+    error('Trying to override the repository ID of the configuration.')
+  end
+  self.strRepositortyID_Configuration = strRepositoryID
+end
+
+
+
+function ArtifactConfiguration:set_repository_id_artifact(strRepositoryID)
+  if self.strRepositortyID_Artifact~=nil then
+    error('Trying to override the repository ID of the artifact.')
+  end
+
+  self.strRepositortyID_Artifact = strRepositoryID
 end
 
 
@@ -540,6 +586,10 @@ function ArtifactConfiguration:writeToReport(tReport, strPath)
   tReport:addData(strPath .. '/info/author_name', strInfoAuthorName)
   tReport:addData(strPath .. '/info/author_url', strInfoAuthorUrl)
   tReport:addData(strPath .. '/info/description', strInfoDescription)
+
+  -- Add the repository IDs.
+  tReport:addData(strPath .. '/repositories/configuration', self:get_repository_id_configuration())
+  tReport:addData(strPath .. '/repositories/artifact', self:get_repository_id_artifact())
 
   -- Add the dependencies.
   if self.atDependencies~=nil then

@@ -359,10 +359,16 @@ Do not store this in the GMA->V table as it would look like this is a complete d
 
       -- Search the cache if allowed.
       if fCacheable==true then
-        tResult = self.cCache:get_configuration(strGroup, strModule, strArtifact, tVersion)
+        local strSourceIDFromCache
+        tResult, strSourceIDFromCache = self.cCache:get_configuration(strGroup, strModule, strArtifact, tVersion)
         if tResult==nil then
           self.tLogger:info('Configuration %s not found in cache "%s".', strGMAV, self.cCache.strID)
         else
+          -- Set the source repository to the ID.
+          local cArtifact = tResult
+          local strSourceRepository = string.format('%s (cached)', strSourceIDFromCache)
+          cArtifact:set_repository_id_configuration(strSourceRepository)
+
           self.tLogger:info('Configuration %s found in cache "%s".', strGMAV, self.cCache.strID)
           fFound = true
         end
@@ -373,13 +379,17 @@ Do not store this in the GMA->V table as it would look like this is a complete d
         if tResult==nil then
           self.tLogger:warn('Failed to get the configuration for %s from repository %s.', strGMAV, strSourceID)
         else
+          -- Set the source repository to the ID.
           local cArtifact = tResult
+          local strSourceRepository = strSourceID
+          cArtifact:set_repository_id_configuration(strSourceRepository)
+
           self.tLogger:info('Configuration for %s found in repository "%s".', strGMAV, strSourceID)
           fFound = true
 
           -- Add the configuration to the cache if allowed.
           if fCacheable==true then
-            self.cCache:add_configuration(cArtifact)
+            self.cCache:add_configuration(cArtifact, strSourceID)
           end
         end
       end
@@ -434,10 +444,15 @@ Do not store this in the GMA->V table as it would look like this is a complete d
 
       -- Search the cache if allowed.
       if fCacheable==true then
-        tResult = self.cCache:get_artifact(cArtifact, strDepackFolder)
+        local strSourceIDFromCache
+        tResult, strSourceIDFromCache = self.cCache:get_artifact(cArtifact, strDepackFolder)
         if tResult==nil then
           self.tLogger:info('Artifact %s not found in cache "%s".', strGMAV, self.cCache.strID)
         else
+          -- Set the source repository to the ID.
+          local strSourceRepository = string.format('%s (cached)', strSourceIDFromCache)
+          cArtifact:set_repository_id_artifact(strSourceRepository)
+
           self.tLogger:info('Artifact %s found in cache "%s".', strGMAV, self.cCache.strID)
           fFound = true
         end
@@ -448,13 +463,16 @@ Do not store this in the GMA->V table as it would look like this is a complete d
         if tResult==nil then
           self.tLogger:warn('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
         else
+          -- Set the source repository to the ID.
+          cArtifact:set_repository_id_artifact(strSourceID)
+
           local strArtifactPath = tResult
           self.tLogger:info('Artifact %s found in repository "%s".', strGMAV, strSourceID)
           fFound = true
 
           -- Add the artifact to the cache if allowed.
           if fCacheable==true then
-            self.cCache:add_artifact(cArtifact, strArtifactPath)
+            self.cCache:add_artifact(cArtifact, strArtifactPath, strSourceID)
           end
         end
       end
