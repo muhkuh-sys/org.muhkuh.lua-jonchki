@@ -198,6 +198,10 @@
 						<div id="repository_content_value"><xsl:value-of select="cacheable"/></div>
 					</div>
 					<div id="repository_content_row">
+						<div id="repository_content_key">rescan</div>
+						<div id="repository_content_value"><xsl:value-of select="rescan"/></div>
+					</div>
+					<div id="repository_content_row">
 						<div id="repository_content_key">root</div>
 						<div id="repository_content_value"><xsl:value-of select="root"/></div>
 					</div>
