@@ -967,10 +967,10 @@ function Cache:add_version(strGroup, strModule, strArtifact, tVersion)
   local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
 
   -- First check if the artifact is not yet part of the cache.
-  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  local fFound = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
-  elseif fFound==true and atAttr.strConfigurationPath~=nil then
+  elseif fFound==true then
     self.tLogger:debug('%s The version of the artifact %s is already in the cache.', self.strLogID, strGMAV)
   else
     self.tLogger:debug('%s Adding the version for the artifact %s to the cache.', self.strLogID, strGMAV)
