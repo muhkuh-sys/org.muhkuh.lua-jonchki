@@ -243,7 +243,7 @@ function Cache:_database_add_version(tSQLDatabase, strGroup, strModule, strArtif
   local tResult = nil
 
 
-  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', strGroup, strModule, strArtifact, tVersion:get())
+  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", strftime("%%s","now"), strftime("%%s","now"))', strGroup, strModule, strArtifact, tVersion:get())
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
