@@ -315,6 +315,11 @@ function ResolverChain:get_available_versions(strGroup, strModule, strArtifact)
         -- Register the version in the GA->V table.
         self:add_to_ga_v(strGroup, strModule, strArtifact, tVersion, strSourceID)
 
+        -- Add the version to the cache.
+        if fCacheable==true then
+          self.cCache:add_version(strGroup, strModule, strArtifact, tVersion)
+        end
+
         -- Is this version unique?
         local strVersion = tVersion:get()
         if atDuplicateCheck[strVersion]==nil then
