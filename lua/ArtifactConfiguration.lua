@@ -158,7 +158,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     local strVcsId = atAttributes['vcs-id']
     if strVcsId==nil or strVcsId=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
+      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "vcs-id".', iPosLine, iPosColumn)
     end
     tInfo.strVcsId = strVcsId
 
