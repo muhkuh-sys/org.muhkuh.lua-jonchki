@@ -10,17 +10,18 @@ local ResolverChain = class()
 
 --- Initialize a new instance of the resolver chain.
 -- @param strID The ID identifies the resolver.
-function ResolverChain:_init(cLogger, cSystemConfiguration, strID)
+function ResolverChain:_init(cLogger, cPlatform, cSystemConfiguration, strID)
   self.strID = strID
 
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
+  -- Get the logger and platform.
+  self.tLogger = cLogger
+  self.tPlatform = cPlatform
+
   -- The system configuration.
   self.cSystemConfiguration = cSystemConfiguration
-
-  -- Get the logger object from the system configuration.
-  self.tLogger = cLogger
 
   -- Create a new chain.
   self.atResolverChain = {}
@@ -106,7 +107,7 @@ function ResolverChain:set_repositories(atRepositories)
       end
 
       -- Create a driver instance.
-      local tRepositoryDriver = tRepositoryDriverClass(self.tLogger, strID)
+      local tRepositoryDriver = tRepositoryDriverClass(self.tLogger, self.tPlatform, strID)
 
       -- Setup the repository driver.
       tResult = tRepositoryDriver:configure(tRepo)
@@ -464,7 +465,7 @@ Do not store this in the GMA->V table as it would look like this is a complete d
       end
 
       if fFound==false then
-        tResult = tDriver:get_artifact(tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion, tInfo.strExtension, strDepackFolder)
+        tResult = tDriver:get_artifact(cArtifact, strDepackFolder)
         if tResult==nil then
           self.tLogger:warn('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
         else

@@ -1,6 +1,25 @@
 TODO
 ----
 
+* Platform specific aritfacts
+Currently the artifacts are one bundle for all supported platforms. This makes
+it cumbersome to add a new platform - it always requires a new version.
+Separate packages for each platform could circumvent this problem. They are
+also smaller than one collection for all, especially for bigger artifacts
+like curl or wxWidgets.
+
+Platform independent packages (PIP) still make sense though. Best example are the
+pure LUA packets. Both types should be possible.
+
+Platform specific packages (PSP) have the platform identifier after the
+version number. Example: "lua5.1-filesystem-1.6.3.1-ubuntu_1604_x86_64"
+
+The search routine first looks for the PIP, then for the PSP.
+
+The cache gets a new entry for the complete platform identifier. It is the
+empty string for a PIP and the platform identifier for a PSP.
+
+
 * Disable a repository if the initial access to the root location failed.
 This prevents multiple accesses to non-existing URLs.
 

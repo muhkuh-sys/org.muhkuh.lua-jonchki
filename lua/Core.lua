@@ -149,7 +149,7 @@ end
 function Core:create_cache()
   -- Set the cache ID to "main".
   local strCacheID = 'main'
-  local cCache = self.Cache(self.cLogger, strCacheID)
+  local cCache = self.Cache(self.cLogger, self.cPlatform, strCacheID)
   local tResult = cCache:configure(self.cSysCfg.tConfiguration.cache, self.cSysCfg.tConfiguration.cache_max_size)
   if tResult~=true then
     self.cLogger:fatal('Failed to open the cache!')
@@ -167,7 +167,7 @@ end
 --
 function Core:create_resolver_chain()
   local strResolverChainID = 'default'
-  local cResolverChain = self.ResolverChain(self.cLogger, self.cSysCfg, strResolverChainID)
+  local cResolverChain = self.ResolverChain(self.cLogger, self.cPlatform, self.cSysCfg, strResolverChainID)
   if self.cCache~=nil then
     cResolverChain:set_cache(self.cCache)
   end

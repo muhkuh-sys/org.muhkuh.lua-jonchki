@@ -12,9 +12,9 @@ local RepositoryDriverUrl = class(RepositoryDriver)
 
 
 
-function RepositoryDriverUrl:_init(tLogger, strID)
-  -- Set the logger and the ID of the repository driver.
-  self:super(tLogger, strID)
+function RepositoryDriverUrl:_init(tLogger, tPlatform, strID)
+  -- Set the logger, platform and the ID of the repository driver.
+  self:super(tLogger, tPlatform, strID)
 
   -- Get an available curl module.
   self:__get_any_curl()
@@ -268,7 +268,7 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
   local strGMA = string.format('G:%s/M:%s/A:%s', strGroup, strModule, strArtifact)
 
   -- Replace the artifact placeholder in the versions path.
-  local strPathVersions = self:replace_path(strGroup, strModule, strArtifact, nil, nil, self.strVersions)
+  local strPathVersions = self:replace_path(strGroup, strModule, strArtifact, nil, nil, nil, self.strVersions)
 
   -- Append the version folder to the root.
   local strUrlVersions = string.format('%s/%s', self.strRoot, strPathVersions)
@@ -342,55 +342,77 @@ end
 
 function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
+  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
 
-  -- Replace the artifact placeholder in the configuration path.
-  local strCfgPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml', self.strConfig)
-  local strHashPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml.hash', self.strConfig)
-
+  -- Try the platform independent version first.
+  local strCurrentPlatform = ''
+  local strCfgPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml', self.strConfig)
+  local strHashPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml.hash', self.strConfig)
   -- Append the version folder to the root.
-  -- FIXME: First check if the URLs are already absolute. In this case do not append the root folder.
   local strCfgUrl = string.format('%s/%s', self.strRoot, strCfgPath)
   local strHashUrl = string.format('%s/%s', self.strRoot, strHashPath)
 
   -- Get the complete file.
-  self.tLogger:debug('Get the configuration from URL "%s".', strCfgUrl)
+  self.tLogger:debug('Try to get the platform independent configuration from URL "%s".', strCfgUrl)
   local strCfgData = self:get_url(strCfgUrl)
-  if strCfgData==nil then
-    self.tLogger:error('Failed to read the configuration file "%s".', strCfgUrl)
+  local strHash
+  if strCfgData~=nil then
+    -- Get tha hash sum.
+    strHash = self:get_url(strHashUrl)
+    if strHash~=nil then
+      tResult = true
+    end
+  end
+
+  if tResult~=true then
+    -- Try the platform specific version.
+    strCurrentPlatform = self.tPlatform:get_platform_id()
+    strCfgPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml', self.strConfig)
+    strHashPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml.hash', self.strConfig)
+    -- Append the version folder to the root.
+    strCfgUrl = string.format('%s/%s', self.strRoot, strCfgPath)
+    strHashUrl = string.format('%s/%s', self.strRoot, strHashPath)
+
+    -- Get the complete file.
+    self.tLogger:debug('Try to get the platform specific configuration for "%s" from URL "%s".', strCurrentPlatform, strCfgUrl)
+    strCfgData = self:get_url(strCfgUrl)
+    if strCfgData~=nil then
+      -- Get tha hash sum.
+      strHash = self:get_url(strHashUrl)
+      if strHash~=nil then
+        tResult = true
+      end
+    end
+  end
+
+  if tResult~=true then
+    self.tLogger:error('No platform independent and platform specific configuration file found for %s.', strGMAV)
     self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
   else
-    -- Get tha hash sum.
-    local strHash = self:get_url(strHashUrl)
-    if strHash==nil then
-      self.tLogger:error('Failed to read the hash file "%s".', strHashUrl)
+    -- Check the hash sum.
+    tResult = self.hash:check_string(strCfgData, strHash, strCfgUrl, strHashUrl)
+    if tResult~=true then
+      self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgUrl)
       self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
+      tResult = nil
     else
-      -- Check the hash sum.
-      tResult = self.hash:check_string(strCfgData, strHash, strCfgUrl, strHashUrl)
+      local cA = self.ArtifactConfiguration(self.tLogger)
+      tResult = cA:parse_configuration(strCfgData, strCfgUrl)
       if tResult~=true then
-        self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgUrl)
         self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
         tResult = nil
       else
-        local cA = self.ArtifactConfiguration(self.tLogger)
-        tResult = cA:parse_configuration(strCfgData, strCfgUrl)
+        -- Compare the GMAV from the configuration with the requested values.
+        tResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
         if tResult~=true then
+          self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version.', self.strID, strGMAV)
           self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
           tResult = nil
         else
-          -- Compare the GMAV from the configuration with the requested values.
-          tResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion)
-          if tResult~=true then
-            local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
-            self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version.', self.strID, strGMAV)
-            self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
-            tResult = nil
-          else
-            tResult = cA
-            self.uiStatistics_GetConfiguration_Success = self.uiStatistics_GetConfiguration_Success + 1
-            self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + string.len(strCfgData)
-            self.uiStatistics_ServedBytesConfigHash = self.uiStatistics_ServedBytesConfigHash + string.len(strHash)
-          end
+          tResult = cA
+          self.uiStatistics_GetConfiguration_Success = self.uiStatistics_GetConfiguration_Success + 1
+          self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + string.len(strCfgData)
+          self.uiStatistics_ServedBytesConfigHash = self.uiStatistics_ServedBytesConfigHash + string.len(strHash)
         end
       end
     end
@@ -401,12 +423,20 @@ end
 
 
 
-function RepositoryDriverUrl:get_artifact(strGroup, strModule, strArtifact, tVersion, strExtension, strDestinationFolder)
+function RepositoryDriverUrl:get_artifact(cArtifact, strDestinationFolder)
   local tResult
 
+  local tInfo = cArtifact.tInfo
+  local strGroup = tInfo.strGroup
+  local strModule = tInfo.strModule
+  local strArtifact = tInfo.strArtifact
+  local tVersion = tInfo.tVersion
+  local strPlatform = tInfo.strPlatform
+  local strExtension = tInfo.strExtension
+
   -- Construct the artifact path.
-  local strArtifactPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strExtension, self.strArtifact)
-  local strHashPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, string.format('%s.hash', strExtension), self.strArtifact)
+  local strArtifactPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strPlatform, strExtension, self.strArtifact)
+  local strHashPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strPlatform, string.format('%s.hash', strExtension), self.strArtifact)
 
   -- Append the version folder to the root.
   -- FIXME: First check if the URLs are already absolute. In this case do not append the root folder.

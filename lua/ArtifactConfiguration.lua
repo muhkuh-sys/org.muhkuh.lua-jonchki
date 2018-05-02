@@ -120,6 +120,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     tInfo.strAuthorUrl = nil
     tInfo.strDescription = nil
     tInfo.strExtension = aLxpAttr.strDefaultExtension
+    tInfo.strPlatform = ''
 
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
@@ -165,6 +166,12 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     local strExtension = atAttributes['extension']
     if strExtension~=nil and strExtension~='' then
       tInfo.strExtension = strExtension
+    end
+
+    -- The empty string is allowed for the platform attribute.
+    local strPlatform = atAttributes['platform']
+    if strPlatform~=nil then
+      tInfo.strPlatform = strPlatform
     end
 
     aLxpAttr.tInfo = tInfo
@@ -420,8 +427,8 @@ end
 
 
 
--- Compare GMAV with expected values.
-function ArtifactConfiguration:check_configuration(strGroup, strModule, strArtifact, tVersion)
+-- Compare GMAV and the platform with the expected values.
+function ArtifactConfiguration:check_configuration(strGroup, strModule, strArtifact, tVersion, strPlatform)
   -- Be optimistic.
   local tResult = true
 
@@ -451,6 +458,11 @@ function ArtifactConfiguration:check_configuration(strGroup, strModule, strArtif
     tResult = false
   end
 
+  if strPlatform~=self.tInfo.strPlatform then
+    self.tLogger:error('Error in configuration from %s: expected platform "%s", got "%s".', self.strSourceUrl, strPlatform, self.tInfo.strPlatform)
+    tResult = false
+  end
+
   return tResult
 end
 
@@ -477,6 +489,7 @@ function ArtifactConfiguration:__tostring()
     table.insert(astrRepr, string.format('    version: %s', self.tInfo.tVersion:get()))
     table.insert(astrRepr, string.format('    vcs-id: %s', self.tInfo.strVcsId))
     table.insert(astrRepr, string.format('    extension: %s', self.tInfo.strExtension))
+    table.insert(astrRepr, string.format('    platform: %s', self.tInfo.strPlatform))
 
     local strLicense = self.tInfo.strLicense
     if strLicense==nil then
@@ -560,6 +573,7 @@ function ArtifactConfiguration:writeToReport(tReport, strPath)
   local strInfoVersion = ''
   local strInfoVcsId = ''
   local strInfoExtension = ''
+  local strInfoPlatform = ''
   local strInfoLicense = ''
   local strInfoAuthorName = ''
   local strInfoAuthorUrl = ''
@@ -571,6 +585,7 @@ function ArtifactConfiguration:writeToReport(tReport, strPath)
     strInfoVersion = self.tInfo.tVersion:get()
     strInfoVcsId = self.tInfo.strVcsId
     strInfoExtension = self.tInfo.strExtension
+    strInfoPlatform = self.tInfo.strPlatform
     strInfoLicense = self.tInfo.strLicense
     strInfoAuthorName = self.tInfo.strAuthorName
     strInfoAuthorUrl = self.tInfo.strAuthorUrl
@@ -582,6 +597,7 @@ function ArtifactConfiguration:writeToReport(tReport, strPath)
   tReport:addData(strPath .. '/info/version', strInfoVersion)
   tReport:addData(strPath .. '/info/vcs_id', strInfoVcsId)
   tReport:addData(strPath .. '/info/extension', strInfoExtension)
+  tReport:addData(strPath .. '/info/platform', strInfoPlatform)
   tReport:addData(strPath .. '/info/license', strInfoLicense)
   tReport:addData(strPath .. '/info/author_name', strInfoAuthorName)
   tReport:addData(strPath .. '/info/author_url', strInfoAuthorUrl)

@@ -12,9 +12,9 @@ local RepositoryDriverFilesystem = class(RepositoryDriver)
 
 
 
-function RepositoryDriverFilesystem:_init(tLogger, strID)
-  -- Set the logger and the ID of the repository driver.
-  self:super(tLogger, strID)
+function RepositoryDriverFilesystem:_init(tLogger, tPlatform, strID)
+  -- Set the logger, platform and the ID of the repository driver.
+  self:super(tLogger, tPlatform, strID)
 
   -- Clear the patterns for the configuration and artifact.
   self.fCacheable = nil
@@ -80,7 +80,7 @@ function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, 
   local tResult = self:exists()
   if tResult==true then
     -- Replace the artifact placeholder in the versions path.
-    local strVersions = self:replace_path(strGroup, strModule, strArtifact, nil, nil, self.strVersions)
+    local strVersions = self:replace_path(strGroup, strModule, strArtifact, nil, nil, nil, self.strVersions)
 
     -- Append the version folder to the root.
     -- FIXME: First check if the path is already absolute. In this case do not append the root folder.
@@ -121,62 +121,81 @@ end
 
 
 function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strArtifact, tVersion)
+  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+
   -- Does the root folder of the repository exist?
   local tResult = self:exists()
   if tResult~=true then
     self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
     tResult = nil
   else
-    -- Replace the artifact placeholder in the configuration path.
-    local strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml', self.strConfig)
-    local strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, 'xml.hash', self.strConfig)
-
+    -- Try the platform independent version first.
+    local strCurrentPlatform = ''
+    local strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml', self.strConfig)
+    local strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml.hash', self.strConfig)
     -- Append the version folder to the root.
     -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
     local strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
     local strHashPath = self.pl.path.join(self.strRoot, strHashSubdirectory)
+    self.tLogger:debug('Try to get the platform independent configuration from "%s".', strCfgPath)
+    if self.pl.path.exists(strCfgPath)==nil or self.pl.path.exists(strHashPath)==nil then
+      -- Try the platform specific version.
+      strCurrentPlatform = self.tPlatform:get_platform_id()
+      strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml', self.strConfig)
+      strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml.hash', self.strConfig)
+      -- Append the version folder to the root.
+      -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
+      strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
+      strHashPath = self.pl.path.join(self.strRoot, strHashSubdirectory)
+      self.tLogger:debug('Try to get the platform specific configuration for "%s" from "%s".', strCurrentPlatform, strCfgPath)
+      if self.pl.path.exists(strCfgPath)==nil or self.pl.path.exists(strHashPath)==nil then
+        tResult = nil
+        self.tLogger:error('No platform independent or platform specific configuration file found for %s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+      end
+    end
 
-    -- Get the complete file.
-    -- Read it as binary to prevent the conversion of the linefeed. This would give a wrong hash sum.
-    local strCfg, strError = self.pl.utils.readfile(strCfgPath, true)
-    if strCfg==nil then
-      tResult = nil
-      self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgPath, strError)
-      self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
-    else
-      -- Get the hash sum.
-      tResult, strError = self.pl.utils.readfile(strHashPath, false)
-      if tResult==nil then
-        self.tLogger:error('Failed to get the hash sum of "%s": %s', strCfgPath, strError)
+    if tResult==true then
+      -- Get the complete file.
+      -- Read it as binary to prevent the conversion of the linefeed. This would give a wrong hash sum.
+      local strCfg, strError = self.pl.utils.readfile(strCfgPath, true)
+      if strCfg==nil then
+        tResult = nil
+        self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgPath, strError)
         self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
       else
-        local strHash = tResult
-
-        -- Check the hash sum.
-        tResult = self.hash:check_string(strCfg, strHash, strCfgPath, strHashPath)
-        if tResult~=true then
-          self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgPath)
+        -- Get the hash sum.
+        tResult, strError = self.pl.utils.readfile(strHashPath, false)
+        if tResult==nil then
+          self.tLogger:error('Failed to get the hash sum of "%s": %s', strCfgPath, strError)
           self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
-          tResult = nil
         else
-          local cA = self.ArtifactConfiguration(self.tLogger)
-          tResult = cA:parse_configuration(strCfg, strCfgPath)
+          local strHash = tResult
+
+          -- Check the hash sum.
+          tResult = self.hash:check_string(strCfg, strHash, strCfgPath, strHashPath)
           if tResult~=true then
-            tResult = nil
+            self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgPath)
             self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
+            tResult = nil
           else
-            -- Compare the GMAV from the configuration with the requested values.
-            tResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion)
+            local cA = self.ArtifactConfiguration(self.tLogger)
+            tResult = cA:parse_configuration(strCfg, strCfgPath)
             if tResult~=true then
-              local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
-              self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version.', self.strID, strGMAV)
-              self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
               tResult = nil
+              self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
             else
-              tResult = cA
-              self.uiStatistics_GetConfiguration_Success = self.uiStatistics_GetConfiguration_Success + 1
-              self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + string.len(strCfg)
-              self.uiStatistics_ServedBytesConfigHash = self.uiStatistics_ServedBytesConfigHash + string.len(strHash)
+              -- Compare the GMAVP from the configuration with the requested values.
+              tResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
+              if tResult~=true then
+                self.tLogger:error('%s The configuration for artifact %s/%s does not match the requested group/module/artifact/version/platform.', self.strID, strGMAV, strCurrentPlatform)
+                self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
+                tResult = nil
+              else
+                tResult = cA
+                self.uiStatistics_GetConfiguration_Success = self.uiStatistics_GetConfiguration_Success + 1
+                self.uiStatistics_ServedBytesConfig = self.uiStatistics_ServedBytesConfig + string.len(strCfg)
+                self.uiStatistics_ServedBytesConfigHash = self.uiStatistics_ServedBytesConfigHash + string.len(strHash)
+              end
             end
           end
         end
@@ -189,15 +208,23 @@ end
 
 
 
-function RepositoryDriverFilesystem:get_artifact(strGroup, strModule, strArtifact, tVersion, strExtension, strDestinationFolder)
+function RepositoryDriverFilesystem:get_artifact(cArtifact, strDestinationFolder)
   -- Does the root folder of the repository exist?
   local tResult = self:exists()
   if tResult~=true then
     self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
   else
+    local tInfo = cArtifact.tInfo
+    local strGroup = tInfo.strGroup
+    local strModule = tInfo.strModule
+    local strArtifact = tInfo.strArtifact
+    local tVersion = tInfo.tVersion
+    local strPlatform = tInfo.strPlatform
+    local strExtension = tInfo.strExtension
+
     -- Construct the artifact path.
-    local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strExtension, self.strArtifact)
-    local strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, string.format('%s.hash', strExtension), self.strArtifact)
+    local strArtifactSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strPlatform, strExtension, self.strArtifact)
+    local strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strPlatform, string.format('%s.hash', strExtension), self.strArtifact)
 
     -- Append the version folder to the root.
     -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.

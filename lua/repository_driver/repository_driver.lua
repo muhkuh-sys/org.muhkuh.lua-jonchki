@@ -9,8 +9,9 @@ local RepositoryDriver = class()
 
 --- Initialize a new instance of a repository driver.
 -- @param strID The ID used in the the jonchkicfg.xml to reference this instance.
-function RepositoryDriver:_init(tLogger, strID)
+function RepositoryDriver:_init(tLogger, tPlatform, strID)
   self.tLogger = tLogger
+  self.tPlatform = tPlatform
   self.strID = strID
 
   -- The "penlight" module is used to parse the configuration file.
@@ -41,7 +42,7 @@ end
 
 
 
-function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersion, strExtension, strTemplate)
+function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersion, strPlatform, strExtension, strTemplate)
   -- Convert the group to a list of folders.
   local strSlashGroup = self.pl.stringx.replace(strGroup, '.', '/')
 
@@ -51,6 +52,11 @@ function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersio
     strVersion = tVersion:get()
   end
 
+  -- Prepend an underscore before the platform if the string is not empty.
+  if strPlatform~=nil and strPlatform~='' then
+    strPlatform = string.format('_%s', strPlatform)
+  end
+
   -- Construct the replace table.
   local atReplace = {
     ['dotgroup'] = strGroup,
@@ -58,7 +64,8 @@ function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersio
     ['module'] = strModule,
     ['artifact'] = strArtifact,
     ['version'] = strVersion,
-    ['extension'] = strExtension
+    ['extension'] = strExtension,
+    ['platform'] = strPlatform
   }
 
   -- Replace the keywords.

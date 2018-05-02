@@ -6,8 +6,9 @@ local Cache = class()
 --- Initialize a new cache instance.
 -- @param tLogger The logger object used for all kinds of messages.
 -- @param strID The ID used in the the jonchkicfg.xml to reference this instance.
-function Cache:_init(tLogger, strID)
+function Cache:_init(tLogger, tPlatform, strID)
   self.tLogger = tLogger
+  self.tPlatform = tPlatform
   self.strRepositoryRootPath = nil
   self.strID = strID
   self.tSQLEnv = nil
@@ -156,6 +157,11 @@ function Cache:_replace_path(cArtifact, strExtension)
     strVersion = tInfo.tVersion:get()
   end
 
+  local strPlatform = ''
+  if tInfo.strPlatform~='' then
+    strPlatform = string.format('_%s', tInfo.strPlatform)
+  end
+
   -- Construct the replace table.
   local atReplace = {
     ['dotgroup'] = tInfo.strGroup,
@@ -163,7 +169,8 @@ function Cache:_replace_path(cArtifact, strExtension)
     ['module'] = tInfo.strModule,
     ['artifact'] = tInfo.strArtifact,
     ['version'] = strVersion,
-    ['extension'] = strExtension
+    ['extension'] = strExtension,
+    ['platform'] = strPlatform
   }
 
   -- Replace the keywords.
@@ -193,7 +200,7 @@ end
 
 -- Search for the GMAV in the database.
 -- @return nil for an error, false if nothing was found, a number on success.
-function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+function Cache:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
   local tResult = nil
   local atAttr = nil
 
@@ -203,7 +210,7 @@ function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
     self.tLogger:error('%s No connection to a database established.', self.strLogID)
   else
     local strVersion = tVersion:get()
-    local strQuery = string.format('SELECT * FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s" AND strVersion="%s"', strGroup, strModule, strArtifact, strVersion)
+    local strQuery = string.format('SELECT * FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s" AND strVersion="%s" AND strPlatform="%s"', strGroup, strModule, strArtifact, strVersion, strPlatform)
     local tCursor, strError = tSQLDatabase:execute(strQuery)
     if tCursor==nil then
       self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
@@ -212,7 +219,7 @@ function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
         local atData = tCursor:fetch({}, 'a')
         if atData~=nil then
           if atAttr~=nil then
-            self.tLogger:error('%s The cache database is broken. It has multiple entries for %s/%s/%s/%s.', self.strLogID, strGroup, strModule, strArtifact, strVersion)
+            self.tLogger:error('%s The cache database is broken. It has multiple entries for %s/%s/%s/%s/%s.', self.strLogID, strGroup, strModule, strArtifact, strVersion, strPlatform)
             break
           else
             atAttr = atData
@@ -235,6 +242,21 @@ function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   end
 
   return tResult, atAttr
+end
+
+
+
+function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  -- First try the platform independent package.
+  local strCurrentPlatform = ''
+  local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
+  if fFound==false then
+    -- Try the platform specific package if the search was OK, but nothing was found.
+    strCurrentPlatform = self.tPlatform:get_platform_id()
+    fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
+  end
+
+  return fFound, atAttr, strCurrentPlatform
 end
 
 
@@ -267,7 +289,7 @@ function Cache:_database_add_configuration(tSQLDatabase, cArtifact, strSourceRep
   local tInfo = cArtifact.tInfo
   local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
 
-  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strConfigurationSourceRepo, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository)
+  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strPlatform, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strConfigurationSourceRepo, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), tInfo.strPlatform, strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository)
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
@@ -291,7 +313,7 @@ function Cache:_database_update_configuration(tSQLDatabase, iId, cArtifact, strS
   local tInfo = cArtifact.tInfo
   local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
 
-  local strQuery = string.format('UPDATE cache SET strConfigurationPath="%s", strConfigurationHashPath="%s", iConfigurationSize=%d, strConfigurationSourceRepo="%s", iLastUsedDate=strftime("%%s","now") WHERE iId=%d', strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository, iId)
+  local strQuery = string.format('UPDATE cache SET strPlatform="%s", strConfigurationPath="%s", strConfigurationHashPath="%s", iConfigurationSize=%d, strConfigurationSourceRepo="%s", iLastUsedDate=strftime("%%s","now") WHERE iId=%d', tInfo.strPlatform, strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository, iId)
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
@@ -315,12 +337,12 @@ function Cache:_database_add_artifact(tSQLDatabase, cArtifact, strSourceReposito
   local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
 
   local tInfo = cArtifact.tInfo
-  self.tLogger:debug('%s Adding artifact %s/%s/%s V%s', self.strLogID, tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get())
+  self.tLogger:debug('%s Adding artifact %s/%s/%s V%s %s', self.strLogID, tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), tInfo.strPlatform)
 
   local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
   local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
 
-  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strConfigurationSourceRepo, strArtifactPath, strArtifactHashPath, iArtifactSize, strArtifactSourceRepo, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository, strPathArtifact, strPathArtifactHash, iArtifactFileSize, strSourceRepository)
+  local strQuery = string.format('INSERT INTO cache (strGroup, strModule, strArtifact, strVersion, strPlatform, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strConfigurationSourceRepo, strArtifactPath, strArtifactHashPath, iArtifactSize, strArtifactSourceRepo, iCreateDate, iLastUsedDate) VALUES ("%s", "%s", "%s", "%s", "%s", "%s", "%s", %d, "%s", "%s", %d, strftime("%%s","now"), strftime("%%s","now"))', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), tInfo.strPlatform, strPathConfiguration, strPathConfigurationHash, iConfigurationFileSize, strSourceRepository, strPathArtifact, strPathArtifactHash, iArtifactFileSize, strSourceRepository)
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
@@ -349,7 +371,9 @@ function Cache:_database_update_artifact(atAttr, cArtifact, strSourceRepository)
     local iId = atAttr.iId
     local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
 
-    local strQuery = string.format('UPDATE cache SET strArtifactPath="%s", strArtifactHashPath="%s", iArtifactSize=%d, strArtifactSourceRepo="%s", iLastUsedDate=strftime("%%s","now") WHERE iId=%d', strPathArtifact, strPathArtifactHash, iArtifactFileSize, strSourceRepository, iId)
+    local tInfo = cArtifact.tInfo
+
+    local strQuery = string.format('UPDATE cache SET strPlatform="%s", strArtifactPath="%s", strArtifactHashPath="%s", iArtifactSize=%d, strArtifactSourceRepo="%s", iLastUsedDate=strftime("%%s","now") WHERE iId=%d', tInfo.strPlatform, strPathArtifact, strPathArtifactHash, iArtifactFileSize, strSourceRepository, iId)
 
     local tSqlResult, strError = tSQLDatabase:execute(strQuery)
     if tSqlResult==nil then
@@ -656,7 +680,7 @@ function Cache:configure(strRepositoryRootPath, ulMaximumSize)
     self.tLogger:error('%s The repository root path "%s" is no directory.', self.strLogID, strAbsRepositoryRootPath)
   else
     -- Create the path template string.
-    self.strPathTemplate = self.pl.path.join(strAbsRepositoryRootPath, '[group]/[module]/[version]/[artifact]-[version].[extension]')
+    self.strPathTemplate = self.pl.path.join(strAbsRepositoryRootPath, '[group]/[module]/[version]/[artifact]-[version][platform].[extension]')
 
     -- Append the database name to the path.
     local strDb = self.pl.path.join(strAbsRepositoryRootPath, self.strDatabaseName)
@@ -669,7 +693,7 @@ function Cache:configure(strRepositoryRootPath, ulMaximumSize)
       self.tLogger:error('%s Failed to open the database "%s": %s', self.strLogID, strDb, strError)
     else
       -- Construct the "CREATE" statement for the "cache" table.
-      local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strConfigurationPath TEXT, strConfigurationHashPath TEXT, iConfigurationSize INTEGER, strConfigurationSourceRepo TEXT, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, strArtifactSourceRepo TEXT, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
+      local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strPlatform TEXT, strConfigurationPath TEXT, strConfigurationHashPath TEXT, iConfigurationSize INTEGER, strConfigurationSourceRepo TEXT, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, strArtifactSourceRepo TEXT, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
       local tTableResult = self:_sql_create_table(tSQLDatabase, 'cache', strCreateStatement)
       if tTableResult==nil then
         tSQLDatabase:close()
@@ -831,7 +855,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
 
   -- Search the artifact in the cache database.
-  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  local fFound, atAttr, strCurrentPlatform = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
     self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
@@ -870,9 +894,9 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
           local tParseResult = cA:parse_configuration(strConfiguration, atAttr.strConfigurationPath)
           if tParseResult==true then
             -- Compare the GMAV from the configuration with the requested values.
-            local tCheckResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion)
+            local tCheckResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
             if tCheckResult~=true then
-              self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version.', self.strLogID, strGMAV)
+              self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version/platform.', self.strLogID, strGMAV)
               self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
               -- FIXME: Remove the artifact from the cache and run a complete rescan.
             else
@@ -902,26 +926,28 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
   local strModule = tInfo.strModule
   local strArtifact = tInfo.strArtifact
   local tVersion = tInfo.tVersion
-  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+  local strPlatform = tInfo.strPlatform
+  local strGMAVP = string.format('%s/%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get(), strPlatform)
 
   -- Search the artifact in the cache database.
-  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  -- First try the platform independent package.
+  local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
     self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   elseif fFound==false then
-    self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAV)
+    self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAVP)
     self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   elseif atAttr.strArtifactPath==nil then
-    self.tLogger:debug('%s The cache entry does not have the artifact.', self.strLogID, strGMAV)
+    self.tLogger:debug('%s The cache entry does not have the artifact.', self.strLogID, strGMAVP)
     self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   else
-    self.tLogger:debug('%s Found the artifact %s in the cache.', self.strLogID, strGMAV)
+    self.tLogger:debug('%s Found the artifact %s in the cache.', self.strLogID, strGMAVP)
 
     -- Read the contents of the hash file.
     local strHash, strError = self.pl.utils.readfile(atAttr.strArtifactHashPath, false)
     if strHash==nil then
-      self.tLogger:error('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAV, strError)
+      self.tLogger:error('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAVP, strError)
       self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
     else
       local strCachePath = atAttr.strArtifactPath
@@ -992,15 +1018,16 @@ function Cache:add_configuration(cArtifact, strSourceRepository)
   local strModule = tInfo.strModule
   local strArtifact = tInfo.strArtifact
   local tVersion = tInfo.tVersion
-  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+  local strPlatform = tInfo.strPlatform
+  local strGMAVP = string.format('%s/%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get(), strPlatform)
 
   -- First check if the artifact is not yet part of the cache.
-  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
   elseif fFound==true then
     -- Found an entry in the cache.
-    self.tLogger:debug('%s The configuration of the artifact %s is already in the cache.', self.strLogID, strGMAV)
+    self.tLogger:debug('%s The configuration of the artifact %s is already in the cache.', self.strLogID, strGMAVP)
     --  Does the entry have already a configuration path?
     if atAttr.strConfigurationPath==nil then
       -- No configuration path yet. This is only a version entry.
@@ -1010,7 +1037,7 @@ function Cache:add_configuration(cArtifact, strSourceRepository)
       end
     end
   else
-    self.tLogger:debug('%s Adding the configuration for the artifact %s to the cache.', self.strLogID, strGMAV)
+    self.tLogger:debug('%s Adding the configuration for the artifact %s to the cache.', self.strLogID, strGMAVP)
 
     tResult = self:_cachefs_write_configuration(cArtifact)
     if tResult==true then
@@ -1033,16 +1060,17 @@ function Cache:add_artifact(cArtifact, strArtifactSourcePath, strSourceRepositor
   local strModule = tInfo.strModule
   local strArtifact = tInfo.strArtifact
   local tVersion = tInfo.tVersion
-  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+  local strPlatform = tInfo.strPlatform
+  local strGMAVP = string.format('%s/%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get(), strPlatform)
 
   -- First check if the artifact is not yet part of the cache.
-  local fFound, atAttr = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
   elseif fFound==true and atAttr.strArtifactPath~=nil then
-    self.tLogger:debug('%s The artifact %s is already in the cache.', self.strLogID, strGMAV)
+    self.tLogger:debug('%s The artifact %s is already in the cache.', self.strLogID, strGMAVP)
   else
-    self.tLogger:debug('%s Adding the artifact %s to the cache.', self.strLogID, strGMAV)
+    self.tLogger:debug('%s Adding the artifact %s to the cache.', self.strLogID, strGMAVP)
 
     -- Add the artifact to the database.
     if atAttr==false then
