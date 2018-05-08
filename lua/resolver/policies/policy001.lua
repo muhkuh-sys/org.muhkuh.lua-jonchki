@@ -24,7 +24,7 @@ function Policy001:select_version_by_constraints(atVersions, strConstraint)
   local tVersion = self.Version()
   local fResult, strError = tVersion:set(strConstraint)
   if fResult~=true then
-    self.tLogger:debug('%sFailed to parse constraint "%s" as a version: %s', self.strLogID, strError)
+    self.tLogger:debug('%sFailed to parse constraint "%s" as a version: %s', self.strLogID, strConstraint, strError)
   else
     -- Look for the exact version string.
     local fFound = false

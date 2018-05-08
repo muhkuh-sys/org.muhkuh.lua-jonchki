@@ -36,7 +36,7 @@ function Policy002:select_version_by_constraints(atVersions, strConstraint)
   local tVersionConstraint = self.Version()
   local fResult, strError = tVersionConstraint:set(strConstraint)
   if fResult~=true then
-    self.tLogger:debug('%sFailed to parse constraint "%s" as a version: %s', self.strLogID, strError)
+    self.tLogger:debug('%sFailed to parse constraint "%s" as a version: %s', self.strLogID, strConstraint, strError)
   else
     -- Access the version components directly.
     local atVCConstraint = tVersionConstraint.atVersion
