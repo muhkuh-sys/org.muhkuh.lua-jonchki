@@ -198,7 +198,7 @@ end
 
 
 
--- Search for the GMAV in the database.
+-- Search for the GMAVP in the database.
 -- @return nil for an error, false if nothing was found, a number on success.
 function Cache:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
   local tResult = nil
@@ -220,6 +220,54 @@ function Cache:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatfo
         if atData~=nil then
           if atAttr~=nil then
             self.tLogger:error('%s The cache database is broken. It has multiple entries for %s/%s/%s/%s/%s.', self.strLogID, strGroup, strModule, strArtifact, strVersion, strPlatform)
+            break
+          else
+            atAttr = atData
+          end
+        end
+      until atData==nil
+
+      -- Close the cursor.
+      tCursor:close()
+
+      -- Found exactly one match?
+      if atAttr==nil then
+        -- Nothing found. This is no error.
+        tResult = false
+      else
+        -- Exactly one match found. Return the ID.
+        tResult = true
+      end
+    end
+  end
+
+  return tResult, atAttr
+end
+
+
+
+-- Search for the GMAV with P=null in the database.
+-- @return nil for an error, false if nothing was found, a number on success.
+function Cache:_find_GMAVnull(strGroup, strModule, strArtifact, tVersion)
+  local tResult = nil
+  local atAttr = nil
+
+
+  local tSQLDatabase = self.tSQLDatabase
+  if tSQLDatabase==nil then
+    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+  else
+    local strVersion = tVersion:get()
+    local strQuery = string.format('SELECT * FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s" AND strVersion="%s" AND strPlatform IS NULL', strGroup, strModule, strArtifact, strVersion)
+    local tCursor, strError = tSQLDatabase:execute(strQuery)
+    if tCursor==nil then
+      self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
+    else
+      repeat
+        local atData = tCursor:fetch({}, 'a')
+        if atData~=nil then
+          if atAttr~=nil then
+            self.tLogger:error('%s The cache database is broken. It has multiple entries for %s/%s/%s/%s.', self.strLogID, strGroup, strModule, strArtifact, strVersion)
             break
           else
             atAttr = atData
@@ -815,12 +863,13 @@ function Cache:get_available_versions(strGroup, strModule, strArtifact)
   if tSQLDatabase==nil then
     self.tLogger:error('%s No connection to a database established.', self.strLogID)
   else
-    local atVersions = {}
     local strQuery = string.format('SELECT strVersion FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s"', strGroup, strModule, strArtifact)
     local tCursor, strError = tSQLDatabase:execute(strQuery)
     if tCursor==nil then
       self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
     else
+      local atVersions = {}
+      local atVersionExists = {}
       repeat
         local atData = tCursor:fetch({}, 'a')
         if atData~=nil then
@@ -829,7 +878,13 @@ function Cache:get_available_versions(strGroup, strModule, strArtifact)
           if tVersionResult~=true then
             self.tLogger:warn('Error in database: ignoring invalid "version" for %s/%s/%s: %s', strGroup, strModule, strArtifact, strError)
           else
-            table.insert(atVersions, tVersion)
+            strVersion = tVersion:get()
+
+            -- Do not add a version more than once.
+            if atVersionExists[strVersion]==nil then
+              table.insert(atVersions, tVersion)
+              atVersionExists[strVersion] = true
+            end
           end
         end
       until atData==nil
@@ -854,7 +909,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
 
   local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
 
-  -- Search the artifact in the cache database.
+  -- Search the artifact in the cache database. First try the PIP, then the PSP.
   local fFound, atAttr, strCurrentPlatform = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
@@ -930,7 +985,7 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
   local strGMAVP = string.format('%s/%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get(), strPlatform)
 
   -- Search the artifact in the cache database.
-  -- First try the platform independent package.
+  -- Only look for the platform specified in the configuration "cArtifact".
   local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
@@ -986,22 +1041,37 @@ end
 
 
 
-function Cache:add_version(strGroup, strModule, strArtifact, tVersion)
+function Cache:add_versions(strGroup, strModule, strArtifact, atNewVersions)
   local tResult = nil
   local strError
 
-  local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
-
-  -- First check if the artifact is not yet part of the cache.
-  local fFound = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
-  if fFound==nil then
+  local atExistingVersions = self:get_available_versions(strGroup, strModule, strArtifact)
+  if atExistingVersions==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
-  elseif fFound==true then
-    self.tLogger:debug('%s The version of the artifact %s is already in the cache.', self.strLogID, strGMAV)
   else
-    self.tLogger:debug('%s Adding the version for the artifact %s to the cache.', self.strLogID, strGMAV)
-    -- Add the version to the database.
-    tResult = self:_database_add_version(self.tSQLDatabase, strGroup, strModule, strArtifact, tVersion)
+    -- Loop over all new versions.
+    for _, tVersion in pairs(atNewVersions) do
+      local strVersion = tVersion:get()
+      local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, strVersion)
+      -- Check if the artifact is already in the cache.
+      local fFound = false
+      for _, tVersionCnt in pairs(atExistingVersions) do
+        if tVersionCnt:get()==strVersion then
+          fFound = true
+          break
+        end
+      end
+      if fFound==true then
+        self.tLogger:debug('%s The version of the artifact %s is already in the cache.', self.strLogID, strGMAV)
+      else
+        self.tLogger:debug('%s Adding the version for the artifact %s to the cache.', self.strLogID, strGMAV)
+        -- Add the version to the database.
+        tResult = self:_database_add_version(self.tSQLDatabase, strGroup, strModule, strArtifact, tVersion)
+        if tResult==nil then
+          break
+        end
+      end
+    end
   end
 
   return tResult
@@ -1021,20 +1091,28 @@ function Cache:add_configuration(cArtifact, strSourceRepository)
   local strPlatform = tInfo.strPlatform
   local strGMAVP = string.format('%s/%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get(), strPlatform)
 
-  -- First check if the artifact is not yet part of the cache.
+  -- First check if the artifact with the requested platform is not yet part of the cache.
   local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
+  if fFound==false then
+    -- Check if an entry with platform=NULL is present.
+    fFound, atAttr = self:_find_GMAVnull(strGroup, strModule, strArtifact, tVersion)
+  end
+
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
   elseif fFound==true then
     -- Found an entry in the cache.
-    self.tLogger:debug('%s The configuration of the artifact %s is already in the cache.', self.strLogID, strGMAVP)
     --  Does the entry have already a configuration path?
     if atAttr.strConfigurationPath==nil then
+      self.tLogger:debug('%s The the artifact %s is already in the cache, but it had no configuration.', self.strLogID, strGMAVP)
+
       -- No configuration path yet. This is only a version entry.
       tResult = self:_cachefs_write_configuration(cArtifact)
       if tResult==true then
         self:_database_update_configuration(self.tSQLDatabase, atAttr.iId, cArtifact, strSourceRepository)
       end
+    else
+      self.tLogger:debug('%s The configuration of the artifact %s is already in the cache.', self.strLogID, strGMAVP)
     end
   else
     self.tLogger:debug('%s Adding the configuration for the artifact %s to the cache.', self.strLogID, strGMAVP)
@@ -1065,6 +1143,11 @@ function Cache:add_artifact(cArtifact, strArtifactSourcePath, strSourceRepositor
 
   -- First check if the artifact is not yet part of the cache.
   local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
+  if fFound==false then
+    -- Check if an entry with platform=NULL is present.
+    fFound, atAttr = self:_find_GMAVnull(strGroup, strModule, strArtifact, tVersion)
+  end
+
   if fFound==nil then
     self.tLogger:error('%s Failed to search the cache.', self.strLogID)
   elseif fFound==true and atAttr.strArtifactPath~=nil then
