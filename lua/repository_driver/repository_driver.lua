@@ -52,9 +52,9 @@ function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersio
     strVersion = tVersion:get()
   end
 
-  -- Prepend an underscore before the platform if the string is not empty.
+  -- Prepend a dash before the platform if the string is not empty.
   if strPlatform~=nil and strPlatform~='' then
-    strPlatform = string.format('_%s', strPlatform)
+    strPlatform = string.format('-%s', strPlatform)
   end
 
   -- Construct the replace table.
