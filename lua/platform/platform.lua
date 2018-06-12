@@ -252,12 +252,13 @@ end
 
 
 
-function Platform:get_platform_id()
+function Platform:get_platform_id(strSeparator)
+  strSeparator = strSeparator or '-'
   local strDistributionId = self.strDistributionId or 'unknown'
   local strDistributionVersion = self.strDistributionVersion or 'unknown'
   local strCpuArchitecture = self.strCpuArchitecture or 'unknown'
 
-  return string.format('%s-%s-%s', strDistributionId, strDistributionVersion, strCpuArchitecture)
+  return string.format('%s%s%s%s%s', strDistributionId, strSeparator, strDistributionVersion, strSeparator, strCpuArchitecture)
 end
 
 
