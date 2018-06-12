@@ -366,7 +366,7 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
 
   if tResult~=true then
     -- Try the platform specific version.
-    strCurrentPlatform = self.tPlatform:get_platform_id()
+    strCurrentPlatform = self.tPlatform:get_platform_id('_')
     strCfgPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml', self.strConfig)
     strHashPath = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml.hash', self.strConfig)
     -- Append the version folder to the root.

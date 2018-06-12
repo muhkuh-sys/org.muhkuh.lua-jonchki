@@ -140,7 +140,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
     self.tLogger:debug('Try to get the platform independent configuration from "%s".', strCfgPath)
     if self.pl.path.exists(strCfgPath)~=strCfgPath or self.pl.path.exists(strHashPath)~=strHashPath then
       -- Try the platform specific version.
-      strCurrentPlatform = self.tPlatform:get_platform_id()
+      strCurrentPlatform = self.tPlatform:get_platform_id('_')
       strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml', self.strConfig)
       strHashSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml.hash', self.strConfig)
       -- Append the version folder to the root.
