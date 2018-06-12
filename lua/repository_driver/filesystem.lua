@@ -138,7 +138,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
     local strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
     local strHashPath = self.pl.path.join(self.strRoot, strHashSubdirectory)
     self.tLogger:debug('Try to get the platform independent configuration from "%s".', strCfgPath)
-    if self.pl.path.exists(strCfgPath)==nil or self.pl.path.exists(strHashPath)==nil then
+    if self.pl.path.exists(strCfgPath)~=strCfgPath or self.pl.path.exists(strHashPath)~=strHashPath then
       -- Try the platform specific version.
       strCurrentPlatform = self.tPlatform:get_platform_id()
       strCfgSubdirectory = self:replace_path(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform, 'xml', self.strConfig)
@@ -148,7 +148,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
       strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
       strHashPath = self.pl.path.join(self.strRoot, strHashSubdirectory)
       self.tLogger:debug('Try to get the platform specific configuration for "%s" from "%s".', strCurrentPlatform, strCfgPath)
-      if self.pl.path.exists(strCfgPath)==nil or self.pl.path.exists(strHashPath)==nil then
+      if self.pl.path.exists(strCfgPath)~=strCfgPath or self.pl.path.exists(strHashPath)~=strHashPath then
         tResult = nil
         self.tLogger:error('No platform independent or platform specific configuration file found for %s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
       end
