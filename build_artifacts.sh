@@ -1,5 +1,28 @@
 #! /bin/bash
 
+# Check the number of parameters.
+if [ $# -ne 3 ]
+then
+  echo "The script needs 3 parameter:"
+  echo "  1) the distribution ID"
+  echo "  2) the distribution version (can be an empty string '')"
+  echo "  3) the CPU architecture"
+  exit -1
+fi
+
+JONCHKI_DISTRIBUTION_ID=$1
+JONCHKI_DISTRIBUTION_VERSION=$2
+JONCHKI_CPU_ARCHITECTURE=$3
+
+if [ "${JONCHKI_DISTRIBUTION_VERSION}" == "" ]
+then
+  JONCHKI_PLATFORM_ID="${JONCHKI_DISTRIBUTION_ID}_${JONCHKI_CPU_ARCHITECTURE}"
+else
+  JONCHKI_PLATFORM_ID="${JONCHKI_DISTRIBUTION_ID}_${JONCHKI_DISTRIBUTION_VERSION}_${JONCHKI_CPU_ARCHITECTURE}"
+fi
+echo "Building jonchki for ${JONCHKI_PLATFORM_ID}"
+
+
 # ----------------------------------------------------------------------------
 #
 # Try to get the VCS ID.
@@ -62,77 +85,21 @@ JONCHKI=${JONCHKI_PATH}/jonchki.lua
 WORK_BASE=${PRJ_DIR}/targets/jonchki
 mkdir -p ${WORK_BASE}
 
+# This is the working folder for the current platform.
+WORK=${WORK_BASE}/${JONCHKI_PLATFORM_ID}
+
 # Write the GIT version into the template.
 rm -f ${WORK_BASE}/jonchki.xml
 sed --expression="s/\${PROJECT_VERSION_VCS_LONG}/${PROJECT_VERSION_VCS_LONG}/" installer/jonchki_template.xml >${WORK_BASE}/jonchki.xml
 
-# Remove all working folders and re-create them.
-rm -rf ${WORK_BASE}/windows_32bit
-rm -rf ${WORK_BASE}/windows_64bit
-rm -rf ${WORK_BASE}/ubuntu_14.04_32bit
-rm -rf ${WORK_BASE}/ubuntu_14.04_64bit
-rm -rf ${WORK_BASE}/ubuntu_16.04_32bit
-rm -rf ${WORK_BASE}/ubuntu_16.04_64bit
-rm -rf ${WORK_BASE}/ubuntu_17.04_32bit
-rm -rf ${WORK_BASE}/ubuntu_17.04_64bit
-rm -rf ${WORK_BASE}/ubuntu_17.10_32bit
-rm -rf ${WORK_BASE}/ubuntu_17.10_64bit
-
-mkdir -p ${WORK_BASE}/windows_32bit
-mkdir -p ${WORK_BASE}/windows_64bit
-mkdir -p ${WORK_BASE}/ubuntu_14.04_32bit
-mkdir -p ${WORK_BASE}/ubuntu_14.04_64bit
-mkdir -p ${WORK_BASE}/ubuntu_16.04_32bit
-mkdir -p ${WORK_BASE}/ubuntu_16.04_64bit
-mkdir -p ${WORK_BASE}/ubuntu_17.04_32bit
-mkdir -p ${WORK_BASE}/ubuntu_17.04_64bit
-mkdir -p ${WORK_BASE}/ubuntu_17.10_32bit
-mkdir -p ${WORK_BASE}/ubuntu_17.10_64bit
+# Remove the working folder and re-create it.
+rm -rf ${WORK}
+mkdir -p ${WORK}
 
 # The common options are the same for all targets.
 COMMON_OPTIONS="--syscfg ${PRJ_DIR}/installer/jonchkisys.cfg --prjcfg ${PRJ_DIR}/installer/jonchkicfg.xml --finalizer ${PRJ_DIR}/installer/finalizer.lua ${WORK_BASE}/jonchki.xml"
 
-# Build the Windows_x86 artifact.
-pushd ${WORK_BASE}/windows_32bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id windows --distribution-version "" --cpu-architecture x86 ${COMMON_OPTIONS}
-popd
-# Build the Windows_x86_64 artifact.
-pushd ${WORK_BASE}/windows_64bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id windows --distribution-version "" --cpu-architecture x86_64 ${COMMON_OPTIONS}
-popd
-
-# Ubuntu 14.04 32bit
-pushd ${WORK_BASE}/ubuntu_14.04_32bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id ubuntu --distribution-version 14.04 --cpu-architecture x86 ${COMMON_OPTIONS}
-popd
-# Ubuntu 14.04 64bit
-pushd ${WORK_BASE}/ubuntu_14.04_64bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id ubuntu --distribution-version 14.04 --cpu-architecture x86_64 ${COMMON_OPTIONS}
-popd
-
-# Ubuntu 16.04 32bit
-pushd ${WORK_BASE}/ubuntu_16.04_32bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id ubuntu --distribution-version 16.04 --cpu-architecture x86 ${COMMON_OPTIONS}
-popd
-# Ubuntu 16.04 64bit
-pushd ${WORK_BASE}/ubuntu_16.04_64bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id ubuntu --distribution-version 16.04 --cpu-architecture x86_64 ${COMMON_OPTIONS}
-popd
-
-# Ubuntu 17.04 32bit
-pushd ${WORK_BASE}/ubuntu_17.04_32bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id ubuntu --distribution-version 17.04 --cpu-architecture x86 ${COMMON_OPTIONS}
-popd
-# Ubuntu 17.04 64bit
-pushd ${WORK_BASE}/ubuntu_17.04_64bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id ubuntu --distribution-version 17.04 --cpu-architecture x86_64 ${COMMON_OPTIONS}
-popd
-
-# Ubuntu 17.10 32bit
-pushd ${WORK_BASE}/ubuntu_17.10_32bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id ubuntu --distribution-version 17.10 --cpu-architecture x86 ${COMMON_OPTIONS}
-popd
-# Ubuntu 17.10 64bit
-pushd ${WORK_BASE}/ubuntu_17.10_64bit
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} -v ${VERBOSE_LEVEL} --distribution-id ubuntu --distribution-version 17.10 --cpu-architecture x86_64 ${COMMON_OPTIONS}
+# Build the artifact.
+pushd ${WORK}
+LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} install-dependencies -v ${VERBOSE_LEVEL} --distribution-id "${JONCHKI_DISTRIBUTION_ID}" --distribution-version "${JONCHKI_DISTRIBUTION_VERSION}" --cpu-architecture "${JONCHKI_CPU_ARCHITECTURE}" ${COMMON_OPTIONS}
 popd
