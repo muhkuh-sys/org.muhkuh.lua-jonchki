@@ -257,8 +257,15 @@ function Platform:get_platform_id(strSeparator)
   local strDistributionId = self.strDistributionId or 'unknown'
   local strDistributionVersion = self.strDistributionVersion or 'unknown'
   local strCpuArchitecture = self.strCpuArchitecture or 'unknown'
+  local strId
 
-  return string.format('%s%s%s%s%s', strDistributionId, strSeparator, strDistributionVersion, strSeparator, strCpuArchitecture)
+  -- The distribution version can be empty.
+  if strDistributionVersion=='' then
+    strId = string.format('%s%s%s', strDistributionId, strSeparator, strCpuArchitecture)
+  else
+    strId = string.format('%s%s%s%s%s', strDistributionId, strSeparator, strDistributionVersion, strSeparator, strCpuArchitecture)
+  end
+  return strId
 end
 
 
