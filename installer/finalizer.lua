@@ -26,6 +26,7 @@ local atScripts = {
   ['../lua/resolver/resolver.lua']                    = '${install_lua_path}/resolver/',
   ['../lua/resolver/resolver_chain.lua']              = '${install_lua_path}/resolver/',
   ['../lua/ArtifactConfiguration.lua']                = '${install_lua_path}/',
+  ['../lua/Core.lua']                                 = '${install_lua_path}/',
   ['../lua/Hash.lua']                                 = '${install_lua_path}/',
   ['../lua/ProjectConfiguration.lua']                 = '${install_lua_path}/',
   ['../lua/Report.lua']                               = '${install_lua_path}/',
