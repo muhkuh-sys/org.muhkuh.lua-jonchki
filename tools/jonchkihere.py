@@ -34,7 +34,7 @@ import time
 import urllib2
 
 
-strDefaultJonchkiVersion = '0.0.2.1'
+strDefaultJonchkiVersion = '0.0.3.1'
 
 
 class ProgressOutput:
