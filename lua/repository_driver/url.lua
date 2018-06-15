@@ -229,16 +229,25 @@ function RepositoryDriverUrl:get_url_clicurl(strUrl)
   local tResult = nil
 
 
-  local tFile, strError = io.popen(string.format('curl --location --silent --fail "%s"', strUrl))
-  if tFile==nil then
-    self.tLogger:info('Failed to download "%s": %s', strUrl, strError)
-  else
-    -- Read all data.
-    local strData = tFile:read('*a')
-    tFile:close()
+  -- Get a temp file for the file contents.
+  local strTempFile = self.pl.path.tmpname()
+  -- Download the URL to the temp file.
+  tResult = self:download_url_clicurl(strUrl, strTempFile)
+  if tResult==true then
+    -- Read the contents of the URL from the temp file.
+    local strError
+    tResult, strError = self.pl.utils.readfile(strTempFile, true)
+    if tResult==nil then
+      self.tLogger:error('Failed to read the temp file for URL "%s": %s', strUrl, strError)
+    end
 
-    tResult = strData
+  else
+    self.tLogger:info('Failed to download "%s".', strUrl)
+    tResult = nil
+
   end
+  -- Remove the temp file.
+  os.remove(strTempFile)
 
   return tResult
 end
@@ -253,7 +262,7 @@ function RepositoryDriverUrl:download_url_clicurl(strUrl, strLocalFile)
   if tCurlResult==0 then
     tResult = true
   end
-    
+
   return tResult
 end
 
