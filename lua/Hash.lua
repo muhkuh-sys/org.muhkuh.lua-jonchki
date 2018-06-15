@@ -6,8 +6,63 @@ local Hash = class()
 function Hash:_init(tLogger)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
-  -- Get the mhash plugin for the hash algorithms.
-  self.mhash = require("mhash")
+  -- Try to load the mhash plugin for the hash algorithms.
+  local tResult, mhash = require("mhash")
+  if tResult==true then
+    -- Found mhash.
+    self.mhash = mhash
+
+    self.atMhashHashes = {
+      ['MD5'] = self.mhash.MHASH_MD5,
+      ['SHA1'] = self.mhash.MHASH_SHA1,
+      ['SHA224'] = self.mhash.MHASH_SHA224,
+      ['SHA256'] = self.mhash.MHASH_SHA256,
+      ['SHA384'] = self.mhash.MHASH_SHA384,
+      ['SHA512'] = self.mhash.MHASH_SHA512
+    }
+  else
+    -- mhash not found.
+    self.mhash = nil
+
+    -- Map the hashes to the command line tools.
+    self.atCliHashes = {
+      ['MD5'] = 'md5sum',
+      ['SHA1'] = 'sha1sum',
+      ['SHA224'] = 'sha224sum',
+      ['SHA256'] = 'sha256sum',
+      ['SHA384'] = 'sha384sum',
+      ['SHA512'] = 'sha512sum'
+    }
+
+    -- Look for the command line tools.
+    local fFound = true
+    -- The detection needs the popen function.
+    if io.popen==nil then
+      self.tLogger:info('Unable to detect the command line tool "curl": io.popen is not available.')
+      fFound = false
+    else
+      -- Loop over all command line tools.
+      for strId, strCliTool in pairs(self.atCliHashes) do
+        -- Try to run the tool.
+        local tFile, strError = io.popen(string.format('%s --version', strCliTool))
+        if tFile==nil then
+          self.tLogger:info('Failed to detect the command line tool "%s": %s', strCliTool, strError)
+          fFound = false
+          break
+        else
+          -- Read all data from the tool.
+          local strData = tFile:read('*a')
+          tFile:close()
+        end
+
+        self.tLogger:info('Detected "%s".', strCliTool)
+      end
+    end
+
+    if fFound==false then
+      error('No mhash LUA module and not all command line tools detected. Unable to build a hash.')
+    end
+  end
 
   -- Get the logger object.
   self.tLogger = tLogger
@@ -20,14 +75,6 @@ function Hash:_init(tLogger)
     ['SHA256'] = 2,
     ['SHA384'] = 5,
     ['SHA512'] = 4
-  }
-  self.atMhashHashes = {
-    ['MD5'] = self.mhash.MHASH_MD5,
-    ['SHA1'] = self.mhash.MHASH_SHA1,
-    ['SHA224'] = self.mhash.MHASH_SHA224,
-    ['SHA256'] = self.mhash.MHASH_SHA256,
-    ['SHA384'] = self.mhash.MHASH_SHA384,
-    ['SHA512'] = self.mhash.MHASH_SHA512
   }
   self.atHashGenerateOrder = {
     'MD5',
@@ -60,30 +107,47 @@ end
 function Hash:_get_hash_for_file(strPath, tHashID)
   local tResult = nil
 
+  if self.mhash==nil then
+    -- Construct the command.
+    local strCmd = string.format('%s --binary %s', self.atCliHashes[tHashID], strPath)
+    -- Try to run the tool.
+    local tFile, strError = io.popen(string.format('%s --version', strCliTool))
+    if tFile==nil then
+      self.tLogger:info('Failed to run the command "%s": %s', strCmd, strError)
+    else
+      -- Read all data from the tool.
+      local strData = tFile:read('*a')
+      tFile:close()
 
-  -- Create a new MHASH state.
-  local tState = self.mhash.mhash_state()
-  tState:init(tHashID)
+      -- Parse the output.
+      tResult = string.match('^[0-9a-fA-F]+%s+'
+    end
 
-  -- Open the file and read it in chunks.
-  local tFile, strError = io.open(strPath, 'rb')
-  if tFile==nil then
-    tResult = nil
-    self.tLogger:error('%sFailed to open the file "%s" for reading: %s', self.strLogID, strPath, strError)
   else
-    repeat
-      local tChunk = tFile:read(4096)
-      if tChunk~=nil then
-        tState:hash(tChunk)
-      end
-    until tChunk==nil
-    tFile:close()
+    -- Create a new MHASH state.
+    local tState = self.mhash.mhash_state()
+    tState:init(tHashID)
 
-    -- Get the binary hash.
-    local strHashBin = tState:hash_end()
+    -- Open the file and read it in chunks.
+    local tFile, strError = io.open(strPath, 'rb')
+    if tFile==nil then
+      tResult = nil
+      self.tLogger:error('%sFailed to open the file "%s" for reading: %s', self.strLogID, strPath, strError)
+    else
+      repeat
+        local tChunk = tFile:read(4096)
+        if tChunk~=nil then
+          tState:hash(tChunk)
+        end
+      until tChunk==nil
+      tFile:close()
 
-    -- Convert the binary hash into a string.
-    tResult = self:_bin_to_hex(strHashBin)
+      -- Get the binary hash.
+      local strHashBin = tState:hash_end()
+
+      -- Convert the binary hash into a string.
+      tResult = self:_bin_to_hex(strHashBin)
+    end
   end
 
   return tResult
@@ -92,14 +156,40 @@ end
 
 
 function Hash:_get_hash_for_string(strData, tHashID)
-  -- Create a new MHASH state.
-  local tState = self.mhash.mhash_state()
-  tState:init(tHashID)
-  tState:hash(strData)
-  local strHashBin = tState:hash_end()
+  local tResult
+
+  if self.mhash==nil then
+    -- Construct the command.
+    local strCmd = string.format('%s --binary -', self.atCliHashes[tHashID])
+    -- Try to run the tool.
+    local tFile, strError = io.popen(string.format('%s --binary -', strCliTool), 'w')
+    if tFile==nil then
+      self.tLogger:info('Failed to run the command "%s": %s', strCmd, strError)
+    else
+      -- Write the string to the tool.
+      tFile:write(strData)
+
+      -- Read all data from the tool.
+      local strData = tFile:read('*a')
+      tFile:close()
+
+      -- Parse the output.
+      tResult = string.match('^[0-9a-fA-F]+%s+'
+    end
+
+  else
+    -- Create a new MHASH state.
+    local tState = self.mhash.mhash_state()
+    tState:init(tHashID)
+    tState:hash(strData)
+    local strHashBin = tState:hash_end()
+
+    -- Convert the binary hash into a string.
+    tResult = self:_bin_to_hex(strHashBin)
+  end
 
   -- Convert the binary hash into a string.
-  return self:_bin_to_hex(strHashBin)
+  return tResult
 end
 
 
