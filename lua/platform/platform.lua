@@ -75,6 +75,39 @@ end
 
 
 
+function Platform:__linux_get_os_architecture_getconf()
+  local strOsArchitecture
+
+  -- The detection needs the popen function.
+  if io.popen==nil then
+    self.tLogger:info('Unable to detect the OS architecture with "getconf": io.popen is not available.')
+  else
+    -- Try to parse the output of the 'getconf LONG_BIT' command.
+    local tFile, strError = io.popen('getconf LONG_BIT')
+    if tFile==nil then
+      self.tLogger:info('Failed to get the OS architecture with "getconf": %s', strError)
+    else
+      local strOutput = tFile:read('*a')
+      local strValue = string.match(strOutput, '^%s*(%d+)%s*$')
+      if strValue==nil then
+        self.tLogger:info('Invalid output from "getconf": "%s"', strOutput)
+      else
+        if strValue=='32' then
+          strOsArchitecture = 'x86'
+        elseif strValue=='64' then
+          strOsArchitecture = 'x86_64'
+        else
+          self.tLogger:info('Unknown bit size from "getconf": "%s"', strOutput)
+        end
+      end
+    end
+  end
+
+  return strOsArchitecture
+end
+
+
+
 function Platform:__linux_get_cpu_architecture_lscpu()
   local strCpuArchitecture
   local astrReplacements = {
@@ -164,8 +197,15 @@ function Platform:detect()
   else
     -- This is a Linux.
 
-    -- Detect the CPU architecture.
-    self.strHostCpuArchitecture = self:__linux_get_cpu_architecture_lscpu()
+    -- Try to get the OS architecture.
+    -- Prefer this over the CPU architecture to honour a 32bit OS on a 64bit
+    -- CPU. This happens with a 32bit Docker container on a 64bit host.
+    local strArchitecture = self:__linux_get_os_architecture_getconf()
+    if strArchitecture==nil then
+      -- Fallback to the CPU architecture.
+      strArchitecture = self:__linux_get_cpu_architecture_lscpu()
+    end
+    self.strHostCpuArchitecture = strArchitecture
 
     -- Detect the distribution.
     self.strHostDistributionId, self.strHostDistributionVersion = self:__linux_detect_distribution_etc_lsb_release()
