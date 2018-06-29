@@ -187,7 +187,10 @@ function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSour
 
   -- Create a new reader.
   local tReader = self.archive.ArchiveReadDisk()
-  local tArcResult = tReader:set_standard_lookup()
+  local tArcResult = 0
+  if self.pl.path.is_windows~=true then
+    tArcResult = tReader:set_standard_lookup()
+  end
   if tArcResult~=0 then
     self.tLogger:error('Failed to set standard lookup: %s', tReader:error_string())
     tResult = nil
