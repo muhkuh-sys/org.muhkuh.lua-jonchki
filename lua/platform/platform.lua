@@ -26,8 +26,11 @@ end
 function Platform:__windows_get_cpu_architecture_env()
   local strCpuArchitecture
 
-  local strEnvProcessorArchitecture = os.getenv('PROCESSOR_ARCHITECTURE')
+  local strEnvProcessorArchitecture = string.lower(os.getenv('PROCESSOR_ARCHITECTURE'))
   local strEnvProcessorArchiteW6432 = os.getenv('PROCESSOR_ARCHITEW6432')
+  if strEnvProcessorArchiteW6432~=nil then
+    strEnvProcessorArchiteW6432 = string.lower(strEnvProcessorArchiteW6432)
+  end
   -- See here for details: https://blogs.msdn.microsoft.com/david.wang/2006/03/27/howto-detect-process-bitness/
   if strEnvProcessorArchitecture=='amd64' or strEnvProcessorArchiteW6432=='amd64' then
     strCpuArchitecture = 'x86_64'
