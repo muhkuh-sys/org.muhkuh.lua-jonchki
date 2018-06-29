@@ -1,0 +1,7 @@
+# Set the default behavior, in case people don't have core.autocrlf set.
+* text=auto
+
+# The windows batch file needs CRLF line endings, the linux shell script
+# needs LF line endings.
+wrapper/windows/jonchki.bat text eol=crlf
+wrapper/linux/jonchki text eol=lf
