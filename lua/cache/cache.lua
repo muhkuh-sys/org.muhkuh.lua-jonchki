@@ -459,7 +459,7 @@ function Cache:_cachefs_write_configuration(cArtifact)
   if tResult==true then
     -- Write the configuration.
     self.tLogger:debug('%s Write the configuration to %s.', self.strLogID, strPathConfiguration)
-    tResult, strError = self.pl.utils.writefile(strPathConfiguration, cArtifact.strSource, false)
+    tResult, strError = self.pl.utils.writefile(strPathConfiguration, cArtifact.strSource, true)
     if tResult==nil then
       self.tLogger:error('%s Failed to create the file for the configuration at "%s": %s', self.strLogID, strPathConfiguration, strError)
     else
