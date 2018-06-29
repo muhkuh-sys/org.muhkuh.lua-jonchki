@@ -47,37 +47,6 @@ end
 
 
 
--- See here for the output of the "ver" command: https://en.wikipedia.org/wiki/Ver_(command)
-function Platform:__windows_get_distribution_ver()
-  local strDistributionId
-  local strDistributionVersion
-
-  -- The detection needs the popen function.
-  if io.popen==nil then
-    self.tLogger:info('Unable to detect the Windows version with "ver": io.popen is not available.')
-  else
-    -- Try to parse the output of the 'ver' command.
-    local tFile, strError = io.popen('ver')
-    if tFile==nil then
-      self.tLogger:info('Failed to get the Windows version with "ver": %s', strError)
-    else
-      for strLine in tFile:lines() do
-        local tMatch = string.match(strLine, '%d+%.%d+%.%d+')
-        if tMatch~=nil then
-          strDistributionId = 'windows'
-          strDistributionVersion = tMatch
-          break
-        end
-      end
-      tFile:close()
-    end
-  end
-
-  return strDistributionId, strDistributionVersion
-end
-
-
-
 function Platform:__linux_get_os_architecture_getconf()
   local strOsArchitecture
 
@@ -192,8 +161,9 @@ function Platform:detect()
     -- Detect the CPU architecture.
     self.strHostCpuArchitecture = self:__windows_get_cpu_architecture_env()
 
-    -- Get the version with the 'ver' command.
-    self.strHostDistributionId, self.strHostDistributionVersion = self:__windows_get_distribution_ver()
+    -- Set the distribution ID and version.
+    self.strHostDistributionId = 'windows'
+    self.strHostDistributionVersion = ''
 
     -- Windows modules have a ".dll" extension.
     self.strHostModuleExtension = 'dll'
