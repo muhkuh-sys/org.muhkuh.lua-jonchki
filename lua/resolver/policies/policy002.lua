@@ -23,8 +23,8 @@ local Version = require 'Version'
 
 
 --- Initialize a new instance of a Policy002.
-function Policy002:_init(cLogger)
-  self:super(cLogger, '002')
+function Policy002:_init(cLog)
+  self:super(cLog, '002')
 end
 
 
@@ -36,7 +36,7 @@ function Policy002:select_version_by_constraints(atVersions, strConstraint)
   local tVersionConstraint = self.Version()
   local fResult, strError = tVersionConstraint:set(strConstraint)
   if fResult~=true then
-    self.tLogger:debug('%sFailed to parse constraint "%s" as a version: %s', self.strLogID, strConstraint, strError)
+    self.tLog.debug('Failed to parse constraint "%s" as a version: %s', strConstraint, strError)
   else
     -- Access the version components directly.
     local atVCConstraint = tVersionConstraint.atVersion
@@ -53,7 +53,7 @@ function Policy002:select_version_by_constraints(atVersions, strConstraint)
 
         -- The version must have at least as much digits as the constraint.
         if sizVCVersion<sizVCConstraint then
-          self.tLogger:debug('%sIgnoring version %s as it has too less components for the constraint %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
+          self.tLog.debug('Ignoring version %s as it has too less components for the constraint %s.', tostring(tV), tostring(tVersionConstraint))
         else
           -- Check if the version has the same start as the constraint.
           local fStartsWithConstraint = true
@@ -64,12 +64,12 @@ function Policy002:select_version_by_constraints(atVersions, strConstraint)
             end
           end
           if fStartsWithConstraint~=true then
-            self.tLogger:debug('%sIgnoring version %s as it does not start with the constraint %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
+            self.tLog.debug('Ignoring version %s as it does not start with the constraint %s.', tostring(tV), tostring(tVersionConstraint))
           elseif tVBest==nil then
-            self.tLogger:debug('%sStarting with version %s.', self.strLogID, tostring(tV), tostring(tVersionConstraint))
+            self.tLog.debug('Starting with version %s.', tostring(tV), tostring(tVersionConstraint))
             tVBest = tV
           elseif Version.compare(tV, tVBest)>0 then
-            self.tLogger:debug('%sVersion %s wins over %s.', self.strLogID, tostring(tV), tostring(tVBest))
+            self.tLog.debug('Version %s wins over %s.', tostring(tV), tostring(tVBest))
             tVBest = tV
           end
         end
@@ -77,9 +77,9 @@ function Policy002:select_version_by_constraints(atVersions, strConstraint)
     end
 
     if tVBest==nil then
-      self.tLogger:debug('%sNo matching version found.', self.strLogID)
+      self.tLog.debug('No matching version found.')
     else
-      self.tLogger:debug('%sWinner: %s', self.strLogID, tostring(tVBest))
+      self.tLog.debug('Winner: %s', tostring(tVBest))
       tResult = tVBest
     end
   end

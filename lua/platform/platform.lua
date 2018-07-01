@@ -7,8 +7,16 @@ local class = require 'pl.class'
 local Platform = class()
 
 --- Initialize a new instance of the platform class.
-function Platform:_init(tLogger, tReport)
-  self.tLogger = tLogger
+function Platform:_init(cLog, tReport)
+  local tLogWriter = require 'log.writer.prefix'.new('[Platform] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
+
   self.tReport = tReport
 
   self.strHostCpuArchitecture = nil
@@ -37,9 +45,9 @@ function Platform:__windows_get_cpu_architecture_env()
   elseif strEnvProcessorArchitecture=='x86' and strEnvProcessorArchiteW6432==nil then
     strCpuArchitecture = 'x86'
   else
-    self.tLogger:info('Failed to detect the CPU architecture on Windows with the ENV variables.')
-    self.tLogger:debug('PROCESSOR_ARCHITECTURE = %s', tostring(strEnvProcessorArchitecture))
-    self.tLogger:debug('PROCESSOR_ARCHITEW6432 = %s', tostring(strEnvProcessorArchiteW6432))
+    self.tLog.info('Failed to detect the CPU architecture on Windows with the ENV variables.')
+    self.tLog.debug('PROCESSOR_ARCHITECTURE = %s', tostring(strEnvProcessorArchitecture))
+    self.tLog.debug('PROCESSOR_ARCHITEW6432 = %s', tostring(strEnvProcessorArchiteW6432))
   end
 
   return strCpuArchitecture
@@ -52,24 +60,24 @@ function Platform:__linux_get_os_architecture_getconf()
 
   -- The detection needs the popen function.
   if io.popen==nil then
-    self.tLogger:info('Unable to detect the OS architecture with "getconf": io.popen is not available.')
+    self.tLog.info('Unable to detect the OS architecture with "getconf": io.popen is not available.')
   else
     -- Try to parse the output of the 'getconf LONG_BIT' command.
     local tFile, strError = io.popen('getconf LONG_BIT')
     if tFile==nil then
-      self.tLogger:info('Failed to get the OS architecture with "getconf": %s', strError)
+      self.tLog.info('Failed to get the OS architecture with "getconf": %s', strError)
     else
       local strOutput = tFile:read('*a')
       local strValue = string.match(strOutput, '^%s*(%d+)%s*$')
       if strValue==nil then
-        self.tLogger:info('Invalid output from "getconf": "%s"', strOutput)
+        self.tLog.info('Invalid output from "getconf": "%s"', strOutput)
       else
         if strValue=='32' then
           strOsArchitecture = 'x86'
         elseif strValue=='64' then
           strOsArchitecture = 'x86_64'
         else
-          self.tLogger:info('Unknown bit size from "getconf": "%s"', strOutput)
+          self.tLog.info('Unknown bit size from "getconf": "%s"', strOutput)
         end
       end
     end
@@ -91,12 +99,12 @@ function Platform:__linux_get_cpu_architecture_lscpu()
 
   -- The detection needs the popen function.
   if io.popen==nil then
-    self.tLogger:info('Unable to detect the CPU architecture with "lscpu": io.popen is not available.')
+    self.tLog.info('Unable to detect the CPU architecture with "lscpu": io.popen is not available.')
   else
     -- Try to parse the output of the 'lscpu' command.
     local tFile, strError = io.popen('lscpu')
     if tFile==nil then
-      self.tLogger:info('Failed to get the CPU architecture with "lscpu": %s', strError)
+      self.tLog.info('Failed to get the CPU architecture with "lscpu": %s', strError)
     else
       for strLine in tFile:lines() do
         local tMatch = string.match(strLine, 'Architecture: *([^ ]+)')
@@ -126,7 +134,7 @@ function Platform:__linux_detect_distribution_etc_lsb_release()
   -- Try to open /etc/lsb-release.
   local tFile, strError = io.open('/etc/lsb-release', 'r')
   if tFile==nil then
-    self.tLogger:info('Failed to detect the Linux distribution with /etc/lsb-release : %s', strError)
+    self.tLog.info('Failed to detect the Linux distribution with /etc/lsb-release : %s', strError)
   else
     for strLine in tFile:lines() do
       local tMatch = string.match(strLine, 'DISTRIB_ID=(.+)')

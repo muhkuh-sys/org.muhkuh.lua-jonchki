@@ -11,7 +11,7 @@ local ArtifactConfiguration = class()
 
 
 
-function ArtifactConfiguration:_init(tLogger)
+function ArtifactConfiguration:_init(cLog)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -21,7 +21,14 @@ function ArtifactConfiguration:_init(tLogger)
   self.Version = require 'Version'
 
   -- Get the logger object from the system configuration.
-  self.tLogger = tLogger
+  local tLogWriter = require 'log.writer.prefix'.new('[ArtifactConfiguration] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
 
   -- This is the default extension if it is not specified in the XML.
   self.strDefaultExtension = 'zip'
@@ -323,11 +330,11 @@ function ArtifactConfiguration:parse_configuration_file(strConfigurationFilename
 
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
-    self.tLogger:error('The function "parse_configuration_file" expects a filename as a parameter.')
+    self.tLog.error('The function "parse_configuration_file" expects a filename as a parameter.')
   else
     local strXmlText, strMsg = self.pl.utils.readfile(strConfigurationFilename, false)
     if strXmlText==nil then
-      self.tLogger:error('Error reading the configuration file: %s', strMsg)
+      self.tLog.error('Error reading the configuration file: %s', strMsg)
     else
       tResult = self:parse_configuration(strXmlText, strConfigurationFilename)
     end
@@ -380,9 +387,9 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
   end
 
   if tParseResult==nil then
-    self.tLogger:error('Failed to parse the artifact configuration "%s": %s in line %d, column %d, position %d.', strSourceUrl, strMsg, uiLine, uiCol, uiPos)
+    self.tLog.error('Failed to parse the artifact configuration "%s": %s in line %d, column %d, position %d.', strSourceUrl, strMsg, uiLine, uiCol, uiPos)
   elseif aLxpAttr.tResult~=true then
-    self.tLogger:error('Failed to parse the configuration file "%s"', strSourceUrl)
+    self.tLog.error('Failed to parse the configuration file "%s"', strSourceUrl)
   else
     self.tVersion = aLxpCallbacks.userdata.tVersion
     self.tInfo = aLxpCallbacks.userdata.tInfo
@@ -391,9 +398,9 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
     -- Check if all required components are present.
     -- NOTE: the dependency block is optional.
     if self.tVersion==nil then
-      self.tLogger:error('Failed to parse the artifact configuration "%s": No Version found!', strConfiguration)
+      self.tLog.error('Failed to parse the artifact configuration "%s": No Version found!', strConfiguration)
     elseif self.tInfo==nil then
-      self.tLogger:error('Failed to parse the artifact configuration "%s": No Info block found!', strConfiguration)
+      self.tLog.error('Failed to parse the artifact configuration "%s": No Info block found!', strConfiguration)
     else
       tResult = true
 
@@ -413,7 +420,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
               end
             end
             if fFound == false then
-              self.tLogger:error('Failed to parse the artifact configuration "%s": The dependency G:%s,M:%s,A:%s has no version, which is only allowed if it is present in the build-dependencies - but it is not!', strConfiguration, tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
+              self.tLog.error('Failed to parse the artifact configuration "%s": The dependency G:%s,M:%s,A:%s has no version, which is only allowed if it is present in the build-dependencies - but it is not!', strConfiguration, tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
               tResult = nil
             end
           end
@@ -434,19 +441,19 @@ function ArtifactConfiguration:check_configuration(strGroup, strModule, strArtif
 
   -- Compare the group.
   if strGroup~=self.tInfo.strGroup then
-    self.tLogger:error('Error in configuration from %s: expected group "%s", got "%s".', self.strSourceUrl, strGroup, self.tInfo.strGroup)
+    self.tLog.error('Error in configuration from %s: expected group "%s", got "%s".', self.strSourceUrl, strGroup, self.tInfo.strGroup)
     tResult = false
   end
 
   -- Compare the module.
   if strModule~=self.tInfo.strModule then
-    self.tLogger:error('Error in configuration from %s: expected module "%s", got "%s".', self.strSourceUrl, strModule, self.tInfo.strModule)
+    self.tLog.error('Error in configuration from %s: expected module "%s", got "%s".', self.strSourceUrl, strModule, self.tInfo.strModule)
     tResult = false
   end
 
   -- Compare the artifact.
   if strArtifact~=self.tInfo.strArtifact then
-    self.tLogger:error('Error in configuration from %s: expected artifact "%s", got "%s".', self.strSourceUrl, strArtifact, self.tInfo.strArtifact)
+    self.tLog.error('Error in configuration from %s: expected artifact "%s", got "%s".', self.strSourceUrl, strArtifact, self.tInfo.strArtifact)
     tResult = false
   end
 
@@ -454,12 +461,12 @@ function ArtifactConfiguration:check_configuration(strGroup, strModule, strArtif
   local strVersion = tVersion:get()
   local strSelfVersion = self.tInfo.tVersion:get()
   if strVersion~=strSelfVersion then
-    self.tLogger:error('Error in configuration from %s: expected version "%s", got "%s".', self.strSourceUrl, strVersion, strSelfVersion)
+    self.tLog.error('Error in configuration from %s: expected version "%s", got "%s".', self.strSourceUrl, strVersion, strSelfVersion)
     tResult = false
   end
 
   if strPlatform~=self.tInfo.strPlatform then
-    self.tLogger:error('Error in configuration from %s: expected platform "%s", got "%s".', self.strSourceUrl, strPlatform, self.tInfo.strPlatform)
+    self.tLog.error('Error in configuration from %s: expected platform "%s", got "%s".', self.strSourceUrl, strPlatform, self.tInfo.strPlatform)
     tResult = false
   end
 

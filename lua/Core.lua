@@ -8,7 +8,7 @@
 local class = require 'pl.class'
 local Core = class()
 
-function Core:_init(cLogger, cReport, strJonchkiPath)
+function Core:_init(cLog, cReport, strJonchkiPath)
   -- The "penlight" module is always useful.
   self.pl = require'pl.import_into'()
 
@@ -22,7 +22,17 @@ function Core:_init(cLogger, cReport, strJonchkiPath)
   self.SystemConfiguration = require 'SystemConfiguration'
 
   -- Store the logger.
-  self.cLogger = cLogger
+  self.cLog = cLog
+
+  -- Create a new logger object for this module.
+  local tLogWriter = require 'log.writer.prefix'.new('[Core] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
 
   -- Store the report.
   self.cReport = cReport
@@ -62,16 +72,16 @@ end
 --
 function Core:read_system_configuration(strSystemConfigurationFile, fInstallBuildDependencies)
   -- Create a configuration object.
-  local cSysCfg = self.SystemConfiguration(self.cLogger, self.strJonchkiPath, fInstallBuildDependencies)
+  local cSysCfg = self.SystemConfiguration(self.cLog, self.strJonchkiPath, fInstallBuildDependencies)
   -- Read the settings from the system configuration file.
   local tResult = cSysCfg:parse_configuration(strSystemConfigurationFile)
   if tResult==nil then
-    self.cLogger:fatal('Failed to parse the system configuration!')
+    self.tLog.fatal('Failed to parse the system configuration!')
   else
     -- Check if all paths exist. Try to create them. Clean the depack and the install folders.
     tResult = cSysCfg:initialize_paths()
     if tResult==nil then
-      self.cLogger:fatal('Failed to initialize the paths!')
+      self.tLog.fatal('Failed to initialize the paths!')
     else
       -- Use the new system configuration for the core.
       self.cSysCfg = cSysCfg
@@ -93,11 +103,11 @@ function Core:get_platform_id(strCpuArchitecture, strDistributionId, strDistribu
   -- Be pessimistic.
   local tResult = nil
 
-  local cPlatform = self.Platform(self.cLogger, self.cReport)
+  local cPlatform = self.Platform(self.cLog, self.cReport)
 
   -- Detect the host platform.
   cPlatform:detect()
-  self.cLogger:info('Detected platform: %s', tostring(cPlatform))
+  self.tLog.info('Detected platform: %s', tostring(cPlatform))
 
   -- Override the initial values (empty or from the detection)
   if strCpuArchitecture~=nil then
@@ -113,7 +123,7 @@ function Core:get_platform_id(strCpuArchitecture, strDistributionId, strDistribu
   local fPlatformInfoIsValid = cPlatform:is_valid()
   if fPlatformInfoIsValid~=true then
     -- The platform information is not valid.
-    self.cLogger:fatal('The platform information is not valid!')
+    self.tLog.fatal('The platform information is not valid!')
   else
       -- Use the platform configuration for the core.
       self.cPlatform = cPlatform
@@ -129,10 +139,10 @@ end
 -- Read the project configuration.
 --
 function Core:read_project_configuration(strProjectConfigurationFile)
-  local cPrjCfg = self.ProjectConfiguration(self.cLogger, self.cReport)
+  local cPrjCfg = self.ProjectConfiguration(self.cLog, self.cReport)
   local tResult = cPrjCfg:parse_configuration(strProjectConfigurationFile)
   if tResult==nil then
-    self.cLogger:fatal('Failed to parse the project configuration!')
+    self.tLog.fatal('Failed to parse the project configuration!')
   else
     -- Use the project configuration for the core.
     self.cPrjCfg = cPrjCfg
@@ -149,10 +159,10 @@ end
 function Core:create_cache()
   -- Set the cache ID to "main".
   local strCacheID = 'main'
-  local cCache = self.Cache(self.cLogger, self.cPlatform, strCacheID)
+  local cCache = self.Cache(self.cLog, self.cPlatform, strCacheID)
   local tResult = cCache:configure(self.cSysCfg.tConfiguration.cache, self.cSysCfg.tConfiguration.cache_max_size)
   if tResult~=true then
-    self.cLogger:fatal('Failed to open the cache!')
+    self.tLog.fatal('Failed to open the cache!')
   else
     self.cCache = cCache
   end
@@ -167,7 +177,7 @@ end
 --
 function Core:create_resolver_chain()
   local strResolverChainID = 'default'
-  local cResolverChain = self.ResolverChain(self.cLogger, self.cPlatform, self.cSysCfg, strResolverChainID)
+  local cResolverChain = self.ResolverChain(self.cLog, self.cPlatform, self.cSysCfg, strResolverChainID)
   if self.cCache~=nil then
     cResolverChain:set_cache(self.cCache)
   end
@@ -182,10 +192,10 @@ end
 -- Read the artifact configuration.
 --
 function Core:read_artifact_configuration(strArtifactConfigurationFile)
-  local cArtifactCfg = self.ArtifactConfiguration(self.cLogger)
+  local cArtifactCfg = self.ArtifactConfiguration(self.cLog)
   local tResult = cArtifactCfg:parse_configuration_file(strArtifactConfigurationFile)
   if tResult~=true then
-    self.cLogger:fatal('Failed to parse the artifact configuration!')
+    self.tLog.fatal('Failed to parse the artifact configuration!')
   else
     -- Use the artifact configration as the core's root artifact.
     self.cRootArtifactCfg = cArtifactCfg
@@ -201,11 +211,11 @@ end
 --
 function Core:create_resolver(fInstallBuildDependencies)
   local strResolverID = 'default'
-  local cResolver = self.Resolver(self.cLogger, self.cReport, strResolverID, fInstallBuildDependencies)
+  local cResolver = self.Resolver(self.cLog, self.cReport, strResolverID, fInstallBuildDependencies)
   -- Create all policy lists.
   local tResult = cResolver:load_policies(self.cPrjCfg)
   if tResult~=true then
-    self.cLogger:fatal('Failed to create all policy lists.')
+    self.tLog.fatal('Failed to create all policy lists.')
   else
     -- Use the resolver for the core.
     self.cResolver = cResolver
@@ -225,7 +235,7 @@ function Core:resolve_root_and_dependencies(strGroup, strModule, strArtifact, st
   self.cResolver:setResolverChain(self.cResolverChain)
   local tStatus = self.cResolver:resolve_root_and_dependencies(strGroup, strModule, strArtifact, strConstraint)
   if tStatus~=true then
-    self.cLogger:fatal('Failed to resolve the root artifact and all dependencies.')
+    self.tLog.fatal('Failed to resolve the root artifact and all dependencies.')
   else
     -- Set the root artifact configuration.
     self.cRootArtifactCfg = self.cResolver:resolvetab_get_artifact_configuration()
@@ -247,7 +257,7 @@ function Core:resolve_all_dependencies()
   self.cResolver:setResolverChain(self.cResolverChain)
   local tStatus = self.cResolver:resolve(self.cRootArtifactCfg)
   if tStatus~=true then
-    self.cLogger:fatal('Failed to resolve all dependencies.')
+    self.tLog.fatal('Failed to resolve all dependencies.')
   else
     tResult = true
   end
@@ -265,15 +275,15 @@ function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSki
 
   local tResult = self.cResolverChain:retrieve_artifacts(atArtifacts)
   if tResult==nil then
-    self.cLogger:fatal('Failed to retrieve all artifacts.')
+    self.tLog.fatal('Failed to retrieve all artifacts.')
   else
     -- Now each atrifact has a source repository set. This was the last missing piece of information.
     self.cResolver:write_artifact_tree_to_report(atIdTab)
 
-    local cInstaller = self.Installer(self.cLogger, self.cReport, self.cSysCfg, self.cRootArtifactCfg)
+    local cInstaller = self.Installer(self.cLog, self.cReport, self.cSysCfg, self.cRootArtifactCfg)
     tResult = cInstaller:install_artifacts(atArtifacts, self.cPlatform, fInstallBuildDependencies)
     if tResult==nil then
-      self.cLogger:fatal('Failed to install all artifacts.')
+      self.tLog.fatal('Failed to install all artifacts.')
     else
       -- Use the installer for the core.
       self.cInstaller = cInstaller
@@ -287,7 +297,7 @@ function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSki
       -- Run the finalizer script.
       tResult = self.cInstaller:run_finalizer(strFinalizerScript)
       if tResult==nil then
-        self.cLogger:fatal('Failed to run the finalizer script "%s".', strFinalizerScript)
+        self.tLog.fatal('Failed to run the finalizer script "%s".', strFinalizerScript)
       else
         tResult = true
       end

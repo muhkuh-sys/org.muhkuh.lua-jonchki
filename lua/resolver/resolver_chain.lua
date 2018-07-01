@@ -10,14 +10,23 @@ local ResolverChain = class()
 
 --- Initialize a new instance of the resolver chain.
 -- @param strID The ID identifies the resolver.
-function ResolverChain:_init(cLogger, cPlatform, cSystemConfiguration, strID)
+function ResolverChain:_init(cLog, cPlatform, cSystemConfiguration, strID)
   self.strID = strID
 
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
   -- Get the logger and platform.
-  self.tLogger = cLogger
+  self.cLog = cLog
+  local tLogWriter = require 'log.writer.prefix'.new('[ResolverChain] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
+
   self.tPlatform = cPlatform
 
   -- The system configuration.
@@ -70,10 +79,10 @@ end
 
 function ResolverChain:set_cache(cCache)
   if self.cCache~=nil then
-    self.tLogger:warn('Removing cache "%s" from resolver chain "%s".', self.cCache.strID, self.strID)
+    self.tLog.warning('Removing cache "%s" from resolver chain "%s".', self.cCache.strID, self.strID)
   end
 
-  self.tLogger:debug('Use cache "%s" with resolver chain "%s".', cCache.strID, self.strID)
+  self.tLog.debug('Use cache "%s" with resolver chain "%s".', cCache.strID, self.strID)
   self.cCache = cCache
 end
 
@@ -90,30 +99,30 @@ function ResolverChain:set_repositories(atRepositories)
     local strID = tRepo.strID
     -- Get the repository type.
     local strType = tRepo.strType
-    self.tLogger:info('Creating driver for repository "%s" with type "%s".', strID, strType)
+    self.tLog.info('Creating driver for repository "%s" with type "%s".', strID, strType)
 
     -- Does this ID already exist?
     if atMap[strID]~=nil then
       tResult = nil
-      self.tLogger:fatal('The ID "%s" is not unique!', strID)
+      self.tLog.fatal('The ID "%s" is not unique!', strID)
       break
     else
       -- Find the type.
       local tRepositoryDriverClass = self:get_driver_class_by_type(strType)
       if tRepositoryDriverClass==nil then
         tResult = nil
-        self.tLogger:fatal('Could not find a repository driver for the type "%s".', tRepo.strType)
+        self.tLog.fatal('Could not find a repository driver for the type "%s".', tRepo.strType)
         break
       end
 
       -- Create a driver instance.
-      local tRepositoryDriver = tRepositoryDriverClass(self.tLogger, self.tPlatform, strID)
+      local tRepositoryDriver = tRepositoryDriverClass(self.cLog, self.tPlatform, strID)
 
       -- Setup the repository driver.
       tResult = tRepositoryDriver:configure(tRepo)
       if tResult~=true then
         tResult = nil
-        self.tLogger:fatal('Failed to setup repository driver "%s".', strID)
+        self.tLog.fatal('Failed to setup repository driver "%s".', strID)
         break
       end
 
@@ -269,29 +278,29 @@ function ResolverChain:get_available_versions(strGroup, strModule, strArtifact)
         -- Ask the cache for the time of the last scan.
         local tTimeLastScan = self.cCache:get_last_scan(strSourceID, strGroup, strModule, strArtifact)
         if tTimeLastScan==nil then
-          self.tLogger:warn('Failed to get the last scan time for "%s", do a rescan.', strSourceID)
+          self.tLog.warning('Failed to get the last scan time for "%s", do a rescan.', strSourceID)
           fDoRescan = true
         elseif tTimeLastScan==false then
           -- There was no scan before.
-          self.tLogger:debug('Rescan repository "%s", there was no scan up to now.', strSourceID)
+          self.tLog.debug('Rescan repository "%s", there was no scan up to now.', strSourceID)
           fDoRescan = true
         else
           local tDiff = os.difftime(tTimeNow, tTimeLastScan)
           if tDiff>=ulRescan then
             -- The rescan time elapsed, rescan now.
-            self.tLogger:debug('Rescan repository "%s", the rescan time elapsed.', strSourceID)
+            self.tLog.debug('Rescan repository "%s", the rescan time elapsed.', strSourceID)
             fDoRescan = true
           else
             -- No rescan, use the cache only.
-            self.tLogger:debug('Do not rescan repository "%s", the rescan time did not elapse yet.', strSourceID)
+            self.tLog.debug('Do not rescan repository "%s", the rescan time did not elapse yet.', strSourceID)
             fDoRescan = false
           end
         end
       else
-        self.tLogger:debug('Rescan repository "%s", the rescan time is 0.', strSourceID)
+        self.tLog.debug('Rescan repository "%s", the rescan time is 0.', strSourceID)
       end
     else
-      self.tLogger:debug('Rescan repository "%s", it has no cache.', strSourceID)
+      self.tLog.debug('Rescan repository "%s", it has no cache.', strSourceID)
     end
 
     local atDetectedVersions = nil
@@ -301,7 +310,7 @@ function ResolverChain:get_available_versions(strGroup, strModule, strArtifact)
       -- Get all available versions in this repository.
       atDetectedVersions = tRepository:get_available_versions(strGroup, strModule, strArtifact)
       if atDetectedVersions==nil then
-        self.tLogger:warn('Error: failed to scan repository "%s".', strSourceID)
+        self.tLog.warning('Error: failed to scan repository "%s".', strSourceID)
       else
         -- Remember the scan time if the cache can be used.
         if fDoRescan==true then
@@ -368,14 +377,14 @@ Do not store this in the GMA->V table as it would look like this is a complete d
         local strSourceIDFromCache
         tResult, strSourceIDFromCache = self.cCache:get_configuration(strGroup, strModule, strArtifact, tVersion)
         if tResult==nil then
-          self.tLogger:info('Configuration %s not found in cache "%s".', strGMAV, self.cCache.strID)
+          self.tLog.info('Configuration %s not found in cache "%s".', strGMAV, self.cCache.strID)
         else
           -- Set the source repository to the ID.
           local cArtifact = tResult
           local strSourceRepository = string.format('%s (cached)', strSourceIDFromCache)
           cArtifact:set_repository_id_configuration(strSourceRepository)
 
-          self.tLogger:info('Configuration %s found in cache "%s".', strGMAV, self.cCache.strID)
+          self.tLog.info('Configuration %s found in cache "%s".', strGMAV, self.cCache.strID)
           fFound = true
         end
       end
@@ -383,14 +392,14 @@ Do not store this in the GMA->V table as it would look like this is a complete d
       if fFound==false then
         tResult = tDriver:get_configuration(strGroup, strModule, strArtifact, tVersion)
         if tResult==nil then
-          self.tLogger:warn('Failed to get the configuration for %s from repository %s.', strGMAV, strSourceID)
+          self.tLog.warning('Failed to get the configuration for %s from repository %s.', strGMAV, strSourceID)
         else
           -- Set the source repository to the ID.
           local cArtifact = tResult
           local strSourceRepository = strSourceID
           cArtifact:set_repository_id_configuration(strSourceRepository)
 
-          self.tLogger:info('Configuration for %s found in repository "%s".', strGMAV, strSourceID)
+          self.tLog.info('Configuration for %s found in repository "%s".', strGMAV, strSourceID)
           fFound = true
 
           -- Add the configuration to the cache if allowed.
@@ -407,7 +416,7 @@ Do not store this in the GMA->V table as it would look like this is a complete d
   end
 
   if tResult==nil then
-    self.tLogger:info('No valid configuration found for %s in all available repositories.', strGMAV)
+    self.tLog.info('No valid configuration found for %s in all available repositories.', strGMAV)
   end
 
   return tResult
@@ -440,7 +449,7 @@ Do not store this in the GMA->V table as it would look like this is a complete d
     -- Get the repository with this ID.
     local tDriver = self:get_driver_by_id(strSourceID)
     if tDriver==nil then
-      self.tLogger:warn('No driver found with the ID "%s".', strSourceID)
+      self.tLog.warning('No driver found with the ID "%s".', strSourceID)
     else
       -- The artifact was not found yet.
       local fFound = false
@@ -453,13 +462,13 @@ Do not store this in the GMA->V table as it would look like this is a complete d
         local strSourceIDFromCache
         tResult, strSourceIDFromCache = self.cCache:get_artifact(cArtifact, strDepackFolder)
         if tResult==nil then
-          self.tLogger:info('Artifact %s not found in cache "%s".', strGMAV, self.cCache.strID)
+          self.tLog.info('Artifact %s not found in cache "%s".', strGMAV, self.cCache.strID)
         else
           -- Set the source repository to the ID.
           local strSourceRepository = string.format('%s (cached)', strSourceIDFromCache)
           cArtifact:set_repository_id_artifact(strSourceRepository)
 
-          self.tLogger:info('Artifact %s found in cache "%s".', strGMAV, self.cCache.strID)
+          self.tLog.info('Artifact %s found in cache "%s".', strGMAV, self.cCache.strID)
           fFound = true
         end
       end
@@ -467,13 +476,13 @@ Do not store this in the GMA->V table as it would look like this is a complete d
       if fFound==false then
         tResult = tDriver:get_artifact(cArtifact, strDepackFolder)
         if tResult==nil then
-          self.tLogger:warn('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
+          self.tLog.warning('Artifact %s not found in repository "%s".', strGMAV, strSourceID)
         else
           -- Set the source repository to the ID.
           cArtifact:set_repository_id_artifact(strSourceID)
 
           local strArtifactPath = tResult
-          self.tLogger:info('Artifact %s found in repository "%s".', strGMAV, strSourceID)
+          self.tLog.info('Artifact %s found in repository "%s".', strGMAV, strSourceID)
           fFound = true
 
           -- Add the artifact to the cache if allowed.
@@ -490,7 +499,7 @@ Do not store this in the GMA->V table as it would look like this is a complete d
   end
 
   if tResult==nil then
-    self.tLogger:warn('Artifact %s not found in all available repositories.', strGMAV)
+    self.tLog.warning('Artifact %s not found in all available repositories.', strGMAV)
   end
 
   return tResult
@@ -504,12 +513,12 @@ function ResolverChain:retrieve_artifacts(atArtifacts)
   for _,tAttr in pairs(atArtifacts) do
     local tInfo = tAttr.cArtifact.tInfo
     local strGMAV = string.format('%s-%s-%s-%s', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get())
-    self.tLogger:info('Retrieving %s', strGMAV)
+    self.tLog.info('Retrieving %s', strGMAV)
 
     -- Copy the artifact to the local depack folder.
     tResult = self:get_artifact(tAttr.cArtifact)
     if tResult==nil then
-      self.tLogger:error(string.format('Failed to retrieve %s.', strGMAV))
+      self.tLog.error(string.format('Failed to retrieve %s.', strGMAV))
       break
     else
       local strArtifactPath = tResult

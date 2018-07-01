@@ -7,10 +7,17 @@
 local class = require 'pl.class'
 local Policy = class()
 
-function Policy:_init(cLogger, strID)
-  self.tLogger = cLogger
+function Policy:_init(cLog, strID)
+  local tLogWriter = require 'log.writer.prefix'.new(string.format('[Policy%s] ', strID), cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
+
   self.strID = strID
-  self.strLogID = string.format('[Policy%s] ', strID)
 
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()

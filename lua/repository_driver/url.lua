@@ -12,9 +12,9 @@ local RepositoryDriverUrl = class(RepositoryDriver)
 
 
 
-function RepositoryDriverUrl:_init(tLogger, tPlatform, strID)
+function RepositoryDriverUrl:_init(cLog, tPlatform, strID)
   -- Set the logger, platform and the ID of the repository driver.
-  self:super(tLogger, tPlatform, strID)
+  self:super(cLog, tPlatform, strID)
 
   -- Get an available curl module.
   self:__get_any_curl()
@@ -46,23 +46,23 @@ function RepositoryDriverUrl:__get_any_curl()
   -- Prefer the LUA module lcurl.
   local tResult, curl = pcall(require, 'lcurl')
   if tResult==true then
-    self.tLogger:info('Detected lcurl.')
+    self.tLog.info('Detected lcurl.')
     -- Get the version.
     local tVersion = curl.version_info()
     if tVersion.version_num<0x00073501 then
-      self.tLogger:warn('The version of lcurl is %s. This is older than the recommended version of 7.53.1.', tVersion.version_num)
+      self.tLog.warning('The version of lcurl is %s. This is older than the recommended version of 7.53.1.', tVersion.version_num)
     end
     if tVersion.protocols['HTTP']~=true then
-      self.tLogger:warn('The version of lcurl does not support HTTP. Ignoring lcurl.')
+      self.tLog.warning('The version of lcurl does not support HTTP. Ignoring lcurl.')
     elseif tVersion.protocols['HTTPS']~=true then
-      self.tLogger:warn('The version of lcurl does not support HTTPS. Ignoring lcurl.')
+      self.tLog.warning('The version of lcurl does not support HTTPS. Ignoring lcurl.')
     else
       self.curl = curl
       self.get_url = self.get_url_lcurlv3
       self.download_url = self.download_url_lcurlv3
       fFoundCurl = true
 
-      self.tLogger:info('Using lcurl.')
+      self.tLog.info('Using lcurl.')
     end
   end
 
@@ -70,12 +70,12 @@ function RepositoryDriverUrl:__get_any_curl()
     -- Try to use the command line tool.
     -- The detection needs the popen function.
     if io.popen==nil then
-      self.tLogger:info('Unable to detect the command line tool "curl": io.popen is not available.')
+      self.tLog.info('Unable to detect the command line tool "curl": io.popen is not available.')
     else
       -- Try to run "curl".
       local tFile, strError = io.popen('curl --version')
       if tFile==nil then
-        self.tLogger:info('Failed to detect the command line tool "curl": %s', strError)
+        self.tLog.info('Failed to detect the command line tool "curl": %s', strError)
       else
         -- Read all data from curl.
         local strData = tFile:read('*a')
@@ -83,21 +83,21 @@ function RepositoryDriverUrl:__get_any_curl()
 
         -- Get the version.
         local strVersion = string.match(strData, 'curl ([0-9.]+) ')
-        self.tLogger:info('Detected curl version %s', strVersion)
+        self.tLog.info('Detected curl version %s', strVersion)
         -- Check for HTTP and HTTPS.
         local strHttp = string.match(string.lower(strData), '%shttp%s')
         local strHttps = string.match(string.lower(strData), '%shttps%s')
         if strHttp==nil then
-          self.tLogger:warn('Ignoring the command line version of curl as it does not support HTTP.')
+          self.tLog.warning('Ignoring the command line version of curl as it does not support HTTP.')
         elseif strHttps==nil then
-          self.tLogger:warn('Ignoring the command line version of curl as it does not support HTTPS.')
+          self.tLog.warning('Ignoring the command line version of curl as it does not support HTTPS.')
         else
           self.curl = nil
           self.get_url = self.get_url_clicurl
           self.download_url = self.download_url_clicurl
           fFoundCurl = true
 
-          self.tLogger:info('Using command line curl.')
+          self.tLog.info('Using command line curl.')
         end
       end
     end
@@ -125,7 +125,7 @@ function RepositoryDriverUrl:configure(atSettings)
   self.strConfig = atSettings.strConfig
   self.strArtifact = atSettings.strArtifact
 
-  self.tLogger:debug(tostring(self))
+  self.tLog.debug(tostring(self))
 
   return true
 end
@@ -171,13 +171,13 @@ function RepositoryDriverUrl:get_url_lcurlv3(strUrl)
 
   local tCallResult, strError = pcall(tCURL.perform, tCURL)
   if tCallResult~=true then
-    self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
+    self.tLog.error('Failed to retrieve URL "%s": %s', strUrl, strError)
   else
     uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
     if uiHttpResult==200 then
       tResult = table.concat(self.atDownloadData)
     else
-      self.tLogger:error('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
+      self.tLog.error('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
     end
   end
   tCURL:close()
@@ -197,7 +197,7 @@ function RepositoryDriverUrl:download_url_lcurlv3(strUrl, strLocalFile)
   -- Write the received data to a file.
   local tFile, strError = io.open(strLocalFile, 'wb')
   if tFile==nil then
-    self.tLogger:error('Failed to open "%s" for writing: %s', strLocalFile, strError)
+    self.tLog.error('Failed to open "%s" for writing: %s', strLocalFile, strError)
   else
     self.tLastProgressTime = 0
     tCURL:setopt(self.curl.OPT_FOLLOWLOCATION, true)
@@ -206,13 +206,13 @@ function RepositoryDriverUrl:download_url_lcurlv3(strUrl, strLocalFile)
     tCURL:setopt_progressfunction(self.curl_progress, self)
     local tCallResult, strError = pcall(tCURL.perform, tCURL)
     if tCallResult~=true then
-      self.tLogger:error('Failed to retrieve URL "%s": %s', strUrl, strError)
+      self.tLog.error('Failed to retrieve URL "%s": %s', strUrl, strError)
     else
       uiHttpResult = tCURL:getinfo(self.curl.INFO_RESPONSE_CODE)
       if uiHttpResult==200 then
         tResult = true
       else
-        self.tLogger:error('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
+        self.tLog.error('Error downloading URL "%s": HTTP response %s', strUrl, tostring(uiHttpResult))
       end
     end
     tCURL:close()
@@ -238,11 +238,11 @@ function RepositoryDriverUrl:get_url_clicurl(strUrl)
     local strError
     tResult, strError = self.pl.utils.readfile(strTempFile, true)
     if tResult==nil then
-      self.tLogger:error('Failed to read the temp file for URL "%s": %s', strUrl, strError)
+      self.tLog.error('Failed to read the temp file for URL "%s": %s', strUrl, strError)
     end
 
   else
-    self.tLogger:info('Failed to download "%s".', strUrl)
+    self.tLog.info('Failed to download "%s".', strUrl)
     tResult = nil
 
   end
@@ -285,7 +285,7 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
   -- Get the protocol.
   local strProtocol = string.match(strUrlVersions, '([^:]+)')
   if strProtocol==nil then
-    self.tLogger:warn('Failed to get available versions for %s: can not determine protocol for URL "%s".', strGMA, strUrlVersions)
+    self.tLog.warning('Failed to get available versions for %s: can not determine protocol for URL "%s".', strGMA, strUrlVersions)
   else
     strProtocol = string.lower(strProtocol)
     -- Is this HTTP or HTTPS?
@@ -293,15 +293,15 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
       -- HTTP or HTTPS provide the list of available versions as a HTML page.
 
       -- Get the page and extract the versions from the links.
-      self.tLogger:debug('Get versions from URL "%s".', strUrlVersions)
+      self.tLog.debug('Get versions from URL "%s".', strUrlVersions)
       local tGetResult, uiHttpStatus = self:get_url(strUrlVersions)
       if tGetResult==nil then
         if uiHttpStatus==404 then
           -- A 404 status is no error in this case. It simply means that the artifact is not present in this repository.
-          self.tLogger:debug('The artifact %s was not found in the repository (404).', strGMA)
+          self.tLog.debug('The artifact %s was not found in the repository (404).', strGMA)
           tResult = {}
         else
-          self.tLogger:warn('Failed to get available versions for %s.', strGMA)
+          self.tLog.warning('Failed to get available versions for %s.', strGMA)
         end
       else
         local strHtmlPage = tGetResult
@@ -326,7 +326,7 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
               -- NOTE: The link might have more matches as it can contain stuff like "lua51".
               for strVersionLink in string.gmatch(strLink, '[%d%.]+') do
                 if strVersionLink==strVersion then
-                  self.tLogger:debug('Found %s version %s .', strGMA, strVersion)
+                  self.tLog.debug('Found %s version %s .', strGMA, strVersion)
                   table.insert(atVersions, tVersion)
                   break
                 end
@@ -340,7 +340,7 @@ function RepositoryDriverUrl:get_available_versions(strGroup, strModule, strArti
 
     else
       -- Unknown protocol.
-      self.tLogger:warn('Failed to get available versions for %s: can not handle protocol "%s".', strGMA, strProtocol)
+      self.tLog.warning('Failed to get available versions for %s: can not handle protocol "%s".', strGMA, strProtocol)
     end
   end
 
@@ -362,7 +362,7 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
   local strHashUrl = string.format('%s/%s', self.strRoot, strHashPath)
 
   -- Get the complete file.
-  self.tLogger:debug('Try to get the platform independent configuration from URL "%s".', strCfgUrl)
+  self.tLog.debug('Try to get the platform independent configuration from URL "%s".', strCfgUrl)
   local strCfgData = self:get_url(strCfgUrl)
   local strHash
   if strCfgData~=nil then
@@ -383,7 +383,7 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
     strHashUrl = string.format('%s/%s', self.strRoot, strHashPath)
 
     -- Get the complete file.
-    self.tLogger:debug('Try to get the platform specific configuration for "%s" from URL "%s".', strCurrentPlatform, strCfgUrl)
+    self.tLog.debug('Try to get the platform specific configuration for "%s" from URL "%s".', strCurrentPlatform, strCfgUrl)
     strCfgData = self:get_url(strCfgUrl)
     if strCfgData~=nil then
       -- Get tha hash sum.
@@ -395,13 +395,13 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
   end
 
   if tResult~=true then
-    self.tLogger:error('No platform independent and platform specific configuration file found for %s.', strGMAV)
+    self.tLog.error('No platform independent and platform specific configuration file found for %s.', strGMAV)
     self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
   else
     -- Check the hash sum.
     tResult = self.hash:check_string(strCfgData, strHash, strCfgUrl, strHashUrl)
     if tResult~=true then
-      self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgUrl)
+      self.tLog.error('The hash sum of the configuration "%s" does not match.', strCfgUrl)
       self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
       tResult = nil
     else
@@ -414,7 +414,7 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
         -- Compare the GMAV from the configuration with the requested values.
         tResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
         if tResult~=true then
-          self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version.', self.strID, strGMAV)
+          self.tLog.error('%s The configuration for artifact %s does not match the requested group/module/artifact/version.', self.strID, strGMAV)
           self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
           tResult = nil
         else
@@ -460,13 +460,13 @@ function RepositoryDriverUrl:get_artifact(cArtifact, strDestinationFolder)
   tResult = self:download_url(strArtifactUrl, strLocalFile)
   if tResult~=true then
     tResult = nil
-    self.tLogger:error('Failed to download the URL "%s" to the file %s', strArtifactUrl, strLocalFile)
+    self.tLog.error('Failed to download the URL "%s" to the file %s', strArtifactUrl, strLocalFile)
     self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
   else
     -- Get tha SHA sum.
     tResult = self:get_url(strHashUrl)
     if tResult==nil then
-      self.tLogger:error('Failed to get the hash sum of "%s".', strArtifactUrl)
+      self.tLog.error('Failed to get the hash sum of "%s".', strArtifactUrl)
       self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
     else
       local strHash = tResult
@@ -474,7 +474,7 @@ function RepositoryDriverUrl:get_artifact(cArtifact, strDestinationFolder)
       -- Check the hash sum of the local file.
       tResult = self.hash:check_file(strLocalFile, strHash, strHashUrl)
       if tResult~=true then
-        self.tLogger:error('The hash sum of the artifact "%s" does not match.', strArtifactUrl)
+        self.tLog.error('The hash sum of the artifact "%s" does not match.', strArtifactUrl)
         tResult = nil
         self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
       else

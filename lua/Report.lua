@@ -10,7 +10,7 @@ local Report = class()
 
 
 
-function Report:_init(cLogger)
+function Report:_init(cLog)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -21,7 +21,15 @@ function Report:_init(cLogger)
   self.strFileName = 'jonchkireport.xml'
 
   -- Use the logger.
-  self.tLogger = cLogger
+  local tLogWriter = require 'log.writer.prefix'.new('[Report] ', cLog)
+  local tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
+  self.tLog = tLog
 
   -- No data yet.
   self.atData = {}
@@ -36,7 +44,7 @@ end
 
 
 function Report:setFileName(strFileName)
-  self.tLogger:debug('[REPORT] Set the filename to "%s".', strFileName)
+  self.tLog.debug('Set the filename to "%s".', strFileName)
   self.strFileName = strFileName
 end
 
@@ -66,7 +74,7 @@ function Report:addData(strKey, strValue)
       tNewNode = {}
       tNode[strPathElement] = tNewNode
     elseif type(tNewNode)~='table' then
-      self.tLogger:fatal('[REPORT]: The element "%s" in the path "%s" points to a leaf.', strPathElement, strKey)
+      self.tLog.fatal('The element "%s" in the path "%s" points to a leaf.', strPathElement, strKey)
       error('Internal error!')
     end
 
@@ -78,9 +86,9 @@ function Report:addData(strKey, strValue)
   local strOldValue = tNode[strLeaf]
   if strOldValue~=nil then
     if strOldValue==strValue then
-      self.tLogger:warn('[REPORT]: Setting existing key "%s" to the same value of "%s".', strKey, tostring(strValue))
+      self.tLog.warning('Setting existing key "%s" to the same value of "%s".', strKey, tostring(strValue))
     else
-      self.tLogger:fatal('[REPORT]: Try to change existing key "%s" from "%s" to "%s".', strKey, strOldValue, tostring(strValue))
+      self.tLog.fatal('Try to change existing key "%s" from "%s" to "%s".', strKey, strOldValue, tostring(strValue))
       error('Internal error!')
     end
   end
@@ -112,7 +120,7 @@ function Report:to_xml(tNode, tXml)
           strAttribute = string.sub(strAttribute, 1, iIdxEq-1)
         end
         if atAttributes[strAttribute]~=nil then
-          self.tLogger:fatal('[REPORT]: Redefining attribute "%s" in path "%s".', strAttribute, strKey)
+          self.tLog.fatal('Redefining attribute "%s" in path "%s".', strAttribute, strKey)
           error('Internal error!')
         end
         atAttributes[strAttribute] = strAttributeValue

@@ -11,11 +11,18 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLogger, strJonchkiPath, fInstallBuildDependencies)
+function SystemConfiguration:_init(cLog, strJonchkiPath, fInstallBuildDependencies)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
-  self.tLogger = cLogger
+  local tLogWriter = require 'log.writer.prefix'.new('[SystemConfiguration] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
 
   self.strJonchkiPath = strJonchkiPath
   self.fInstallBuildDependencies = fInstallBuildDependencies
@@ -88,16 +95,16 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
   -- Be pessimistic...
   local tResult = nil
 
-  self.tLogger:info('Reading the system configuration from "%s"', strConfigurationFilename)
+  self.tLog.info('Reading the system configuration from "%s"', strConfigurationFilename)
 
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
-    self.tLogger:fatal('The SystemConfiguration class expects a filename as a parameter.')
+    self.tLog.fatal('The SystemConfiguration class expects a filename as a parameter.')
   else
     -- Read the configuration file into a LUA table.
     local tCfg,strError = self.pl.config.read(strConfigurationFilename)
     if tCfg==nil then
-      self.tLogger:fatal('Failed to read the configuration file: %s', strError)
+      self.tLog.fatal('Failed to read the configuration file: %s', strError)
     else
       local atOptions = {
         { key='work',                   required=true,  replacement=true,  default=nil },
@@ -125,7 +132,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         end
       end
       if #atMissing ~= 0 then
-        self.tLogger:fatal('Invalid configuration. The following required keys are not present: %s', table.concat(atMissing, ', '))
+        self.tLog.fatal('Invalid configuration. The following required keys are not present: %s', table.concat(atMissing, ', '))
       else
         -- Loop over all configuration entries and check if they are valid.
         local atUnknown = {}
@@ -142,7 +149,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
           end
         end
         if #atUnknown ~= 0 then
-          self.tLogger:warn('Warning: Ignoring unknown configuration entries: %s', table.concat(atUnknown, ', '))
+          self.tLog.warning('Warning: Ignoring unknown configuration entries: %s', table.concat(atUnknown, ', '))
         end
 
         -- Collect all options in a new table.
@@ -174,7 +181,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         local strValue = atConfiguration.cache_max_size
         local ulValue = self:pretty_string_to_number(strValue)
         if ulValue==nil then
-          self.tLogger:fatal('Invalid value for "cache_max_size": %s', strValue)
+          self.tLog.fatal('Invalid value for "cache_max_size": %s', strValue)
         else
           atConfiguration.cache_max_size = ulValue
 
@@ -194,23 +201,23 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
 
           -- install_lua_path must be below install_base.
           if self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_lua_path)~=true then
-            self.tLogger:fatal("The path install_lua_path is not below install_base!")
+            self.tLog.fatal("The path install_lua_path is not below install_base!")
           elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_lua_cpath)~=true then
-            self.tLogger:fatal("The path install_lua_cpath is not below install_base!")
+            self.tLog.fatal("The path install_lua_cpath is not below install_base!")
           elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_executables)~=true then
-            self.tLogger:fatal("The path install_executables is not below install_base!")
+            self.tLog.fatal("The path install_executables is not below install_base!")
           elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_shared_objects)~=true then
-            self.tLogger:fatal("The path install_shared_objects is not below install_base!")
+            self.tLog.fatal("The path install_shared_objects is not below install_base!")
           elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_doc)~=true then
-            self.tLogger:fatal("The path install_doc is not below install_base!")
+            self.tLog.fatal("The path install_doc is not below install_base!")
           elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev)~=true then
-            self.tLogger:fatal("The path install_dev is not below install_base!")
+            self.tLog.fatal("The path install_dev is not below install_base!")
           elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_include)~=true then
-            self.tLogger:fatal("The path install_dev_include is not below install_base!")
+            self.tLog.fatal("The path install_dev_include is not below install_base!")
           elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_lib)~=true then
-            self.tLogger:fatal("The path install_dev_lib is not below install_base!")
+            self.tLog.fatal("The path install_dev_lib is not below install_base!")
           elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_cmake)~=true then
-            self.tLogger:fatal("The path install_dev_cmake is not below install_base!")
+            self.tLog.fatal("The path install_dev_cmake is not below install_base!")
           else
             -- Store the configuration.
             self.tConfiguration = atConfiguration
@@ -219,7 +226,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
             tResult = true
 
             -- Show tht configuration in the debug log.
-            self.tLogger:debug('System configuration: %s', tostring(self))
+            self.tLog.debug('System configuration: %s', tostring(self))
           end
         end
       end
@@ -264,7 +271,7 @@ function SystemConfiguration:initialize_paths()
       tResult, strError = self.pl.dir.makepath(strPath)
       if tResult~=true then
         tResult = nil
-        self.tLogger:fatal('Failed to create the path "%s": %s', strPath, strError)
+        self.tLog.fatal('Failed to create the path "%s": %s', strPath, strError)
         break
       end
 
@@ -272,7 +279,7 @@ function SystemConfiguration:initialize_paths()
       -- The path already exists. It must be a folder.
       if self.pl.path.isdir(strPath)~=true then
         tResult = nil
-        self.tLogger:fatal('The path "%s" is no directory!', strPath)
+        self.tLog.fatal('The path "%s" is no directory!', strPath)
         break
       end
 
@@ -281,7 +288,7 @@ function SystemConfiguration:initialize_paths()
         tResult, strError = self.pl.dir.rmtree(strPath)
         if tResult~=true then
           tResult = nil
-          self.tLogger:fatal('Failed to remove the path "%s": %s', strPath, strError)
+          self.tLog.fatal('Failed to remove the path "%s": %s', strPath, strError)
           break
         end
 
@@ -289,7 +296,7 @@ function SystemConfiguration:initialize_paths()
         tResult, strError = self.pl.dir.makepath(strPath)
         if tResult~=true then
           tResult = nil
-          self.tLogger:fatal('Failed to create the path "%s": %s', strPath, strError)
+          self.tLog.fatal('Failed to create the path "%s": %s', strPath, strError)
           break
         end
       end

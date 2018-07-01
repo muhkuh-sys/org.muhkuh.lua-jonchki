@@ -12,9 +12,9 @@ local RepositoryDriverFilesystem = class(RepositoryDriver)
 
 
 
-function RepositoryDriverFilesystem:_init(tLogger, tPlatform, strID)
+function RepositoryDriverFilesystem:_init(cLog, tPlatform, strID)
   -- Set the logger, platform and the ID of the repository driver.
-  self:super(tLogger, tPlatform, strID)
+  self:super(cLog, tPlatform, strID)
 
   -- Clear the patterns for the configuration and artifact.
   self.fCacheable = nil
@@ -45,7 +45,7 @@ function RepositoryDriverFilesystem:configure(atSettings)
   self.strConfig = self.pl.path.expanduser(atSettings.strConfig)
   self.strArtifact = self.pl.path.expanduser(atSettings.strArtifact)
 
-  self.tLogger:debug(tostring(self))
+  self.tLog.debug(tostring(self))
 
   return true
 end
@@ -58,12 +58,12 @@ function RepositoryDriverFilesystem:exists()
   -- Does the root folder exist?
   if self.pl.path.exists(self.strRoot)~=self.strRoot then
     tResult = nil
-    self.tLogger:error('The repository root path "%s" does not exist.', self.strRoot)
+    self.tLog.error('The repository root path "%s" does not exist.', self.strRoot)
 
   -- Is the root folder really a folder?
   elseif self.pl.path.isdir(self.strRoot)~=true then
     tResult = nil
-    self.tLogger:error('The repository root path "%s" is no directory.', self.strRoot)
+    self.tLog.error('The repository root path "%s" is no directory.', self.strRoot)
 
   else
     tResult = true
@@ -75,7 +75,7 @@ end
 
 
 function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, strArtifact)
-  self.tLogger:debug('Get available versions for %s/%s/%s.', strGroup, strModule, strArtifact)
+  self.tLog.debug('Get available versions for %s/%s/%s.', strGroup, strModule, strArtifact)
   self.uiStatistics_VersionScans = self.uiStatistics_VersionScans + 1
   local tResult = self:exists()
   if tResult==true then
@@ -85,13 +85,13 @@ function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, 
     -- Append the version folder to the root.
     -- FIXME: First check if the path is already absolute. In this case do not append the root folder.
     local strVersionPath = self.pl.path.join(self.strRoot, strVersions)
-    self.tLogger:debug('  Looking in path "%s"', strVersionPath)
+    self.tLog.debug('  Looking in path "%s"', strVersionPath)
 
     -- Continue only if the version folder exists.
     -- If the folder does not exist, there is no matching aritfact.
     local atVersions = {}
     if self.pl.path.isdir(strVersionPath)~=true then
-      self.tLogger:debug('The path "%s" does not exist.', strVersionPath)
+      self.tLog.debug('The path "%s" does not exist.', strVersionPath)
     else
       -- Get all subfolders in the version folder.
       -- NOTE: this function returns the absolute paths, not only the subfolder names.
@@ -104,13 +104,13 @@ function RepositoryDriverFilesystem:get_available_versions(strGroup, strModule, 
         local fOk = tVersion:set(strSubfolder)
         if fOk==true then
           table.insert(atVersions, tVersion)
-          self.tLogger:debug('  Found version: %s', tVersion:get())
+          self.tLog.debug('  Found version: %s', tVersion:get())
         end
       end
     end
 
     if #atVersions == 0 then
-      self.tLogger:debug('  No versions found.')
+      self.tLog.debug('  No versions found.')
     end
     tResult = atVersions
   end
@@ -137,7 +137,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
     -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
     local strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
     local strHashPath = self.pl.path.join(self.strRoot, strHashSubdirectory)
-    self.tLogger:debug('Try to get the platform independent configuration from "%s".', strCfgPath)
+    self.tLog.debug('Try to get the platform independent configuration from "%s".', strCfgPath)
     if self.pl.path.exists(strCfgPath)~=strCfgPath or self.pl.path.exists(strHashPath)~=strHashPath then
       -- Try the platform specific version.
       strCurrentPlatform = self.tPlatform:get_platform_id('_')
@@ -147,10 +147,10 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
       -- FIXME: First check if the paths are already absolute. In this case do not append the root folder.
       strCfgPath = self.pl.path.join(self.strRoot, strCfgSubdirectory)
       strHashPath = self.pl.path.join(self.strRoot, strHashSubdirectory)
-      self.tLogger:debug('Try to get the platform specific configuration for "%s" from "%s".', strCurrentPlatform, strCfgPath)
+      self.tLog.debug('Try to get the platform specific configuration for "%s" from "%s".', strCurrentPlatform, strCfgPath)
       if self.pl.path.exists(strCfgPath)~=strCfgPath or self.pl.path.exists(strHashPath)~=strHashPath then
         tResult = nil
-        self.tLogger:error('No platform independent or platform specific configuration file found for %s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
+        self.tLog.error('No platform independent or platform specific configuration file found for %s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
       end
     end
 
@@ -160,13 +160,13 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
       local strCfg, strError = self.pl.utils.readfile(strCfgPath, true)
       if strCfg==nil then
         tResult = nil
-        self.tLogger:error('Failed to read the configuration file "%s": %s', strCfgPath, strError)
+        self.tLog.error('Failed to read the configuration file "%s": %s', strCfgPath, strError)
         self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
       else
         -- Get the hash sum.
         tResult, strError = self.pl.utils.readfile(strHashPath, false)
         if tResult==nil then
-          self.tLogger:error('Failed to get the hash sum of "%s": %s', strCfgPath, strError)
+          self.tLog.error('Failed to get the hash sum of "%s": %s', strCfgPath, strError)
           self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
         else
           local strHash = tResult
@@ -174,7 +174,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
           -- Check the hash sum.
           tResult = self.hash:check_string(strCfg, strHash, strCfgPath, strHashPath)
           if tResult~=true then
-            self.tLogger:error('The hash sum of the configuration "%s" does not match.', strCfgPath)
+            self.tLog.error('The hash sum of the configuration "%s" does not match.', strCfgPath)
             self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
             tResult = nil
           else
@@ -187,7 +187,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
               -- Compare the GMAVP from the configuration with the requested values.
               tResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
               if tResult~=true then
-                self.tLogger:error('%s The configuration for artifact %s/%s does not match the requested group/module/artifact/version/platform.', self.strID, strGMAV, strCurrentPlatform)
+                self.tLog.error('%s The configuration for artifact %s/%s does not match the requested group/module/artifact/version/platform.', self.strID, strGMAV, strCurrentPlatform)
                 self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
                 tResult = nil
               else
@@ -240,13 +240,13 @@ function RepositoryDriverFilesystem:get_artifact(cArtifact, strDestinationFolder
     tResult, strError = self.pl.file.copy(strArtifactPath, strLocalFile)
     if tResult~=true then
       tResult = nil
-      self.tLogger:error('Failed to copy the artifact to the depack folder: %s', strError)
+      self.tLog.error('Failed to copy the artifact to the depack folder: %s', strError)
       self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
     else
       -- Get tha SHA sum.
       tResult, strError = self.pl.utils.readfile(strHashPath, true)
       if tResult==nil then
-        self.tLogger:error('Failed to get the hash sum of "%s".', strArtifactPath)
+        self.tLog.error('Failed to get the hash sum of "%s".', strArtifactPath)
         self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
       else
         local strHash = tResult
@@ -254,7 +254,7 @@ function RepositoryDriverFilesystem:get_artifact(cArtifact, strDestinationFolder
         -- Compare the hash sums.
         tResult = self.hash:check_file(strLocalFile, strHash, strHashPath)
         if tResult~=true then
-          self.tLogger:error('The hash sum of the artifact "%s" does not match.', strArtifactPath)
+          self.tLog.error('The hash sum of the artifact "%s" does not match.', strArtifactPath)
           self.uiStatistics_GetArtifact_Error = self.uiStatistics_GetArtifact_Error + 1
         else
           tResult = strLocalFile

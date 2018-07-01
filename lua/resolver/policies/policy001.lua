@@ -10,8 +10,8 @@ local Policy001 = class(Policy)
 
 
 --- Initialize a new instance of a Policy001.
-function Policy001:_init(cLogger)
-  self:super(cLogger, '001')
+function Policy001:_init(cLog)
+  self:super(cLog, '001')
 end
 
 
@@ -24,7 +24,7 @@ function Policy001:select_version_by_constraints(atVersions, strConstraint)
   local tVersion = self.Version()
   local fResult, strError = tVersion:set(strConstraint)
   if fResult~=true then
-    self.tLogger:debug('%sFailed to parse constraint "%s" as a version: %s', self.strLogID, strConstraint, strError)
+    self.tLog.debug('Failed to parse constraint "%s" as a version: %s', strConstraint, strError)
   else
     -- Look for the exact version string.
     local fFound = false

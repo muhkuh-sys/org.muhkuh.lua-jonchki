@@ -9,8 +9,16 @@ local RepositoryDriver = class()
 
 --- Initialize a new instance of a repository driver.
 -- @param strID The ID used in the the jonchkicfg.xml to reference this instance.
-function RepositoryDriver:_init(tLogger, tPlatform, strID)
-  self.tLogger = tLogger
+function RepositoryDriver:_init(cLog, tPlatform, strID)
+  local tLogWriter = require 'log.writer.prefix'.new(string.format('[Repository "%s"] ', strID), cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
+
   self.tPlatform = tPlatform
   self.strID = strID
 
@@ -21,7 +29,7 @@ function RepositoryDriver:_init(tLogger, tPlatform, strID)
   self.Version = require 'Version'
 
   local cHash = require 'Hash'
-  self.hash = cHash(tLogger)
+  self.hash = cHash(cLog)
 
   self.uiStatistics_VersionScans = 0
   self.uiStatistics_GetConfiguration_Success = 0
@@ -99,10 +107,9 @@ end
 
 
 function RepositoryDriver:show_statistics(cReport)
-  local strLogID = string.format('[Repository "%s"] ', self:get_id())
-  self.tLogger:info('%s Version scans: %d', strLogID, self.uiStatistics_VersionScans)
-  self.tLogger:info('%s Configuration requests: %d success / %d error . %d bytes data and %d bytes hash served', strLogID, self.uiStatistics_GetConfiguration_Success, self.uiStatistics_GetConfiguration_Error, self.uiStatistics_ServedBytesConfig, self.uiStatistics_ServedBytesConfigHash)
-  self.tLogger:info('%s Artifact requests: %d success / %d error . %d bytes data and %d bytes hash served', strLogID, self.uiStatistics_GetArtifact_Success, self.uiStatistics_GetArtifact_Error, self.uiStatistics_ServedBytesArtifact, self.uiStatistics_ServedBytesArtifactHash)
+  self.tLog.info('Version scans: %d', self.uiStatistics_VersionScans)
+  self.tLog.info('Configuration requests: %d success / %d error . %d bytes data and %d bytes hash served', self.uiStatistics_GetConfiguration_Success, self.uiStatistics_GetConfiguration_Error, self.uiStatistics_ServedBytesConfig, self.uiStatistics_ServedBytesConfigHash)
+  self.tLog.info('Artifact requests: %d success / %d error . %d bytes data and %d bytes hash served', self.uiStatistics_GetArtifact_Success, self.uiStatistics_GetArtifact_Error, self.uiStatistics_ServedBytesArtifact, self.uiStatistics_ServedBytesArtifactHash)
 
   cReport:addData(string.format('statistics/repository@id=%s/requests/configuration/success', self.strID), self.uiStatistics_GetConfiguration_Success)
   cReport:addData(string.format('statistics/repository@id=%s/requests/configuration/error', self.strID), self.uiStatistics_GetConfiguration_Error)

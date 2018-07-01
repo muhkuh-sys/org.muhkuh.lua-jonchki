@@ -3,17 +3,24 @@ local class = require 'pl.class'
 local Hash = class()
 
 
-function Hash:_init(tLogger)
+function Hash:_init(cLog)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
   -- Get the logger object.
-  self.tLogger = tLogger
+  local tLogWriter = require 'log.writer.prefix'.new('[Hash] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
 
   -- Try to load the mhash plugin for the hash algorithms.
   local tResult, mhash = pcall(require, 'mhash')
   if tResult==true then
-    self.tLogger:info('Using mhash to generate hashes.')
+    self.tLog.info('Using mhash to generate hashes.')
 
     -- Found mhash.
     self.mhash = mhash
@@ -27,7 +34,7 @@ function Hash:_init(tLogger)
       ['SHA512'] = self.mhash.MHASH_SHA512
     }
   else
-    self.tLogger:info('Using CLI tools to generate hashes.')
+    self.tLog.info('Using CLI tools to generate hashes.')
 
     -- mhash not found.
     self.mhash = nil
@@ -54,7 +61,7 @@ function Hash:_init(tLogger)
     local fFound = true
     -- The detection needs the popen function.
     if io.popen==nil then
-      self.tLogger:info('Unable to detect the command line tools for hashes: io.popen is not available.')
+      self.tLog.info('Unable to detect the command line tools for hashes: io.popen is not available.')
       fFound = false
     else
       -- Loop over all command line tools.
@@ -62,7 +69,7 @@ function Hash:_init(tLogger)
         -- Try to run the tool.
         local tFile, strError = io.popen(string.format('%s --version', strCliTool))
         if tFile==nil then
-          self.tLogger:error('Failed to detect the command line tool "%s": %s', strCliTool, strError)
+          self.tLog.error('Failed to detect the command line tool "%s": %s', strCliTool, strError)
           fFound = false
           break
         else
@@ -71,7 +78,7 @@ function Hash:_init(tLogger)
           tFile:close()
         end
 
-        self.tLogger:debug('Detected "%s".', strCliTool)
+        self.tLog.debug('Detected "%s".', strCliTool)
       end
     end
 
@@ -97,8 +104,6 @@ function Hash:_init(tLogger)
     'SHA384',
     'SHA512'
   }
-
-  self.strLogID = '[Hash] '
 end
 
 
@@ -126,7 +131,7 @@ function Hash:_get_hash_for_file(strPath, strHashName)
     -- Try to run the tool.
     local tFile, strError = io.popen(strCmd)
     if tFile==nil then
-      self.tLogger:info('Failed to run the command "%s": %s', strCmd, strError)
+      self.tLog.info('Failed to run the command "%s": %s', strCmd, strError)
     else
       -- Read all data from the tool.
       local strData = tFile:read('*a')
@@ -146,7 +151,7 @@ function Hash:_get_hash_for_file(strPath, strHashName)
     local tFile, strError = io.open(strPath, 'rb')
     if tFile==nil then
       tResult = nil
-      self.tLogger:error('%sFailed to open the file "%s" for reading: %s', self.strLogID, strPath, strError)
+      self.tLog.error('Failed to open the file "%s" for reading: %s', strPath, strError)
     else
       repeat
         local tChunk = tFile:read(4096)
@@ -178,14 +183,14 @@ function Hash:_get_hash_for_string(strData, strHashName)
     -- Write the data to the temp file.
     local tFileResult, strError = self.pl.utils.writefile(strTmpFile, strData, true)
     if tFileResult==nil then
-      self.tLogger:error('Failed to create the temp file "%s" to generate a hash: %s', strTmpFile, strError)
+      self.tLog.error('Failed to create the temp file "%s" to generate a hash: %s', strTmpFile, strError)
     else
       -- Hash the temp file.
       tResult = self:_get_hash_for_file(strTmpFile, strHashName)
       -- Remove the temp file.
       tFileResult, strError = os.remove(strTmpFile)
       if tFileResult==nil then
-        self.tLogger:error('Failed to remove the temp file "%s" after creating the hash: %s', strTmpFile, strError)
+        self.tLog.error('Failed to remove the temp file "%s" after creating the hash: %s', strTmpFile, strError)
         tResult = nil
       end
     end
@@ -229,7 +234,7 @@ function Hash:_parse_hashes(strText, strSourceURL)
     if string.len(strLineStripped)~=0 and string.sub(strLineStripped, 1, 1)~='#' then
       local strID, strHash = string.match(strLineStripped, '^([A-Z0-9-_]+):([0-9a-fA-F]+)$')
       if strID==nil then
-        self.tLogger:error('%s%s line %d: Malformed line "%s".', self.strLogID, strSourceURL, uiLineNumber, strLine)
+        self.tLog.error('%s line %d: Malformed line "%s".', strSourceURL, uiLineNumber, strLine)
         tResult = nil
         break
 
@@ -243,11 +248,11 @@ function Hash:_parse_hashes(strText, strSourceURL)
         end
         if tHashID==nil then
           -- NOTE: this is no error as older versions should be able to use more recent hash files.
-          self.tLogger:warn('%s%s line %d: Ignoring unknown hash ID "%s".', self.strLogID, strSourceURL, uiLineNumber, strID)
+          self.tLog.warning('%s line %d: Ignoring unknown hash ID "%s".', strSourceURL, uiLineNumber, strID)
 
         -- Was this HASH ID already processed in another line?
         elseif atHashes[strID]~=nil then
-          self.tLogger:error('%s%s line %d: Hash ID "%s" defined twice.', self.strLogID, strSourceURL, uiLineNumber, strID)
+          self.tLog.error('%s line %d: Hash ID "%s" defined twice.', strSourceURL, uiLineNumber, strID)
           tResult = nil
           break
 
@@ -255,7 +260,7 @@ function Hash:_parse_hashes(strText, strSourceURL)
           -- The size of the hash string must be a multiple of 2.
           local uiHashSize = string.len(strHash)
           if math.mod(uiHashSize, 2)~=0 then
-            self.tLogger:error('%s%s line %d: The length of the hash sum is not a multiple of 2.', self.strLogID, strSourceURL, uiLineNumber)
+            self.tLog.error('%s line %d: The length of the hash sum is not a multiple of 2.', strSourceURL, uiLineNumber)
             tResult = nil
             break
           else
@@ -267,13 +272,13 @@ function Hash:_parse_hashes(strText, strSourceURL)
               uiExpectedSize = self.mhash.get_block_size(tHashID)
             end
             if (uiExpectedSize*2)~=uiHashSize then
-              self.tLogger:error('%s%s line %d: Invalid hash size for ID "%s", expected %d, got %d.', self.strLogID, strSourceURL, uiLineNumber, strID, uiExpectedSize*2, uiHashSize)
+              self.tLog.error('%s line %d: Invalid hash size for ID "%s", expected %d, got %d.', strSourceURL, uiLineNumber, strID, uiExpectedSize*2, uiHashSize)
               tResult = nil
               break
             else
               -- The hash is OK.
               atHashes[strID] = string.lower(strHash)
-              self.tLogger:debug('%s%s: Found hash ID "%s".', self.strLogID, strSourceURL, strID)
+              self.tLog.debug('%s: Found hash ID "%s".', strSourceURL, strID)
               uiFoundHashes = uiFoundHashes + 1
             end
           end
@@ -286,7 +291,7 @@ function Hash:_parse_hashes(strText, strSourceURL)
   if tResult==nil then
     atHashes = nil
   elseif uiFoundHashes==0 then
-    self.tLogger:error('%s%s: No valid hashes found.', self.strLogID, strSourceURL)
+    self.tLog.error('%s: No valid hashes found.', strSourceURL)
     atHashes = nil
   end
 
@@ -326,19 +331,19 @@ function Hash:check_string(strData, strHash, strDataURL, strHashURL)
     -- Pick the best HASH.
     local strHashName, strExpectedHash = self:_pick_best_hash(atHashes)
     if strHashName==nil then
-      self.tLogger:error('No useable hash found.')
+      self.tLog.error('No useable hash found.')
     else
       -- Get the hash sum of the data.
       local strLocalHash = self:_get_hash_for_string(strData, strHashName)
 
       -- Compare the HASH sums.
       if strExpectedHash~=strLocalHash then
-        self.tLogger:error('%sThe %s hash for "%s" does not match.', self.strLogID, strHashName, strDataURL)
-        self.tLogger:error('%sThe locally generated %s hash for %s is %s .', self.strLogID, strHashName, strDataURL, strLocalHash)
-        self.tLogger:error('%sThe expected %s hash read from %s is %s .', self.strLogID, strHashName, strHashURL, strExpectedHash)
+        self.tLog.error('The %s hash for "%s" does not match.', strHashName, strDataURL)
+        self.tLog.error('The locally generated %s hash for %s is %s .', strHashName, strDataURL, strLocalHash)
+        self.tLog.error('The expected %s hash read from %s is %s .', strHashName, strHashURL, strExpectedHash)
       else
         -- The hash sums match.
-        self.tLogger:debug('%sThe %s hash for "%s" matches.', self.strLogID, strHashName, strDataURL)
+        self.tLog.debug('The %s hash for "%s" matches.', strHashName, strDataURL)
         tResult = true
       end
     end
@@ -359,19 +364,19 @@ function Hash:check_file(strPath, strHash, strHashURL)
     -- Pick the best HASH.
     local strHashName, strExpectedHash = self:_pick_best_hash(atHashes)
     if strHashName==nil then
-      self.tLogger:error('No useable hash found.')
+      self.tLog.error('No useable hash found.')
     else
       -- Get the hash sum of the data.
       local strLocalHash = self:_get_hash_for_file(strPath, strHashName)
 
       -- Compare the HASH sums.
       if strExpectedHash~=strLocalHash then
-        self.tLogger:error('%sThe %s hash for "%s" does not match.', self.strLogID, strHashName, strPath)
-        self.tLogger:error('%sThe locally generated %s hash for %s is %s .', self.strLogID, strHashName, strPath, strLocalHash)
-        self.tLogger:error('%sThe expected %s hash read from %s is %s .', self.strLogID, strHashName, strHashURL, strExpectedHash)
+        self.tLog.error('The %s hash for "%s" does not match.', strHashName, strPath)
+        self.tLog.error('The locally generated %s hash for %s is %s .', strHashName, strPath, strLocalHash)
+        self.tLog.error('The expected %s hash read from %s is %s .', strHashName, strHashURL, strExpectedHash)
       else
         -- The hash sums match.
-        self.tLogger:debug('%sThe %s hash for "%s" matches.', self.strLogID, strHashName, strPath)
+        self.tLog.debug('The %s hash for "%s" matches.', strHashName, strPath)
         tResult = true
       end
     end

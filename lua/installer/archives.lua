@@ -8,11 +8,18 @@ local Archive = class()
 
 
 --- Initialize a new instance of the "Archive" class.
-function Archive:_init(cLogger)
+function Archive:_init(cLog)
   -- The "penlight" module is always useful.
   self.pl = require'pl.import_into'()
 
-  self.tLogger = cLogger
+  local tLogWriter = require 'log.writer.prefix'.new('[Archive] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
 
   -- LFS is there with penlight.
   self.lfs = require 'lfs'
@@ -31,7 +38,7 @@ function Archive:_get_archive_handler()
   -- Prefer the LUA module archive.
   local tResult, archive = pcall(require, 'archive')
   if tResult==true then
-    self.tLogger:info('Detected archive.')
+    self.tLog.info('Detected archive.')
 
     self.archive = archive
     self.depack_archive = self.depack_archive_archive
@@ -44,12 +51,12 @@ function Archive:_get_archive_handler()
     -- Try to use the command line tools.
     -- The detection needs the popen function.
     if io.popen==nil then
-      self.tLogger:info('Unable to detect the command line tools: io.popen is not available.')
+      self.tLog.info('Unable to detect the command line tools: io.popen is not available.')
     else
       -- Try to run "tar".
       local tFile, strError = io.popen('tar --version')
       if tFile==nil then
-        self.tLogger:info('Failed to detect the command line tool "tar": %s', strError)
+        self.tLog.info('Failed to detect the command line tool "tar": %s', strError)
       else
         -- Read all data.
         local strData = tFile:read('*a')
@@ -58,13 +65,13 @@ function Archive:_get_archive_handler()
         -- Try to run "7z".
         local tFile, strError = io.popen('7z')
         if tFile==nil then
-          self.tLogger:info('Failed to detect the command line tool "7z": %s', strError)
+          self.tLog.info('Failed to detect the command line tool "7z": %s', strError)
         else
           -- Read all data.
           local strData = tFile:read('*a')
           tFile:close()
 
-          self.tLogger:info('Detected command line tools.')
+          self.tLog.info('Detected command line tools.')
 
           self.depack_archive = self.depack_archive_cli
           -- self.pack_archive = self.pack_archive_cli
@@ -96,21 +103,21 @@ function Archive:depack_archive_archive(strArchivePath, strDepackPath)
   -- Move to the extract folder.
   local tLfsResult, strError = self.lfs.chdir(strDepackPath)
   if tLfsResult~=true then
-    self.tLogger:error('Failed to change to the depack path "%s": %s', strDepackPath, strError)
+    self.tLog.error('Failed to change to the depack path "%s": %s', strDepackPath, strError)
     tResult = nil
   else
-    self.tLogger:debug('Extracting archive "%s".', strArchivePath)
+    self.tLog.debug('Extracting archive "%s".', strArchivePath)
     local r = tArc:open_filename(strArchivePath, 16384)
     if r~=0 then
-      self.tLogger:error('Failed to open the archive "%s": %s', strArchivePath, tArc:error_string())
+      self.tLog.error('Failed to open the archive "%s": %s', strArchivePath, tArc:error_string())
       tResult = nil
     else
       for tEntry in tArc:iter_header() do
-        self.tLogger:debug('Processing entry "%s".', tEntry:pathname())
+        self.tLog.debug('Processing entry "%s".', tEntry:pathname())
 
         local iResult = tArc:extract(tEntry, iExtractFlags)
         if iResult~=0 then
-          self.tLogger:error('Failed to extract entry "%s" from archive "%s".', tEntry:pathname(), strArchivePath)
+          self.tLog.error('Failed to extract entry "%s" from archive "%s".', tEntry:pathname(), strArchivePath)
           tResult = nil
           break
         end
@@ -120,7 +127,7 @@ function Archive:depack_archive_archive(strArchivePath, strDepackPath)
     -- Restore the old working directory.
     local tLfsResult, strError = self.lfs.chdir(strOldWorkingDir)
     if tLfsResult~=true then
-      self.tLogger:error('Failed to restore the working directory "%s" after depacking: %s', strOldWorkingDir, strError)
+      self.tLog.error('Failed to restore the working directory "%s" after depacking: %s', strOldWorkingDir, strError)
       tResult = nil
     end
   end
@@ -148,7 +155,7 @@ function Archive:_get_cli_attributes(strArchive)
   for strExt, atAttr in pairs(self.atCliFormats) do
     local sizExt = string.len(strExt)
     if strExt==string.sub(strArchive, -sizExt) then
-      self.tLogger:debug('Found extension "%s".', strExt)
+      self.tLog.debug('Found extension "%s".', strExt)
       tAttr = atAttr
       break
     end
@@ -166,7 +173,7 @@ function Archive:depack_archive_cli(strArchivePath, strDepackPath)
   -- Get the extension of the archive.
   local tAttr = self:_get_cli_attributes(strArchivePath)
   if tAttr==nil then
-    self.tLogger:error('Failed to guess the archive format from the file name "%s".', strArchivePath)
+    self.tLog.error('Failed to guess the archive format from the file name "%s".', strArchivePath)
   else
     -- Process the template for the debug command.
     local atReplace = {ARCHIVE=strArchivePath, OUTPATH=strDepackPath}
@@ -192,13 +199,13 @@ function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSour
     tArcResult = tReader:set_standard_lookup()
   end
   if tArcResult~=0 then
-    self.tLogger:error('Failed to set standard lookup: %s', tReader:error_string())
+    self.tLog.error('Failed to set standard lookup: %s', tReader:error_string())
     tResult = nil
   else
     local uiBehavior = 0
     tArcResult = tReader:set_behavior(uiBehavior)
     if tArcResult~=0 then
-      self.tLogger:error('Failed to set the standard behaviour: %s', tReader:error_string())
+      self.tLog.error('Failed to set the standard behaviour: %s', tReader:error_string())
       tResult = nil
     else
       -- Create a new archive.
@@ -206,13 +213,13 @@ function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSour
 
       tArcResult = tArchive:set_format(tFormat)
       if tArcResult~=0 then
-        self.tLogger:error('Failed to set the archive format to ID %d: %s', tFormat, tArchive:error_string())
+        self.tLog.error('Failed to set the archive format to ID %d: %s', tFormat, tArchive:error_string())
         tResult = nil
       else
         for _, tFilter in ipairs(atFilter) do
           tArcResult = tArchive:add_filter(tFilter)
           if tArcResult~=0 then
-            self.tLogger:error('Failed to add filter with ID %d: %s', tFilter, tArchive:error_string())
+            self.tLog.error('Failed to add filter with ID %d: %s', tFilter, tArchive:error_string())
             tResult = nil
             break
           end
@@ -223,7 +230,7 @@ function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSour
           if self.pl.path.exists(strArchivePath)==strArchivePath then
             local tFsResult, strError = self.pl.file.delete(strArchivePath)
             if tFsResult==nil then
-              self.tLogger:error('Failed to delete the old archive "%s": %s', strArchivePath, strError)
+              self.tLog.error('Failed to delete the old archive "%s": %s', strArchivePath, strError)
               tResult = nil
             end
           end
@@ -231,15 +238,15 @@ function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSour
           if tResult==true then
             tArcResult = tArchive:open_filename(strArchivePath)
             if tArcResult~=0 then
-              self.tLogger:error('Failed to open the archive "%s": %s', strArchivePath, tArchive:error_string())
+              self.tLog.error('Failed to open the archive "%s": %s', strArchivePath, tArchive:error_string())
               tResult = nil
             else
               tArcResult = tReader:open(strSourcePath)
               if tArcResult~=0 then
-                self.tLogger:error('Failed to open the path "%s": %s', strSourcePath, tReader:error_string())
+                self.tLog.error('Failed to open the path "%s": %s', strSourcePath, tReader:error_string())
                 tResult = nil
               else
-                self.tLogger:debug('Compressing "%s" to archive "%s"...', strSourcePath, strArchivePath)
+                self.tLog.debug('Compressing "%s" to archive "%s"...', strSourcePath, strArchivePath)
 
                 for tEntry in tReader:iter_header() do
                   -- Cut off the root path of the archive from the entry path.
@@ -248,18 +255,18 @@ function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSour
                   if strRelPath~='' then
                     tEntry:set_pathname(strRelPath)
 
-                    self.tLogger:debug('  %s', strRelPath)
+                    self.tLog.debug('  %s', strRelPath)
 
                     tArcResult = tArchive:write_header(tEntry)
                     if tArcResult~=0 then
-                      self.tLogger:error('Failed to write the header for archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
+                      self.tLog.error('Failed to write the header for archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
                       tResult = nil
                       break
                     else
                       for strData in tReader:iter_data(16384) do
                         tArcResult = tArchive:write_data(strData)
                         if tArcResult~=0 then
-                          self.tLogger:error('Failed to write a chunk of data to archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
+                          self.tLog.error('Failed to write a chunk of data to archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
                           tResult = nil
                           break
                         end
@@ -269,13 +276,13 @@ function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSour
                       else
                         tArcResult = tArchive:finish_entry()
                         if tArcResult~=0 then
-                          self.tLogger:error('Failed to finish archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
+                          self.tLog.error('Failed to finish archive member "%s": %s', tEntry:pathname(), tArchive:error_string())
                           tResult = nil
                           break
                         elseif tReader:can_descend()~=0 then
                           tArcResult = tReader:descend()
                           if tArcResult~=0 then
-                            self.tLogger:error('Failed to descend on path "%s": %s', tEntry:pathname(), tReader:error_string())
+                            self.tLog.error('Failed to descend on path "%s": %s', tEntry:pathname(), tReader:error_string())
                             tResult = nil
                             break
                           end
@@ -287,14 +294,14 @@ function Archive:pack_archive_archive(strArchivePath, tFormat, atFilter, strSour
 
                 tArcResult = tReader:close()
                 if tArcResult~=0 then
-                  self.tLogger:error('Failed to close the reader: %s', tReader:error_string())
+                  self.tLog.error('Failed to close the reader: %s', tReader:error_string())
                   tResult = nil
                 end
               end
 
               tArcResult = tArchive:close()
               if tArcResult~=0 then
-                self.tLogger:error('Failed to close the archive "%s": %s', strArchive, tArchive:error_string())
+                self.tLog.error('Failed to close the archive "%s": %s', strArchive, tArchive:error_string())
                 tResult = nil
               end
             end

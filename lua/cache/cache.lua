@@ -6,8 +6,16 @@ local Cache = class()
 --- Initialize a new cache instance.
 -- @param tLogger The logger object used for all kinds of messages.
 -- @param strID The ID used in the the jonchkicfg.xml to reference this instance.
-function Cache:_init(tLogger, tPlatform, strID)
-  self.tLogger = tLogger
+function Cache:_init(cLog, tPlatform, strID)
+  local tLogWriter = require 'log.writer.prefix'.new(string.format('[Cache "%s"] ', strID), cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
+
   self.tPlatform = tPlatform
   self.strRepositoryRootPath = nil
   self.strID = strID
@@ -19,15 +27,14 @@ function Cache:_init(tLogger, tPlatform, strID)
 
   -- Get the hash abstraction.
   local cHash = require 'Hash'
-  self.hash = cHash(tLogger)
+  self.hash = cHash(cLog)
 
   self.ArtifactConfiguration = require 'ArtifactConfiguration'
   self.date = require 'date'
   self.sqlite3 = require 'luasql.sqlite3'
   self.Version = require 'Version'
 
-  self.tLogger:debug('[Cache] Created cache "%s".', strID)
-  self.strLogID = string.format('[Cache "%s"]', strID)
+  self.tLog.debug('Created cache.')
 
   self.tSQLEnv = self.sqlite3.sqlite3()
   self.tSQLDatabase = nil
@@ -73,24 +80,24 @@ function Cache:_sql_create_table(tSQLCon, strTableName, strCreateStatement)
   local tCursor = tSQLCon:execute(string.format('SELECT sql FROM sqlite_master WHERE name="%s"', strTableName))
   if tCursor==nil then
     -- Error!
-    self.tLogger:error('%s Failed to query the last create statement for table "%s".', self.strLogID, strTableName)
+    self.tLog.error('Failed to query the last create statement for table "%s".', strTableName)
   else
     local strDatabaseCreateStatement = tCursor:fetch()
     tCursor:close()
     if strDatabaseCreateStatement==strCreateStatement then
-      self.tLogger:debug('%s The table structure for "%s" is up to date.', self.strLogID, strTableName)
-        self.tLogger:debug('%s Create statement: "%s"', self.strLogID, strCreateStatement)
+      self.tLog.debug('The table structure for "%s" is up to date.', strTableName)
+      self.tLog.debug('Create statement: "%s"', strCreateStatement)
 
       -- Do not create the table data from scratch.
       tResult = false
     elseif strDatabaseCreateStatement==nil then
-      self.tLogger:debug('%s The table "%s" does not exist yet. Create it now.', self.strLogID, strTableName)
-      self.tLogger:debug('%s Create statement: "%s"', self.strLogID, strCreateStatement)
+      self.tLog.debug('The table "%s" does not exist yet. Create it now.', strTableName)
+      self.tLog.debug('Create statement: "%s"', strCreateStatement)
 
       -- Create a new table.
       local tSqlResult, strError = tSQLCon:execute(strCreateStatement)
       if tSqlResult==nil then
-        self.tLogger:error('%s Failed to create the table "%s": %s', self.strLogID, strTableName, strError)
+        self.tLog.error('Failed to create the table "%s": %s', strTableName, strError)
       else
         tSQLCon:commit()
 
@@ -98,21 +105,21 @@ function Cache:_sql_create_table(tSQLCon, strTableName, strCreateStatement)
         tResult = true
       end
     else
-      self.tLogger:debug('%s The table "%s" has a different create statement. Delete and recreate it.', self.strLogID, strTableName)
-      self.tLogger:debug('%s Old create statement: "%s"', self.strLogID, strDatabaseCreateStatement)
-      self.tLogger:debug('%s New create statement: "%s"', self.strLogID, strCreateStatement)
+      self.tLog.debug('The table "%s" has a different create statement. Delete and recreate it.', strTableName)
+      self.tLog.debug('Old create statement: "%s"', strDatabaseCreateStatement)
+      self.tLog.debug('New create statement: "%s"', strCreateStatement)
 
       -- Delete the old table.
       local tSqlResult, strError = tSQLCon:execute(string.format('DROP TABLE %s', strTableName))
       if tSqlResult==nil then
-        self.tLogger:error('%s Failed to delete the table "%s": %s', self.strLogID, strTableName, strError)
+        self.tLog.error('Failed to delete the table "%s": %s', strTableName, strError)
       else
         tSQLCon:commit()
 
         -- Re-create a new table.
         local tSqlResult, strError = tSQLCon:execute(strCreateStatement)
         if tSqlResult==nil then
-          self.tLogger:error('%s Failed to re-create the table "%s": %s', self.strLogID, strTableName, strError)
+          self.tLog.error('Failed to re-create the table "%s": %s', strTableName, strError)
         else
           tSQLCon:commit()
 
@@ -207,19 +214,19 @@ function Cache:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatfo
 
   local tSQLDatabase = self.tSQLDatabase
   if tSQLDatabase==nil then
-    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+    self.tLog.error('No connection to a database established.')
   else
     local strVersion = tVersion:get()
     local strQuery = string.format('SELECT * FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s" AND strVersion="%s" AND strPlatform="%s"', strGroup, strModule, strArtifact, strVersion, strPlatform)
     local tCursor, strError = tSQLDatabase:execute(strQuery)
     if tCursor==nil then
-      self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
+      self.tLog.error('Failed to search the cache for an entry: %s', strError)
     else
       repeat
         local atData = tCursor:fetch({}, 'a')
         if atData~=nil then
           if atAttr~=nil then
-            self.tLogger:error('%s The cache database is broken. It has multiple entries for %s/%s/%s/%s/%s.', self.strLogID, strGroup, strModule, strArtifact, strVersion, strPlatform)
+            self.tLog.error('The cache database is broken. It has multiple entries for %s/%s/%s/%s/%s.', strGroup, strModule, strArtifact, strVersion, strPlatform)
             break
           else
             atAttr = atData
@@ -255,19 +262,19 @@ function Cache:_find_GMAVnull(strGroup, strModule, strArtifact, tVersion)
 
   local tSQLDatabase = self.tSQLDatabase
   if tSQLDatabase==nil then
-    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+    self.tLog.error('No connection to a database established.')
   else
     local strVersion = tVersion:get()
     local strQuery = string.format('SELECT * FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s" AND strVersion="%s" AND strPlatform IS NULL', strGroup, strModule, strArtifact, strVersion)
     local tCursor, strError = tSQLDatabase:execute(strQuery)
     if tCursor==nil then
-      self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
+      self.tLog.error('Failed to search the cache for an entry: %s', strError)
     else
       repeat
         local atData = tCursor:fetch({}, 'a')
         if atData~=nil then
           if atAttr~=nil then
-            self.tLogger:error('%s The cache database is broken. It has multiple entries for %s/%s/%s/%s.', self.strLogID, strGroup, strModule, strArtifact, strVersion)
+            self.tLog.error('The cache database is broken. It has multiple entries for %s/%s/%s/%s.', strGroup, strModule, strArtifact, strVersion)
             break
           else
             atAttr = atData
@@ -317,7 +324,7 @@ function Cache:_database_add_version(tSQLDatabase, strGroup, strModule, strArtif
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
-    self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+    self.tLog.error('Failed to add the new entry to the cache: %s', strError)
   else
     tSQLDatabase:commit()
     tResult = true
@@ -341,7 +348,7 @@ function Cache:_database_add_configuration(tSQLDatabase, cArtifact, strSourceRep
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
-    self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+    self.tLog.error('Failed to add the new entry to the cache: %s', strError)
   else
     tSQLDatabase:commit()
     tResult = true
@@ -365,7 +372,7 @@ function Cache:_database_update_configuration(tSQLDatabase, iId, cArtifact, strS
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
-    self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+    self.tLog.error('Failed to add the new entry to the cache: %s', strError)
   else
     tSQLDatabase:commit()
     tResult = true
@@ -385,7 +392,7 @@ function Cache:_database_add_artifact(tSQLDatabase, cArtifact, strSourceReposito
   local strPathConfiguration, strPathConfigurationHash = self:_get_configuration_paths(cArtifact)
 
   local tInfo = cArtifact.tInfo
-  self.tLogger:debug('%s Adding artifact %s/%s/%s V%s %s', self.strLogID, tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), tInfo.strPlatform)
+  self.tLog.debug('Adding artifact %s/%s/%s V%s %s', tInfo.strGroup, tInfo.strModule, tInfo.strArtifact, tInfo.tVersion:get(), tInfo.strPlatform)
 
   local iConfigurationFileSize = self.pl.path.getsize(strPathConfiguration)
   local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
@@ -394,7 +401,7 @@ function Cache:_database_add_artifact(tSQLDatabase, cArtifact, strSourceReposito
 
   local tSqlResult, strError = tSQLDatabase:execute(strQuery)
   if tSqlResult==nil then
-    self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+    self.tLog.error('Failed to add the new entry to the cache: %s', strError)
   else
     tSQLDatabase:commit()
     tResult = true
@@ -414,7 +421,7 @@ function Cache:_database_update_artifact(atAttr, cArtifact, strSourceRepository)
 
   local tSQLDatabase = self.tSQLDatabase
   if tSQLDatabase==nil then
-    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+    self.tLog.error('No connection to a database established.')
   else
     local iId = atAttr.iId
     local iArtifactFileSize = self.pl.path.getsize(strPathArtifact)
@@ -425,7 +432,7 @@ function Cache:_database_update_artifact(atAttr, cArtifact, strSourceRepository)
 
     local tSqlResult, strError = tSQLDatabase:execute(strQuery)
     if tSqlResult==nil then
-      self.tLogger:error('%s Failed to update an entry in the cache: %s', self.strLogID, strError)
+      self.tLog.error('Failed to update an entry in the cache: %s', strError)
     else
       tSQLDatabase:commit()
       tResult = true
@@ -452,23 +459,23 @@ function Cache:_cachefs_write_configuration(cArtifact)
   else
     tResult, strError = self.pl.dir.makepath(strPath)
     if tResult~=true then
-      self.tLogger:error('%s Failed to create the path "%s": %s', self.strLogID, strPath, strError)
+      self.tLog.error('Failed to create the path "%s": %s', strPath, strError)
     end
   end
 
   if tResult==true then
     -- Write the configuration.
-    self.tLogger:debug('%s Write the configuration to %s.', self.strLogID, strPathConfiguration)
+    self.tLog.debug('Write the configuration to %s.', strPathConfiguration)
     tResult, strError = self.pl.utils.writefile(strPathConfiguration, cArtifact.strSource, true)
     if tResult==nil then
-      self.tLogger:error('%s Failed to create the file for the configuration at "%s": %s', self.strLogID, strPathConfiguration, strError)
+      self.tLog.error('Failed to create the file for the configuration at "%s": %s', strPathConfiguration, strError)
     else
       -- Write the hash of the configuration.
       local strHash = self.hash:generate_hashes_for_string(cArtifact.strSource)
-      self.tLogger:debug('%s Write the configuration hash to %s.', self.strLogID, strPathConfigurationHash)
+      self.tLog.debug('Write the configuration hash to %s.', strPathConfigurationHash)
       tResult, strError = self.pl.utils.writefile(strPathConfigurationHash, strHash, false)
       if tResult==nil then
-        self.tLogger:error('%s Failed to create the file for the configuration hash at "%s": %s', self.strLogID, strPathConfigurationHash, strError)
+        self.tLog.error('Failed to create the file for the configuration hash at "%s": %s', strPathConfigurationHash, strError)
       end
     end
   end
@@ -493,30 +500,30 @@ function Cache:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
   else
     tResult, strError = self.pl.dir.makepath(strPath)
     if tResult~=true then
-      self.tLogger:error('%s Failed to create the path "%s": %s', self.strLogID, strPath, strError)
+      self.tLog.error('Failed to create the path "%s": %s', strPath, strError)
     end
   end
 
   if tResult==true then
     -- Copy the artifact.
-    self.tLogger:debug('%s Copy the artifact from %s to %s.', self.strLogID, strArtifactSourcePath, strPathArtifact)
+    self.tLog.debug('Copy the artifact from %s to %s.', strArtifactSourcePath, strPathArtifact)
     tResult, strError = self.pl.file.copy(strArtifactSourcePath, strPathArtifact, true)
     if tResult~=true then
-      self.tLogger:error('%s Failed to copy the artifact from %s to %s: %s', self.strLogID, strArtifactSourcePath, strPathArtifact, strError)
+      self.tLog.error('Failed to copy the artifact from %s to %s: %s', strArtifactSourcePath, strPathArtifact, strError)
     else
       -- Create the hash for the artifact.
       -- NOTE: get the hash from the source file.
       tResult = self.hash:generate_hashes_for_file(strArtifactSourcePath)
       if tResult==nil then
-        self.tLogger:error('%s Failed to get the hash for "%s".', self.strLogID, strArtifactSourcePath)
+        self.tLog.error('Failed to get the hash for "%s".', strArtifactSourcePath)
       else
         local strHash = tResult
 
         -- Write the hash of the artifact.
-        self.tLogger:debug('%s Write the artifact hash to %s.', self.strLogID, strPathArtifactHash)
+        self.tLog.debug('Write the artifact hash to %s.', strPathArtifactHash)
         tResult, strError = self.pl.utils.writefile(strPathArtifactHash, strHash, false)
         if tResult==nil then
-          self.tLogger:error('%s Failed to create the file for the artifact hash at "%s": %s', self.strLogID, strPathArtifactHash, strError)
+          self.tLog.error('Failed to create the file for the artifact hash at "%s": %s', strPathArtifactHash, strError)
         end
       end
     end
@@ -535,7 +542,7 @@ function Cache:_remove_odd_files(tSQLDatabase)
   -- Get the full path of the SQLITE3 database file. This one should not be removed.
   local strDatabaseFilename = self.pl.path.join(self.strRepositoryRootPath, self.strDatabaseName)
 
-  self.tLogger:debug('%s Clean the cache by removing odd files from "%s".', self.strLogID, self.strRepositoryRootPath)
+  self.tLog.debug('Clean the cache by removing odd files from "%s".', self.strRepositoryRootPath)
 
   -- Loop over all files in the repository.
   for strRoot,astrDirs,astrFiles in self.pl.dir.walk(self.strRepositoryRootPath, false, true) do
@@ -546,19 +553,19 @@ function Cache:_remove_odd_files(tSQLDatabase)
 
       -- Keep the database file.
       if strFullPath==strDatabaseFilename then
-        self.tLogger:debug('%s Keeping database file "%s".', self.strLogID, strDatabaseFilename)
+        self.tLog.debug('Keeping database file "%s".', strDatabaseFilename)
       else
         -- Search the full path in the database.
         local strQuery = string.format('SELECT COUNT(*) FROM cache WHERE strConfigurationPath="%s" OR strConfigurationHashPath="%s" OR strArtifactPath="%s" OR strArtifactHashPath="%s"', strFullPath, strFullPath, strFullPath, strFullPath)
         local tCursor, strError = tSQLDatabase:execute(strQuery)
         if tCursor==nil then
-          self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
+          self.tLog.error('Failed to search the cache for an entry: %s', strError)
           tResult = nil
           break
         else
           local atData = tCursor:fetch({})
           if atData==nil then
-            self.tLogger:error('%s No result from database for query "%s".', self.strLogID, strQuery)
+            self.tLog.error('No result from database for query "%s".', strQuery)
             tCursor:close()
             tResult = nil
             break
@@ -570,15 +577,15 @@ function Cache:_remove_odd_files(tSQLDatabase)
             local iCnt = tonumber(strResult)
             if iCnt==0 then
               -- The path was not found in the database.
-              self.tLogger:debug('%s Removing stray file "%s".', self.strLogID, strFullPath)
+              self.tLog.debug('Removing stray file "%s".', strFullPath)
               local tDeleteResult, strError = self.pl.file.delete(strFullPath)
               if tDeleteResult~=true then
-                self.tLogger:warn('%s Failed to remove stray file "%s": %s', self.strLogID, strFullPath, strError)
+                self.tLog.warning('Failed to remove stray file "%s": %s', strFullPath, strError)
               end
             elseif iCnt==1 then
               -- The path was found in the database.
             else
-              self.tLogger:error('%s Invalid result from database for query "%s": "%s"', self.strLogID, strQuery, tostring(strResult))
+              self.tLog.error('Invalid result from database for query "%s": "%s"', strQuery, tostring(strResult))
               tResult = nil
               break
             end
@@ -588,7 +595,7 @@ function Cache:_remove_odd_files(tSQLDatabase)
     end
   end
 
-  self.tLogger:debug('%s Finished cleaning the cache.', self.strLogID)
+  self.tLog.debug('Finished cleaning the cache.')
   return tResult
 end
 
@@ -601,12 +608,12 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
   local strQuery = string.format('SELECT TOTAL(iConfigurationSize)+TOTAL(iArtifactSize) FROM cache')
   local tCursor, strError = tSQLDatabase:execute(strQuery)
   if tCursor==nil then
-    self.tLogger:error('%s Failed to get the total size of the cache: %s', self.strLogID, strError)
+    self.tLog.error('Failed to get the total size of the cache: %s', strError)
     tResult = nil
   else
     local atData = tCursor:fetch({})
     if atData==nil then
-      self.tLogger:error('%s No result from database for query "%s".', self.strLogID, strQuery)
+      self.tLog.error('No result from database for query "%s".', strQuery)
       tCursor:close()
       tResult = nil
     else
@@ -616,14 +623,14 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
       local strResult = atData[1]
       local iTotalSize = tonumber(strResult)
       if iTotalSize==nil then
-        self.tLogger:error('%s Invalid result from database for query "%s": "%s"', self.strLogID, strQuery, tostring(strResult))
+        self.tLog.error('Invalid result from database for query "%s": "%s"', strQuery, tostring(strResult))
         tResult = nil
       else
-        self.tLogger:debug('%s The total size of the cache is %d bytes.', self.strLogID, iTotalSize)
+        self.tLog.debug('The total size of the cache is %d bytes.', iTotalSize)
         -- Check if the requested free space would grow the cache over the allowed maximum.
         local iBytesToSave = (iTotalSize + ulFreeSpaceNeeded) - self.ulMaximumSize
         if iBytesToSave>0 then
-          self.tLogger:debug('%s Need to shrink the cache by %d bytes.', self.strLogID, iBytesToSave)
+          self.tLog.debug('Need to shrink the cache by %d bytes.', iBytesToSave)
 
           -- Collect all files to delete in this table.
           local astrDeleteFiles = {}
@@ -634,7 +641,7 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
           strQuery = string.format('SELECT iId, strConfigurationPath, strConfigurationHashPath, iConfigurationSize, strArtifactPath, strArtifactHashPath, iArtifactSize FROM cache ORDER BY iLastUsedDate ASC')
           tCursor, strError = tSQLDatabase:execute(strQuery)
           if tCursor==nil then
-            self.tLogger:error('%s Failed to get all cache entries: %s', self.strLogID, strError)
+            self.tLog.error('Failed to get all cache entries: %s', strError)
             tResult = nil
           else
             repeat
@@ -661,19 +668,19 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
 
             -- Found enough files?
             if iBytesSaved < iBytesToSave then
-              self.tLogger:error('%s Failed to free %d bytes in the cache.', self.strLogID, iBytesToSave)
+              self.tLog.error('Failed to free %d bytes in the cache.', iBytesToSave)
               tResult = nil
             else
               tResult = true
 
               -- Delete all SQL lines in the list.
               for _, iId in pairs(aIdDeleteSql) do
-                self.tLogger:debug('%s Deleting SQL ID %d.', self.strLogID, iId)
+                self.tLog.debug('Deleting SQL ID %d.', iId)
 
                 strQuery = string.format('DELETE FROM cache WHERE iId=%d', iId)
                 local tSqlResult, strError = tSQLDatabase:execute(strQuery)
                 if tSqlResult==nil then
-                  self.tLogger:error('%s Failed to delete an entry in the cache: %s', self.strLogID, strError)
+                  self.tLog.error('Failed to delete an entry in the cache: %s', strError)
                   tResult = nil
                   break
                 else
@@ -684,11 +691,11 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
               if tResult==true then
                 -- Delete all files in the list.
                 for _, strPath in pairs(astrDeleteFiles) do
-                  self.tLogger:debug('%s Deleting "%s".', self.strLogID, strPath)
+                  self.tLog.debug('Deleting "%s".', strPath)
 
                   local tDeleteResult, strError = self.pl.file.delete(strPath)
                   if tDeleteResult~=true then
-                    self.tLogger:error('%s Failed to remove file "%s": %s', self.strLogID, strPath, strError)
+                    self.tLog.error('Failed to remove file "%s": %s', strPath, strError)
                     tResult = nil
                     break
                   end
@@ -712,20 +719,20 @@ function Cache:configure(strRepositoryRootPath, ulMaximumSize)
   local tResult = nil
 
 
-  self.tLogger:debug('%s Set the maximum size to %d bytes.', self.strLogID, ulMaximumSize)
+  self.tLog.debug('Set the maximum size to %d bytes.', ulMaximumSize)
   self.ulMaximumSize = ulMaximumSize
 
   -- Convert this to an absolute path.
   local strAbsRepositoryRootPath = self.pl.path.abspath(strRepositoryRootPath)
-  self.tLogger:debug('%s Set the repository root path to "%s".', self.strLogID, strAbsRepositoryRootPath)
+  self.tLog.debug('Set the repository root path to "%s".', strAbsRepositoryRootPath)
   self.strRepositoryRootPath = strAbsRepositoryRootPath
 
   -- The path was already created by the system configuration.
   -- If it does not exist or it is no directory, this is an error.
   if self.pl.path.exists(strAbsRepositoryRootPath)~=strAbsRepositoryRootPath then
-    self.tLogger:error('%s The repository root path "%s" does not exist.', self.strLogID, strAbsRepositoryRootPath)
+    self.tLog.error('The repository root path "%s" does not exist.', strAbsRepositoryRootPath)
   elseif self.pl.path.isdir(strAbsRepositoryRootPath)~=true then
-    self.tLogger:error('%s The repository root path "%s" is no directory.', self.strLogID, strAbsRepositoryRootPath)
+    self.tLog.error('The repository root path "%s" is no directory.', strAbsRepositoryRootPath)
   else
     -- Create the path template string.
     self.strPathTemplate = self.pl.path.join(strAbsRepositoryRootPath, '[group]/[module]/[version]/[artifact]-[version][platform].[extension]')
@@ -735,33 +742,33 @@ function Cache:configure(strRepositoryRootPath, ulMaximumSize)
 
     -- Try to open an existing SQLite3 database in the root path.
     -- If the database does not exist yet, create it.
-    self.tLogger:debug('%s Opening database "%s".', self.strLogID, strDb)
+    self.tLog.debug('Opening database "%s".', strDb)
     local tSQLDatabase, strError = self.tSQLEnv:connect(strDb)
     if tSQLDatabase==nil then
-      self.tLogger:error('%s Failed to open the database "%s": %s', self.strLogID, strDb, strError)
+      self.tLog.error('Failed to open the database "%s": %s', strDb, strError)
     else
       -- Construct the "CREATE" statement for the "cache" table.
       local strCreateStatement = 'CREATE TABLE cache (iId INTEGER PRIMARY KEY, strGroup TEXT NOT NULL, strModule TEXT NOT NULL, strArtifact TEXT NOT NULL, strVersion TEXT NOT NULL, strPlatform TEXT, strConfigurationPath TEXT, strConfigurationHashPath TEXT, iConfigurationSize INTEGER, strConfigurationSourceRepo TEXT, strArtifactPath TEXT, strArtifactHashPath TEXT, iArtifactSize INTEGER, strArtifactSourceRepo TEXT, iCreateDate INTEGER NOT NULL, iLastUsedDate INTEGER NOT NULL)'
       local tTableResult = self:_sql_create_table(tSQLDatabase, 'cache', strCreateStatement)
       if tTableResult==nil then
         tSQLDatabase:close()
-        self.tLogger:error('%s Failed to create the table.', self.strLogID)
+        self.tLog.error('Failed to create the table.')
       elseif tTableResult==true then
-        self.tLogger:debug('%s Rebuild the cache information.', self.strLogID)
+        self.tLog.debug('Rebuild the cache information.')
         tResult = self:_remove_odd_files(tSQLDatabase)
         if tResult~=true then
-          self.tLogger:error('%s Failed to remove odd files from the cache.', self.strLogID)
+          self.tLog.error('Failed to remove odd files from the cache.')
         else
           tResult = self:_enforce_maximum_size(tSQLDatabase, 0)
           if tResult~=true then
-            self.tLogger:error('%s Failed to enforce the maximum size of the cache.', self.strLogID)
+            self.tLog.error('Failed to enforce the maximum size of the cache.')
           end
         end
       elseif tTableResult==false then
         -- The table already exists.
         tResult = true
       else
-        self.tLogger:fatal('%s Invalid result from _sql_create_table!', self.strLogID)
+        self.tLog.fatal('Invalid result from _sql_create_table!')
       end
 
       if tResult==true then
@@ -769,10 +776,10 @@ function Cache:configure(strRepositoryRootPath, ulMaximumSize)
         tTableResult = self:_sql_create_table(tSQLDatabase, 'scans', strCreateStatement)
         if tTableResult==nil then
           tSQLDatabase:close()
-          self.tLogger:error('%s Failed to create the table.', self.strLogID)
+          self.tLog.error('Failed to create the table.')
           tResult = nil
         elseif tTableResult~=true and tTableResult~=false then
-          self.tLogger:fatal('%s Invalid result from _sql_create_table!', self.strLogID)
+          self.tLog.fatal('Invalid result from _sql_create_table!')
         end
       end
 
@@ -792,14 +799,14 @@ function Cache:get_last_scan(strRemoteId, strGroup, strModule, strArtifact)
   local strQuery = string.format('SELECT iLastScan FROM scans WHERE strRemoteId="%s" AND strGroup="%s" AND strModule="%s" AND strArtifact="%s"', strRemoteId, strGroup, strModule, strArtifact)
   local tCursor, strError = self.tSQLDatabase:execute(strQuery)
   if tCursor==nil then
-    self.tLogger:error('%s Failed to search the scans for an entry: %s', self.strLogID, strError)
+    self.tLog.error('Failed to search the scans for an entry: %s', strError)
   else
     local atAttr
     repeat
       local atData = tCursor:fetch({}, 'a')
       if atData~=nil then
         if atAttr~=nil then
-          self.tLogger:error('%s The scans database is broken. It has multiple entries for %s/%s/%s/%s.', self.strLogID, strRemoteId, strGroup, strModule, strArtifact)
+          self.tLog.error('The scans database is broken. It has multiple entries for %s/%s/%s/%s.', strRemoteId, strGroup, strModule, strArtifact)
             -- TODO: remove all matching entries
           break
         else
@@ -814,12 +821,12 @@ function Cache:get_last_scan(strRemoteId, strGroup, strModule, strArtifact)
     -- Found exactly one match?
     if atAttr==nil then
       -- Nothing found. This is no error.
-      self.tLogger:debug('%s No last scan found for %s/%s/%s/%s.', self.strLogID, strRemoteId, strGroup, strModule, strArtifact)
+      self.tLog.debug('No last scan found for %s/%s/%s/%s.', strRemoteId, strGroup, strModule, strArtifact)
       tResult = false
     else
       -- Exactly one match found. Return the ID.
       local iLastScan = atAttr.iLastScan
-      self.tLogger:debug('%s Found last scan for %s/%s/%s/%s: %d (now is %d).', self.strLogID, strRemoteId, strGroup, strModule, strArtifact, iLastScan, os.time())
+      self.tLog.debug('Found last scan for %s/%s/%s/%s: %d (now is %d).', strRemoteId, strGroup, strModule, strArtifact, iLastScan, os.time())
       tResult = iLastScan
     end
   end
@@ -841,11 +848,11 @@ function Cache:set_last_scan(strRemoteId, strGroup, strModule, strArtifact, iLas
 
     local tSqlResult, strError = self.tSQLDatabase:execute(strQuery)
     if tSqlResult==nil then
-      self.tLogger:error('%s Failed to add the new entry to the cache: %s', self.strLogID, strError)
+      self.tLog.error('Failed to add the new entry to the cache: %s', strError)
       tResult = nil
     else
       self.tSQLDatabase:commit()
-      self.tLogger:debug('%s Set last scan for %s/%s/%s/%s to %d (now is %d).', self.strLogID, strRemoteId, strGroup, strModule, strArtifact, iLastScan, os.time())
+      self.tLog.debug('Set last scan for %s/%s/%s/%s to %d (now is %d).', strRemoteId, strGroup, strModule, strArtifact, iLastScan, os.time())
       tResult = true
     end
   end
@@ -861,12 +868,12 @@ function Cache:get_available_versions(strGroup, strModule, strArtifact)
 
   local tSQLDatabase = self.tSQLDatabase
   if tSQLDatabase==nil then
-    self.tLogger:error('%s No connection to a database established.', self.strLogID)
+    self.tLog.error('No connection to a database established.')
   else
     local strQuery = string.format('SELECT strVersion FROM cache WHERE strGroup="%s" AND strModule="%s" AND strArtifact="%s"', strGroup, strModule, strArtifact)
     local tCursor, strError = tSQLDatabase:execute(strQuery)
     if tCursor==nil then
-      self.tLogger:error('%s Failed to search the cache for an entry: %s', self.strLogID, strError)
+      self.tLog.error('Failed to search the cache for an entry: %s', strError)
     else
       local atVersions = {}
       local atVersionExists = {}
@@ -876,7 +883,7 @@ function Cache:get_available_versions(strGroup, strModule, strArtifact)
           local tVersion = self.Version()
           local tVersionResult, strError = tVersion:set(atData.strVersion)
           if tVersionResult~=true then
-            self.tLogger:warn('Error in database: ignoring invalid "version" for %s/%s/%s: %s', strGroup, strModule, strArtifact, strError)
+            self.tLog.warning('Error in database: ignoring invalid "version" for %s/%s/%s: %s', strGroup, strModule, strArtifact, strError)
           else
             strVersion = tVersion:get()
 
@@ -912,35 +919,35 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
   -- Search the artifact in the cache database. First try the PIP, then the PSP.
   local fFound, atAttr, strCurrentPlatform = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   if fFound==nil then
-    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+    self.tLog.error('Failed to search the cache.')
     self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
   elseif fFound==false then
-    self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAV)
+    self.tLog.debug('The artifact %s is not in the cache.', strGMAV)
     self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
   elseif atAttr.strConfigurationPath==nil then
-    self.tLogger:debug('%s The cache entry does not have the configuration.', self.strLogID, strGMAV)
+    self.tLog.debug('The cache entry does not have the configuration.', strGMAV)
     self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
   else
-    self.tLogger:debug('%s Found the configuration for artifact %s in the cache.', self.strLogID, strGMAV)
+    self.tLog.debug('Found the configuration for artifact %s in the cache.', strGMAV)
 
     -- Read the contents of the configuration file.
     local strConfiguration
     strConfiguration, strError = self.pl.utils.readfile(atAttr.strConfigurationPath, true)
     if strConfiguration==nil then
-      self.tLogger:error('%s Failed to read the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
+      self.tLog.error('Failed to read the configuration of artifact %s: %s', strGMAV, strError)
       self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
     else
       -- Read the contents of the hash file.
       local strHash
       strHash, strError = self.pl.utils.readfile(atAttr.strConfigurationHashPath, false)
       if strHash==nil then
-        self.tLogger:error('%s Failed to read the hash for the configuration of artifact %s: %s', self.strLogID, strGMAV, strError)
+        self.tLog.error('Failed to read the hash for the configuration of artifact %s: %s', strGMAV, strError)
         self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
       else
         -- Verify the the hash.
         local fHashOk = self.hash:check_string(strConfiguration, strHash, atAttr.strConfigurationPath, atAttr.strConfigurationHashPath)
         if fHashOk~=true then
-          self.tLogger:error('%s The hash of the configuration for artifact %s does not match the expected hash.', self.strLogID, strGMAV)
+          self.tLog.error('The hash of the configuration for artifact %s does not match the expected hash.', strGMAV)
           self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
           -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
         else
@@ -951,7 +958,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
             -- Compare the GMAV from the configuration with the requested values.
             local tCheckResult = cA:check_configuration(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
             if tCheckResult~=true then
-              self.tLogger:error('%s The configuration for artifact %s does not match the requested group/module/artifact/version/platform.', self.strLogID, strGMAV)
+              self.tLog.error('The configuration for artifact %s does not match the requested group/module/artifact/version/platform.', strGMAV)
               self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1
               -- FIXME: Remove the artifact from the cache and run a complete rescan.
             else
@@ -988,21 +995,21 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
   -- Only look for the platform specified in the configuration "cArtifact".
   local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
   if fFound==nil then
-    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+    self.tLog.error('Failed to search the cache.')
     self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   elseif fFound==false then
-    self.tLogger:debug('%s The artifact %s is not in the cache.', self.strLogID, strGMAVP)
+    self.tLog.debug('The artifact %s is not in the cache.', strGMAVP)
     self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   elseif atAttr.strArtifactPath==nil then
-    self.tLogger:debug('%s The cache entry does not have the artifact.', self.strLogID, strGMAVP)
+    self.tLog.debug('The cache entry does not have the artifact.', strGMAVP)
     self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
   else
-    self.tLogger:debug('%s Found the artifact %s in the cache.', self.strLogID, strGMAVP)
+    self.tLog.debug('Found the artifact %s in the cache.', strGMAVP)
 
     -- Read the contents of the hash file.
     local strHash, strError = self.pl.utils.readfile(atAttr.strArtifactHashPath, false)
     if strHash==nil then
-      self.tLogger:error('%s Failed to read the hash for the artifact %s: %s', self.strLogID, strGMAVP, strError)
+      self.tLog.error('Failed to read the hash for the artifact %s: %s', strGMAVP, strError)
       self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
     else
       local strCachePath = atAttr.strArtifactPath
@@ -1015,14 +1022,14 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
       local fCopyResult
       fCopyResult, strError = self.pl.file.copy(strCachePath, strLocalPath)
       if fCopyResult~=true then
-        self.tLogger:error('%s Failed to copy the artifact to the depack folder: %s', self.strLogID, strError)
+        self.tLog.error('Failed to copy the artifact to the depack folder: %s', strError)
         self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
       else
         -- Verify the the artifact hash.
         -- NOTE: Do this in the depack folder.
         local fHashOk = self.hash:check_file(strLocalPath, strHash, atAttr.strArtifactHashPath)
         if fHashOk~=true then
-          self.tLogger:error('%s The hash of the artifact %s in the depack folder does not match the expected hash.', self.strLogID, strGMAV)
+          self.tLog.error('The hash of the artifact %s in the depack folder does not match the expected hash.', strGMAV)
           self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
           -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
         else
@@ -1047,7 +1054,7 @@ function Cache:add_versions(strGroup, strModule, strArtifact, atNewVersions)
 
   local atExistingVersions = self:get_available_versions(strGroup, strModule, strArtifact)
   if atExistingVersions==nil then
-    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+    self.tLog.error('Failed to search the cache.')
   else
     -- Loop over all new versions.
     for _, tVersion in pairs(atNewVersions) do
@@ -1062,9 +1069,9 @@ function Cache:add_versions(strGroup, strModule, strArtifact, atNewVersions)
         end
       end
       if fFound==true then
-        self.tLogger:debug('%s The version of the artifact %s is already in the cache.', self.strLogID, strGMAV)
+        self.tLog.debug('The version of the artifact %s is already in the cache.', strGMAV)
       else
-        self.tLogger:debug('%s Adding the version for the artifact %s to the cache.', self.strLogID, strGMAV)
+        self.tLog.debug('Adding the version for the artifact %s to the cache.', strGMAV)
         -- Add the version to the database.
         tResult = self:_database_add_version(self.tSQLDatabase, strGroup, strModule, strArtifact, tVersion)
         if tResult==nil then
@@ -1099,12 +1106,12 @@ function Cache:add_configuration(cArtifact, strSourceRepository)
   end
 
   if fFound==nil then
-    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+    self.tLog.error('Failed to search the cache.')
   elseif fFound==true then
     -- Found an entry in the cache.
     --  Does the entry have already a configuration path?
     if atAttr.strConfigurationPath==nil then
-      self.tLogger:debug('%s The the artifact %s is already in the cache, but it had no configuration.', self.strLogID, strGMAVP)
+      self.tLog.debug('The the artifact %s is already in the cache, but it had no configuration.', strGMAVP)
 
       -- No configuration path yet. This is only a version entry.
       tResult = self:_cachefs_write_configuration(cArtifact)
@@ -1112,10 +1119,10 @@ function Cache:add_configuration(cArtifact, strSourceRepository)
         self:_database_update_configuration(self.tSQLDatabase, atAttr.iId, cArtifact, strSourceRepository)
       end
     else
-      self.tLogger:debug('%s The configuration of the artifact %s is already in the cache.', self.strLogID, strGMAVP)
+      self.tLog.debug('The configuration of the artifact %s is already in the cache.', strGMAVP)
     end
   else
-    self.tLogger:debug('%s Adding the configuration for the artifact %s to the cache.', self.strLogID, strGMAVP)
+    self.tLog.debug('Adding the configuration for the artifact %s to the cache.', strGMAVP)
 
     tResult = self:_cachefs_write_configuration(cArtifact)
     if tResult==true then
@@ -1149,11 +1156,11 @@ function Cache:add_artifact(cArtifact, strArtifactSourcePath, strSourceRepositor
   end
 
   if fFound==nil then
-    self.tLogger:error('%s Failed to search the cache.', self.strLogID)
+    self.tLog.error('Failed to search the cache.')
   elseif fFound==true and atAttr.strArtifactPath~=nil then
-    self.tLogger:debug('%s The artifact %s is already in the cache.', self.strLogID, strGMAVP)
+    self.tLog.debug('The artifact %s is already in the cache.', strGMAVP)
   else
-    self.tLogger:debug('%s Adding the artifact %s to the cache.', self.strLogID, strGMAVP)
+    self.tLog.debug('Adding the artifact %s to the cache.', strGMAVP)
 
     -- Add the artifact to the database.
     if atAttr==false then
@@ -1178,8 +1185,8 @@ end
 
 
 function Cache:show_statistics(cReport)
-  self.tLogger:info('%s Configuration requests: %d hit / %d miss / %d bytes served', self.strLogID, self.uiStatistics_RequestsConfigHit, self.uiStatistics_RequestsConfigMiss, self.uiStatistics_ServedBytesConfig)
-  self.tLogger:info('%s Artifact requests: %d hit / %d miss / %d bytes served', self.strLogID, self.uiStatistics_RequestsArtifactHit, self.uiStatistics_RequestsArtifactMiss, self.uiStatistics_ServedBytesArtifact)
+  self.tLog.info('Configuration requests: %d hit / %d miss / %d bytes served', self.uiStatistics_RequestsConfigHit, self.uiStatistics_RequestsConfigMiss, self.uiStatistics_ServedBytesConfig)
+  self.tLog.info('Artifact requests: %d hit / %d miss / %d bytes served', self.uiStatistics_RequestsArtifactHit, self.uiStatistics_RequestsArtifactMiss, self.uiStatistics_ServedBytesArtifact)
 
   cReport:addData(string.format('statistics/cache@id=%s/requests/configuration/hit', self.strID), self.uiStatistics_RequestsConfigHit)
   cReport:addData(string.format('statistics/cache@id=%s/requests/configuration/miss', self.strID), self.uiStatistics_RequestsConfigMiss)

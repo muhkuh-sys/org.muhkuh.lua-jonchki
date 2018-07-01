@@ -1,4 +1,4 @@
-local function command_install(cCore, tArgs)
+local function command_install(cCore, tArgs, cLog)
   -- Read the system configuration.
   local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies)
   if tResult~=nil then
@@ -13,7 +13,7 @@ local function command_install(cCore, tArgs)
 
         -- Create the cache.
         if tArgs.fNoCache==true then
-          cLogger:info('Do not use a cache as requested.')
+          cLog.info('Do not use a cache as requested.')
           tResult = true
         else
           tResult = cCore:create_cache()
@@ -45,7 +45,7 @@ end
 
 
 
-local function command_install_dependencies(cCore, tArgs)
+local function command_install_dependencies(cCore, tArgs, cLog)
   -- Read the system configuration.
   local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies)
   if tResult~=nil then
@@ -60,7 +60,7 @@ local function command_install_dependencies(cCore, tArgs)
 
         -- Create the cache.
         if tArgs.fNoCache==true then
-          cLogger:info('Do not use a cache as requested.')
+          cLog.info('Do not use a cache as requested.')
           tResult = true
         else
           tResult = cCore:create_cache()
@@ -122,7 +122,6 @@ package.cpath = package.cpath .. ';' .. strJonchkiPath .. '/lua_plugins/?.so;' .
 ------------------------------------------------------------------------------
 
 local argparse = require 'argparse'
-local Logging = require 'logging'
 local pl = require'pl.import_into'()
 
 
@@ -139,11 +138,11 @@ end
 
 
 local atLogLevels = {
-  debug = Logging.DEBUG,
-  info = Logging.INFO,
-  warn = Logging.WARN,
-  error = Logging.ERROR,
-  fatal = Logging.FATAL
+  'debug',
+  'info',
+  'warning',
+  'error',
+  'fatal'
 }
 
 local tParser = argparse('jonchki', 'A dependency manager for LUA packages.')
@@ -216,11 +215,10 @@ tParserCommandInstall:mutex(
     :target('fEmptyDistributionVersion')
 )
 tParserCommandInstall:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
   :argname('<LEVEL>')
-  :default('warn')
-  :convert(atLogLevels)
-  :target('tLogLevel')
+  :default('warning')
+  :target('strLogLevel')
 
 -- Add the "install-dependencies" command and all its options.
 local tParserCommandInstallDependencies = tParser:command('install-dependencies', 'Install all dependencies of an artifact, but not the artifact itself.')
@@ -271,11 +269,10 @@ tParserCommandInstallDependencies:mutex(
     :target('fEmptyDistributionVersion')
 )
 tParserCommandInstallDependencies:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
   :argname('<LEVEL>')
-  :default('warn')
-  :convert(atLogLevels)
-  :target('tLogLevel')
+  :default('warning')
+  :target('strLogLevel')
 
 -- Add the "cache" command and all its options.
 local tParserCommandCache = tParser:command('cache c', 'Examine and modify the cache.')
@@ -289,11 +286,10 @@ tParserCommandCacheCheck:option('-s --syscfg')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
 tParserCommandCacheCheck:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
   :argname('<LEVEL>')
-  :default('warn')
-  :convert(atLogLevels)
-  :target('tLogLevel')
+  :default('warning')
+  :target('strLogLevel')
 local tParserCommandCacheClear = tParserCommandCache:command('clear', 'Remove all entries from the cache.')
   :target('fCommandCacheClearSelected')
 tParserCommandCacheClear:option('-s --syscfg')
@@ -302,11 +298,10 @@ tParserCommandCacheClear:option('-s --syscfg')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
 tParserCommandCacheClear:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
   :argname('<LEVEL>')
-  :default('warn')
-  :convert(atLogLevels)
-  :target('tLogLevel')
+  :default('warning')
+  :target('strLogLevel')
 local tParserCommandCacheShow = tParserCommandCache:command('show', 'Show all contents of the cache.')
   :target('fCommandCacheShowSelected')
 tParserCommandCacheShow:option('-s --syscfg')
@@ -315,11 +310,10 @@ tParserCommandCacheShow:option('-s --syscfg')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
 tParserCommandCacheShow:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(pl.tablex.keys(atLogLevels), ', ')))
+  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
   :argname('<LEVEL>')
-  :default('warn')
-  :convert(atLogLevels)
-  :target('tLogLevel')
+  :default('warning')
+  :target('strLogLevel')
 
 local tArgs = tParser:parse()
 
@@ -331,12 +325,21 @@ end
 
 -----------------------------------------------------------------------------
 --
--- Create a logger.
+-- Create a log writer.
 --
 
 -- Set the logger level from the command line options.
-local cLogger = require 'logging.console'()
-cLogger:setLevel(tArgs.tLogLevel)
+local cLogWriter = require 'log.writer.filter'.new(tArgs.strLogLevel,
+  require 'log.writer.console'.new()
+)
+local cLogWriterSystem = require 'log.writer.prefix'.new('[System] ', cLogWriter)
+local cLog = require "log".new(
+  -- maximum log level
+  "trace",
+  cLogWriterSystem,
+  -- Formatter
+  require "log.formatter.format".new()
+)
 
 
 -----------------------------------------------------------------------------
@@ -344,7 +347,7 @@ cLogger:setLevel(tArgs.tLogLevel)
 -- Create a report.
 --
 local Report = require 'Report'
-local cReport = Report(cLogger)
+local cReport = Report(cLogWriter)
 
 
 -----------------------------------------------------------------------------
@@ -352,7 +355,7 @@ local cReport = Report(cLogger)
 -- Create a core.
 --
 local Core = require 'Core'
-local cCore = Core(cLogger, cReport, strJonchkiPath)
+local cCore = Core(cLogWriter, cReport, strJonchkiPath)
 
 
 -----------------------------------------------------------------------------
@@ -363,12 +366,12 @@ local tResult = nil
 
 -- Is the "install" command active?
 if tArgs.fCommandInstallSelected==true then
-  tResult = command_install(cCore, tArgs)
+  tResult = command_install(cCore, tArgs, cLog)
   -- Write the report. This is important if an error occured somewhere in the core.
   cReport:write()
 -- Is the "install-dependencies" command active?
 elseif tArgs.fCommandInstallDependenciesSelected==true then
-  tResult = command_install_dependencies(cCore, tArgs)
+  tResult = command_install_dependencies(cCore, tArgs, cLog)
   -- Write the report. This is important if an error occured somewhere in the core.
   cReport:write()
 elseif tArgs.fCommandCacheSelected==true then
@@ -379,6 +382,6 @@ end
 if tResult~=true then
   os.exit(1)
 else
-  cLogger:info('All OK!')
+  cLog.info('All OK!')
   os.exit(0)
 end

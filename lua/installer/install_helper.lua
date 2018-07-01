@@ -11,8 +11,26 @@ local InstallHelper = class()
 
 --- Initialize a new instance of the install class.
 -- @param strID The ID identifies the resolver.
-function InstallHelper:_init(cLogger, fInstallBuildDependencies, atPostTriggers)
-  self.cLogger = cLogger
+function InstallHelper:_init(cLog, fInstallBuildDependencies, atPostTriggers)
+  self.cLog = cLog
+  local tLogWriter = require 'log.writer.prefix'.new('[InstallHelper] ', cLog)
+  self.tLogInstallHelper = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
+
+  -- Create a log object for the finalizer.
+  local tLogWriter = require 'log.writer.prefix'.new('[Finalizer] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
 
   self.atPostTriggers = atPostTriggers
 
@@ -46,9 +64,9 @@ function InstallHelper:add_replacement(tKey, tValue)
   local strValue = tostring(tValue)
   local strOldValue = self.atReplacements[strKey]
   if strOldValue~=nil and strOldValue~=strValue then
-    self.cLogger:error('Refusing to replace the key "%s". Old value: "%s", rejected value: "%s".', strKey, strOldValue, strValue)
+    self.tLogInstallHelper.error('Refusing to replace the key "%s". Old value: "%s", rejected value: "%s".', strKey, strOldValue, strValue)
   else
-    self.cLogger:debug('Add replacement variable "%s" = "%s".', strKey, strValue)
+    self.tLogInstallHelper.debug('Add replacement variable "%s" = "%s".', strKey, strValue)
     self.atReplacements[strKey] = strValue
     tResult = true
   end
@@ -61,7 +79,7 @@ end
 function InstallHelper:setCwd(strCwd)
   -- Set the current working directory.
   self.strCwd = strCwd
-  self.cLogger:debug('Using "%s" as the current working folder.', strCwd)
+  self.tLogInstallHelper.debug('Using "%s" as the current working folder.', strCwd)
 end
 
 
@@ -100,10 +118,10 @@ end
 function InstallHelper:register_post_trigger(fnAction, tUserData, uiLevel)
   -- The first argument must be an "Install" class.
   if not(type(self)=='table' and type(self.is_a)=='function' and self:is_a(InstallHelper)==true) then
-    self.cLogger:debug('Wrong self argument for the "install" method!')
-    self.cLogger:debug('type(self) = "%s".', type(self))
-    self.cLogger:debug('type(self.is_a) = "%s"', type(self.is_a))
-    self.cLogger:debug('self:is_a(InstallHelper) = %s', tostring(self:is_a(InstallHelper)))
+    self.tLogInstallHelper.debug('Wrong self argument for the "install" method!')
+    self.tLogInstallHelper.debug('type(self) = "%s".', type(self))
+    self.tLogInstallHelper.debug('type(self.is_a) = "%s"', type(self.is_a))
+    self.tLogInstallHelper.debug('self:is_a(InstallHelper) = %s', tostring(self:is_a(InstallHelper)))
     error('The "register_post_trigger" method was called without a proper "self" argument. Use "t:register_post_trigger(function, userdata, level)" to call the function.')
   end
 
@@ -140,7 +158,7 @@ function InstallHelper:install_dev(tSrc, strDst)
   if self.fInstallBuildDependencies==true then
     self:install(tSrc, strDst)
   else
-    self.cLogger:info('Not installing debug component "%s".', tostring(tSrc))
+    self.tLogInstallHelper.info('Not installing debug component "%s".', tostring(tSrc))
   end
 end
 
@@ -149,10 +167,10 @@ end
 function InstallHelper:install(tSrc, strDst)
   -- The first argument must be an "Install" class.
   if not(type(self)=='table' and type(self.is_a)=='function' and self:is_a(InstallHelper)==true) then
-    self.cLogger:debug('Wrong self argument for the "install" method!')
-    self.cLogger:debug('type(self) = "%s".', type(self))
-    self.cLogger:debug('type(self.is_a) = "%s"', type(self.is_a))
-    self.cLogger:debug('self:is_a(InstallHelper) = %s', tostring(self:is_a(InstallHelper)))
+    self.tLogInstallHelper.debug('Wrong self argument for the "install" method!')
+    self.tLogInstallHelper.debug('type(self) = "%s".', type(self))
+    self.tLogInstallHelper.debug('type(self.is_a) = "%s"', type(self.is_a))
+    self.tLogInstallHelper.debug('self:is_a(InstallHelper) = %s', tostring(self:is_a(InstallHelper)))
     error('The "install" method was called without a proper "self" argument. Use "t:install(source, destination)" to call the function.')
   end
 
@@ -212,7 +230,7 @@ function InstallHelper:install(tSrc, strDst)
 
   -- Loop over all elements in the source list.
   for _, strSrc in pairs(astrSrc) do
-    self.cLogger:info('Installing "%s"...', strSrc)
+    self.tLogInstallHelper.info('Installing "%s"...', strSrc)
     -- Get the absolute path for the current source.
     local strSrcAbs = self.pl.path.abspath(strSrc, self.strCwd)
 
@@ -314,7 +332,7 @@ end
 
 
 function InstallHelper:copy(strSrc, strDst)
-  self.cLogger:debug('copy "%s" -> "%s"', strSrc, strDst)
+  self.tLogInstallHelper.debug('copy "%s" -> "%s"', strSrc, strDst)
   local tResult, strError = self.pl.file.copy(strSrc, strDst)
 
   return tResult, strError

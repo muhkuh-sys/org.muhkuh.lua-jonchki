@@ -11,7 +11,7 @@ local ProjectConfiguration = class()
 
 
 
-function ProjectConfiguration:_init(cLogger, cReport)
+function ProjectConfiguration:_init(cLog, cReport)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -19,7 +19,15 @@ function ProjectConfiguration:_init(cLogger, cReport)
   self.lxp = require 'lxp'
 
   -- Get the logger.
-  self.tLogger = cLogger
+  local tLogWriter = require 'log.writer.prefix'.new('[ProjectConfiguration] ', cLog)
+  self.tLog = require "log".new(
+    -- maximum log level
+    "trace",
+    tLogWriter,
+    -- Formatter
+    require "log.formatter.format".new()
+  )
+
   -- Get the report.
   self.tReport = cReport
 
@@ -263,12 +271,12 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
   -- Be optimistic!
   local tResult = true
 
-  self.tLogger:info('Reading the project configuration from "%s"', strConfigurationFilename)
+  self.tLog.info('Reading the project configuration from "%s"', strConfigurationFilename)
 
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
     tResult = nil
-    self.tLogger:fatal('The function "parse_configuration" expects a filename as a parameter.')
+    self.tLog.fatal('The function "parse_configuration" expects a filename as a parameter.')
   else
     local aLxpAttr = {
       -- Start at root ("/").
@@ -301,7 +309,7 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
     local strXmlText, strError = self.pl.utils.readfile(strConfigurationFilename, false)
     if strXmlText==nil then
       tResult = nil
-      self.tLogger:fatal('Error reading the configuration file: %s', strError)
+      self.tLog.fatal('Error reading the configuration file: %s', strError)
     else
       local tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse(strXmlText)
       if tParseResult~=nil then
@@ -311,7 +319,7 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
 
       if tParseResult==nil then
         tResult = nil
-        self.tLogger:fatal("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos)
+        self.tLog.fatal("%s: %d,%d,%d", strMsg, uiLine, uiCol, uiPos)
       elseif aLxpAttr.tResult==nil then
         tResult = nil
       else
