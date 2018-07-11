@@ -78,7 +78,7 @@ else
   end
 
   local strArtifactVersion = t:replace_template('${root_artifact_artifact}-${root_artifact_version}')
-  local strArchive = t:replace_template(string.format('${install_base}/../../../%s-%s%s_%s.%s', strArtifactVersion, strDistId, strDistVersion, strCpuArch, strArchiveExtension))
+  local strArchive = t:replace_template(string.format('${install_base}/../../../../%s-%s%s_%s.%s', strArtifactVersion, strDistId, strDistVersion, strCpuArch, strArchiveExtension))
   local strDiskPath = t:replace_template('${install_base}')
   local strArchiveMemberPrefix = strArtifactVersion
 
