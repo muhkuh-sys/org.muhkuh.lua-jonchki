@@ -27,7 +27,7 @@ node {
         atBuilds.each { atEntry ->
             stage("${atEntry[0]} ${atEntry[1]} ${atEntry[2]}"){
                 /* Build the project. */
-                sh "bash build_artifacts.sh ${atEntry[0]} ${atEntry[1]} ${atEntry[2]}"
+                sh "bash build_artifacts.sh '${atEntry[0]}' '${atEntry[1]}' '${atEntry[2]}'"
 
                 /* Archive all artifacts. */
                 archiveArtifacts artifacts: "${ARTIFACTS_PATH}/*.tar.gz,${ARTIFACTS_PATH}/*.zip"
