@@ -108,13 +108,13 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     local strVersion = atAttributes['version']
     if strVersion==nil or strVersion=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
     end
     local tVersion = aLxpAttr.Version()
     local tResult, strError = tVersion:set(strVersion)
     if tResult~=true then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
+      aLxpAttr.tLog.error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
     end
     aLxpAttr.tVersion = tVersion
 
@@ -132,41 +132,41 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
     end
     tInfo.strGroup = strGroup
 
     local strModule = atAttributes['module']
     if strModule==nil or strModule=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
     end
     tInfo.strModule = strModule
 
     local strArtifact = atAttributes['artifact']
     if strArtifact==nil or strArtifact=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
     end
     tInfo.strArtifact = strArtifact
 
     local strVersion = atAttributes['version']
     if strVersion==nil or strVersion=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
     end
     local tVersion = aLxpAttr.Version()
     local tResult, strError = tVersion:set(strVersion)
     if tResult~=true then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
+      aLxpAttr.tLog.error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
     end
     tInfo.tVersion = tVersion
 
     local strVcsId = atAttributes['vcs-id']
     if strVcsId==nil or strVcsId=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "vcs-id".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "vcs-id".', iPosLine, iPosColumn)
     end
     tInfo.strVcsId = strVcsId
 
@@ -217,34 +217,34 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
     end
     tDependency.strGroup = strGroup
 
     local strModule = atAttributes['module']
     if strModule==nil or strModule=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
     end
     tDependency.strModule = strModule
 
     local strArtifact = atAttributes['artifact']
     if strArtifact==nil or strArtifact=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
     end
     tDependency.strArtifact = strArtifact
 
     local strVersion = atAttributes['version']
     if strVersion==nil or strVersion=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
     end
     local tVersion = aLxpAttr.Version()
     local tResult, strError = tVersion:set(strVersion)
     if tResult~=true then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
+      aLxpAttr.tLog.error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
     end
     tDependency.tVersion = tVersion
 
@@ -256,21 +256,21 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
     end
     tDependency.strGroup = strGroup
 
     local strModule = atAttributes['module']
     if strModule==nil or strModule=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
     end
     tDependency.strModule = strModule
 
     local strArtifact = atAttributes['artifact']
     if strArtifact==nil or strArtifact=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
     end
     tDependency.strArtifact = strArtifact
 
@@ -284,7 +284,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       local tResult, strError = tVersion:set(strVersion)
       if tResult~=true then
         aLxpAttr.tResult = nil
-        aLxpAttr.tLogger:error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
+        aLxpAttr.tLog.error('Error in line %d, col %d: invalid "version": %s', iPosLine, iPosColumn, strError)
       end
       tDependency.tVersion = tVersion
     end
@@ -366,7 +366,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
 
     strDefaultExtension = self.strDefaultExtension,
     tResult = true,
-    tLogger = self.tLogger
+    tLog = self.tLog
   }
 
   local aLxpCallbacks = {}
