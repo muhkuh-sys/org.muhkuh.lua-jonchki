@@ -376,9 +376,11 @@ def __check_jonchki_version(
                         strCmd = strTool
                     else:
                         strCmd = '%s %s' % (strLua, strTool)
-                    tFile = open(strCmdFile, 'w')
-                    tFile.write('%s\n' % strCmd)
-                    tFile.close()
+
+                    if strCmdFile is not None:
+                        tFile = open(strCmdFile, 'w')
+                        tFile.write('%s\n' % strCmd)
+                        tFile.close()
 
         if fFound is not True:
             logging.info('The path "%s" does not contain a useable %s '
