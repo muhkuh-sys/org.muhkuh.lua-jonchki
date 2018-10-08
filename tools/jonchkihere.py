@@ -327,6 +327,7 @@ def __check_jonchki_version(
     strCmdFile
 ):
     fFound = False
+    strCmd = None
     if os.path.isdir(strPath) is not True:
         logging.info('The %s path does not exist.' % strID)
     else:
@@ -390,7 +391,7 @@ def __check_jonchki_version(
             # Recursively delete the jonchki folder.
             shutil.rmtree(strPath)
 
-    return fFound
+    return fFound, strCmd
 
 
 def __extract_archive(tFile, strArchiveFormat, strOutputFolder):
@@ -498,7 +499,7 @@ def install(strCfg_JonchkiVersion, strCfg_OutputFolder, **kwargs):
     logging.debug('Jonchki-light path: %s' % strJonchkiLightPath)
     logging.debug('Jonchki-light tool: %s' % strJonchkiLightTool)
 
-    fFoundJonchki = __check_jonchki_version(
+    fFoundJonchki, strJonchkiCmd = __check_jonchki_version(
         'jonchki',
         None,
         strJonchkiPath,
@@ -507,7 +508,7 @@ def install(strCfg_JonchkiVersion, strCfg_OutputFolder, **kwargs):
         strJonchkiCmdFile
     )
     if fFoundJonchki is not True:
-        fFoundJonchkiLight = __check_jonchki_version(
+        fFoundJonchkiLight, strJonchkiCmd = __check_jonchki_version(
             'jonchki-light',
             strCfg_LuaInterpreter,
             strJonchkiLightPath,
@@ -625,7 +626,7 @@ def install(strCfg_JonchkiVersion, strCfg_OutputFolder, **kwargs):
 
         # Is the extracted version valid?
         if fFoundJonchki is True:
-            fFoundJonchki = __check_jonchki_version(
+            fFoundJonchki, strJonchkiCmd = __check_jonchki_version(
                 'jonchki',
                 None,
                 strJonchkiPath,
@@ -634,7 +635,7 @@ def install(strCfg_JonchkiVersion, strCfg_OutputFolder, **kwargs):
                 strJonchkiCmdFile
             )
         elif fFoundJonchkiLight is True:
-            fFoundJonchkiLight = __check_jonchki_version(
+            fFoundJonchkiLight, strJonchkiCmd = __check_jonchki_version(
                 'jonchki-light',
                 strCfg_LuaInterpreter,
                 strJonchkiLightPath,
@@ -642,6 +643,8 @@ def install(strCfg_JonchkiVersion, strCfg_OutputFolder, **kwargs):
                 strCfg_JonchkiVersion,
                 strJonchkiCmdFile
             )
+
+    return strJonchkiCmd
 
 
 if __name__ == '__main__':
