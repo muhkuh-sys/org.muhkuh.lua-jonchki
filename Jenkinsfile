@@ -5,25 +5,25 @@ node {
     def strBuilds = env.JENKINS_SELECT_BUILDS
     def atBuilds = new JsonSlurperClassic().parseText(strBuilds)
 
-    /* Clean before the build. */
-    sh 'rm -rf .[^.] .??* *'
-
-    checkout([$class: 'GitSCM',
-        branches: [[name: env.GIT_BRANCH_SPECIFIER]],
-        doGenerateSubmoduleConfigurations: false,
-        extensions: [
-            [$class: 'SubmoduleOption',
-                disableSubmodules: false,
-                recursiveSubmodules: true,
-                reference: '',
-                trackingSubmodules: false
-            ]
-        ],
-        submoduleCfg: [],
-        userRemoteConfigs: [[url: 'https://github.com/muhkuh-sys/org.muhkuh.lua-jonchki.git']]
-    ])
-
     docker.image("mbs_ubuntu_1804_x86_64").inside('-u root') {
+        /* Clean before the build. */
+        sh 'rm -rf .[^.] .??* *'
+
+        checkout([$class: 'GitSCM',
+            branches: [[name: env.GIT_BRANCH_SPECIFIER]],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [
+                [$class: 'SubmoduleOption',
+                    disableSubmodules: false,
+                    recursiveSubmodules: true,
+                    reference: '',
+                    trackingSubmodules: false
+                ]
+            ],
+            submoduleCfg: [],
+            userRemoteConfigs: [[url: 'https://github.com/muhkuh-sys/org.muhkuh.lua-jonchki.git']]
+        ])
+
         atBuilds.each { atEntry ->
             stage("${atEntry[0]} ${atEntry[1]} ${atEntry[2]}"){
                 /* Build the project. */
@@ -33,8 +33,8 @@ node {
                 archiveArtifacts artifacts: "${ARTIFACTS_PATH}/*.tar.gz,${ARTIFACTS_PATH}/*.zip"
             }
         }
-    }
 
-    /* Clean up after the build. */
-    sh 'rm -rf .[^.] .??* *'
+        /* Clean up after the build. */
+        sh 'rm -rf .[^.] .??* *'
+    }
 }
