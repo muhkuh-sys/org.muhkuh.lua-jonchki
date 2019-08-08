@@ -278,7 +278,7 @@ function Resolver:resolvtab_create_entry(strGroup, strModule, strArtifact, tPare
     strConstraint = nil,
     atVersions = {},
     ptActiveVersion = nil,
-    fIsDouble = false
+    fIsDouble = nil
   }
 
   return tResolvEntry
@@ -593,6 +593,8 @@ function Resolver:resolve_inject_start_artifact(cArtifact)
 
   -- Write the artifact to the resolve table.
   local tResolv = self:resolvtab_create_entry(cArtifact.tInfo.strGroup, cArtifact.tInfo.strModule, cArtifact.tInfo.strArtifact, nil)
+  -- This is no double for sure.
+  tResolv.fIsDouble = false
 
   -- Set the new element as the root of the resolve table.
   self.atResolvTab = tResolv
@@ -619,7 +621,7 @@ function Resolver:resolve_inject_start_artifact(cArtifact)
   if tResult==true then
     -- Get the available versions for all dependencies.
     self:resolvetab_get_dependency_versions(tResolv)
-  
+
     tResolv.eStatus = self.RT_ResolvingDependencies
   else
     tResolv.eStatus = self.RT_Blocked
@@ -729,13 +731,27 @@ function Resolver:resolve_step(tResolv)
   local tStatus = tResolv.eStatus
   if tStatus==self.RT_Initialized then
     self.tLog.debug('[RESOLVE] Select a version for %s', strGMA)
-    local tVersion = self:select_version(tResolv)
+    -- Was the version already selected somewhere else?
+    local tVersion = self:_get_used_artifact(tResolv)
     if tVersion==nil then
-      self.tLog.error('[RESOLVE] Failed to select a new version for %s . The item is now blocked.', strGMA)
-      -- The item is now blocked.
-      tStatus = self.RT_Blocked
+      -- No version selected yet. Do this now.
+      local tVersion = self:select_version(tResolv)
+      if tVersion==nil then
+        self.tLog.error('[RESOLVE] Failed to select a new version for %s . The item is now blocked.', strGMA)
+        -- The item is now blocked.
+        tStatus = self.RT_Blocked
+      else
+        -- This is no double.
+        tResolv.fIsDouble = false
+
+        self:resolvetab_pick_version(tResolv, tVersion)
+
+        -- Download the configuration next.
+        tStatus = self.RT_GetConfiguration
+      end
     else
-      self:resolvetab_pick_version(tResolv, tVersion)
+      -- The version is already set for this artifact. This is a double.
+      tResolv.fIsDouble = true
 
       -- Download the configuration next.
       tStatus = self.RT_GetConfiguration
