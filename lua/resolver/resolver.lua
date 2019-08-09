@@ -750,11 +750,33 @@ function Resolver:resolve_step(tResolv)
         tStatus = self.RT_GetConfiguration
       end
     else
-      -- The version is already set for this artifact. This is a double.
-      tResolv.fIsDouble = true
+      -- Check if the version is not blocked.
 
-      -- Download the configuration next.
-      tStatus = self.RT_GetConfiguration
+      -- Search the version.
+      local atV = nil
+      local strVersion = tVersion:get()
+      for tV, atVers in pairs(tResolv.atVersions) do
+        if tV:get()==strVersion then
+          atV = atVers
+          break
+        end
+      end
+      if atV==nil then
+        error('Try to use a non existing double!')
+
+      elseif atV.eStatus==self.V_Blocked then
+        -- The version was blocked before. Maybe it does not match the constraints.
+
+        -- The item is now blocked.
+        tStatus = self.RT_Blocked
+
+      else
+        -- The version is already set for this artifact. This is a double.
+        tResolv.fIsDouble = true
+
+        -- Download the configuration next.
+        tStatus = self.RT_GetConfiguration
+      end
     end
 
   elseif tStatus==self.RT_GetConfiguration then
