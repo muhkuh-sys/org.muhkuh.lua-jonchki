@@ -138,8 +138,7 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
     ['root_artifact_author_url'] = self.cRootArtifactConfiguration.tInfo.strAuthorUrl,
     ['root_artifact_description'] = self.cRootArtifactConfiguration.tInfo.strDescription,
 
-    ['report_path'] = self.cReport:getFileName(),
-    ['report_xslt'] = self.pl.path.join(self.cSystemConfiguration.strJonchkiPath, 'doc', 'jonchkireport.xsl')
+    ['report_path'] = self.cReport:getFileName()
   }
   for strKey, strValue in pairs(atReplacements) do
     if strValue~=nil then

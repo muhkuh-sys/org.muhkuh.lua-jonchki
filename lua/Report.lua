@@ -10,9 +10,10 @@ local Report = class()
 
 
 
-function Report:_init(cLog)
+function Report:_init(cLog, strJonchkiPath)
   -- The "penlight" module is used to parse the configuration file.
-  self.pl = require'pl.import_into'()
+  local pl = require'pl.import_into'()
+  self.pl = pl
 
   -- lxp is used to write the report in XML format.
   self.lxp = require 'lxp'
@@ -33,6 +34,30 @@ function Report:_init(cLog)
 
   -- No data yet.
   self.atData = {}
+
+  -- Set the filename for the embedded stylesheet.
+  local strXslFileName = pl.path.join(strJonchkiPath, 'doc', 'jonchkireport.xsl')
+  local tXsl = nil
+  -- Does the file exist?
+  if pl.path.exists(strXslFileName)~=strXslFileName then
+    tLog.debug('The file "%s" was not found.', strXslFileName)
+  else
+    local strXsl, strError = pl.utils.readfile(strXslFileName, false)
+    if strXsl==nil then
+      tLog.debug('Failed to read the file "%s": %s', strXslFileName, tostring(strError))
+    else
+      -- Read the complete document.
+      tXsl, strError = pl.xml.parse(strXsl, false, false)
+      if tXsl==nil then
+        tLog.debug('Failed to parse the file "%s" as XML: %s', strXslFileName, tostring(strError))
+      end
+    end
+  end
+  self.tXsl = tXsl
+
+  if tXsl==nil then
+    tLog.debug('Not embedding a stylesheet.')
+  end
 end
 
 
@@ -142,6 +167,13 @@ end
 function Report:write()
   local tXml = self.pl.xml.new('JonchkiReport')
 
+  -- Add the stylesheet.
+  local tXsl = self.tXsl
+  if tXsl~=nil then
+    tXml:set_attrib('xmlns:xsl', "http://www.w3.org/1999/XSL/Transform")
+    tXml:add_child(tXsl)
+  end
+
   -- Convert the entries to an XML document.
   self:to_xml(self.atData, tXml)
 
@@ -149,7 +181,11 @@ function Report:write()
   local tFile = io.open(self.strFileName, 'w')
   -- Write the XML declaration and the link to the stylesheet.
   tFile:write('<?xml version="1.0" encoding="UTF-8"?>\n')
-  tFile:write('<?xml-stylesheet type="text/xsl" href="jonchkireport.xsl"?>\n')
+  if tXsl==nil then
+    tFile:write('<?xml-stylesheet type="text/xsl" href="jonchkireport.xsl"?>\n')
+  else
+    tFile:write('<?xml-stylesheet type="text/xml" href="#jonchkistyle"?>\n')
+  end
   -- Write the complete XML data.
   tFile:write(tXml:__tostring('', '\t'))
   tFile:close()

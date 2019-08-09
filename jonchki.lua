@@ -347,7 +347,7 @@ local cLog = require "log".new(
 -- Create a report.
 --
 local Report = require 'Report'
-local cReport = Report(cLogWriter)
+local cReport = Report(cLogWriter, strJonchkiPath)
 
 
 -----------------------------------------------------------------------------
