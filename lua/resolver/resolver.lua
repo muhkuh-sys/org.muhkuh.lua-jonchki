@@ -774,8 +774,8 @@ function Resolver:resolve_step(tResolv)
         -- The version is already set for this artifact. This is a double.
         tResolv.fIsDouble = true
 
-        -- Download the configuration next.
-        tStatus = self.RT_GetConfiguration
+        -- This item is finished.
+        tStatus = self.RT_Resolved
       end
     end
 
