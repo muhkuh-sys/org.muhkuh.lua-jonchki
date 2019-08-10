@@ -206,7 +206,7 @@ end
 
 
 -- Search for the GMAVP in the database.
--- @return nil for an error, false if nothing was found, a number on success.
+-- @return nil for an error, false if nothing was found, a table with all attributes on success.
 function Cache:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strPlatform)
   local tResult = nil
   local atAttr = nil
@@ -254,7 +254,7 @@ end
 
 
 -- Search for the GMAV with P=null in the database.
--- @return nil for an error, false if nothing was found, a number on success.
+-- @return nil for an error, false if nothing was found, a table with all attributes on success.
 function Cache:_find_GMAVnull(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
   local atAttr = nil
@@ -307,7 +307,7 @@ function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
   local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
   if fFound==false then
     -- Try the platform specific package if the search was OK, but nothing was found.
-    strCurrentPlatform = self.tPlatform:get_platform_id()
+    strCurrentPlatform = self.tPlatform:get_platform_id('_')
     fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
   end
 
