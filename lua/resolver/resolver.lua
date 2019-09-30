@@ -219,7 +219,7 @@ end
 function Resolver:_collect_used_artifacts(tResolvEntry)
   -- Get the active version.
   local atV = tResolvEntry.ptActiveVersion
-  if atV~=nil then
+  if atV~=nil and tResolvEntry.eStatus~=self.RT_Blocked then
     -- Add the artifact to the list.
     self:_add_to_used_artifacts(tResolvEntry)
 
