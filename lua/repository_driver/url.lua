@@ -405,7 +405,7 @@ function RepositoryDriverUrl:get_configuration(strGroup, strModule, strArtifact,
       self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
       tResult = nil
     else
-      local cA = self.ArtifactConfiguration(self.tLogger)
+      local cA = self.ArtifactConfiguration(self.cLog)
       tResult = cA:parse_configuration(strCfgData, strCfgUrl)
       if tResult~=true then
         self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1

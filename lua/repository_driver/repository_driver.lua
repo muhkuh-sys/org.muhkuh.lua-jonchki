@@ -10,6 +10,7 @@ local RepositoryDriver = class()
 --- Initialize a new instance of a repository driver.
 -- @param strID The ID used in the the jonchkicfg.xml to reference this instance.
 function RepositoryDriver:_init(cLog, tPlatform, strID)
+  self.cLog = cLog
   local tLogWriter = require 'log.writer.prefix'.new(string.format('[Repository "%s"] ', strID), cLog)
   self.tLog = require "log".new(
     -- maximum log level

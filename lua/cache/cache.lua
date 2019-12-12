@@ -7,6 +7,7 @@ local Cache = class()
 -- @param tLogger The logger object used for all kinds of messages.
 -- @param strID The ID used in the the jonchkicfg.xml to reference this instance.
 function Cache:_init(cLog, tPlatform, strID)
+  self.cLog = cLog
   local tLogWriter = require 'log.writer.prefix'.new(string.format('[Cache "%s"] ', strID), cLog)
   self.tLog = require "log".new(
     -- maximum log level
@@ -952,7 +953,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
           -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
         else
           -- Parse the configuration.
-          local cA = self.ArtifactConfiguration(self.tLogger)
+          local cA = self.ArtifactConfiguration(self.cLog)
           local tParseResult = cA:parse_configuration(strConfiguration, atAttr.strConfigurationPath)
           if tParseResult==true then
             -- Compare the GMAV from the configuration with the requested values.

@@ -178,7 +178,7 @@ function RepositoryDriverFilesystem:get_configuration(strGroup, strModule, strAr
             self.uiStatistics_GetConfiguration_Error = self.uiStatistics_GetConfiguration_Error + 1
             tResult = nil
           else
-            local cA = self.ArtifactConfiguration(self.tLogger)
+            local cA = self.ArtifactConfiguration(self.cLog)
             tResult = cA:parse_configuration(strCfg, strCfgPath)
             if tResult~=true then
               tResult = nil
