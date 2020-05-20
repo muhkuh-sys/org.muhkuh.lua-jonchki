@@ -167,7 +167,7 @@ function Cache:_replace_path(cArtifact, strExtension)
 
   local strPlatform = ''
   if tInfo.strPlatform~='' then
-    strPlatform = string.format('_%s', tInfo.strPlatform)
+    strPlatform = string.format('-%s', tInfo.strPlatform)
   end
 
   -- Construct the replace table.
