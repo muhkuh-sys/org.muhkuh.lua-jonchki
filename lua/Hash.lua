@@ -65,7 +65,7 @@ function Hash:_init(cLog)
       fFound = false
     else
       -- Loop over all command line tools.
-      for strId, strCliTool in pairs(self.atCliHashes) do
+      for _, strCliTool in pairs(self.atCliHashes) do
         -- Try to run the tool.
         local tFile, strError = io.popen(string.format('%s --version', strCliTool))
         if tFile==nil then

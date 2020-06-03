@@ -13,21 +13,21 @@ local InstallHelper = class()
 -- @param strID The ID identifies the resolver.
 function InstallHelper:_init(cLog, fInstallBuildDependencies, atPostTriggers)
   self.cLog = cLog
-  local tLogWriter = require 'log.writer.prefix'.new('[InstallHelper] ', cLog)
+  local tLogWriter_InstallHelper = require 'log.writer.prefix'.new('[InstallHelper] ', cLog)
   self.tLogInstallHelper = require "log".new(
     -- maximum log level
     "trace",
-    tLogWriter,
+    tLogWriter_InstallHelper,
     -- Formatter
     require "log.formatter.format".new()
   )
 
   -- Create a log object for the finalizer.
-  local tLogWriter = require 'log.writer.prefix'.new('[Finalizer] ', cLog)
+  local tLogWriter_Finalizer = require 'log.writer.prefix'.new('[Finalizer] ', cLog)
   self.tLog = require "log".new(
     -- maximum log level
     "trace",
-    tLogWriter,
+    tLogWriter_Finalizer,
     -- Formatter
     require "log.formatter.format".new()
   )
@@ -282,7 +282,7 @@ function InstallHelper:install(tSrc, strDst)
       end
 
       -- Copy the file.
-      local tResult, strError = self:copy(strSrcAbs, strDstPath)
+      tResult, strError = self:copy(strSrcAbs, strDstPath)
       if tResult~=true then
         error(string.format('Failed to copy "%s" to "%s": %s', strSrcAbs, strDstPath, strError))
       end
@@ -295,7 +295,7 @@ function InstallHelper:install(tSrc, strDst)
         strDstFilename = nil
       end
 
-      for strRoot, astrDirs, astrFiles in self.pl.dir.walk(strSrcAbs, false, true) do
+      for strRoot, _, astrFiles in self.pl.dir.walk(strSrcAbs, false, true) do
         -- Get the relative path from the depack folder to the current root.
         local strRootRel = self.pl.path.relpath(strRoot, strSrcAbs)
 

@@ -388,9 +388,6 @@ end
 
 
 function Resolver:resolvetab_add_config_to_active_version(tResolvEntry, cArtifact)
-  -- Get the version from the new configuration.
-  local tNewVersion = cArtifact.tInfo.tVersion
-
   -- Get the active version.
   local atV = tResolvEntry.ptActiveVersion
   if atV==nil then
@@ -702,7 +699,7 @@ function Resolver:is_done(tStatus)
 
   else
     -- This is an unknown status from the child resolver.
-    error(string.format('Internal error: got strange result from recursive resolve step: %s', tostring(tChildStatus)))
+    error(string.format('Internal error: got strange result from recursive resolve step: %s', tostring(tStatus)))
   end
 
   return fIsDone

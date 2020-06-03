@@ -35,7 +35,6 @@ end
 
 
 function RepositoryDriverUrl:__get_any_curl()
-  local curl
   local fFoundCurl = false
 
   -- No curl found yet.
@@ -133,7 +132,7 @@ end
 
 
 function RepositoryDriverUrl:curl_progress(ulDlTotal, ulDlNow)
-  tNow = os.time()
+  local tNow = os.time()
   if os.difftime(tNow, self.tLastProgressTime)>3 then
     if ulDlTotal==0 then
       print(string.format('%d/unknown', ulDlNow))

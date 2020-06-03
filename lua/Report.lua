@@ -76,8 +76,6 @@ end
 
 
 function Report:addData(strKey, strValue)
-  local atData = self.atData
-
   if strKey==nil then
     error('The key must not be empty.')
   end

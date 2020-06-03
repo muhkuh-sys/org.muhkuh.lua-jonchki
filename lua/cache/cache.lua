@@ -145,10 +145,11 @@ end
 -- @param tEntry2 The second entry.
 -- @return true if tEntry1.age is smaller (i.e. earlier) than tEntry2.age
 function Cache.sort_age_table(tEntry1, tEntry2)
-	local tDate1 = self.date(tEntry1.age)
-	local tDate2 = self.date(tEntry2.age)
+  local date = require 'date'
+  local tDate1 = date(tEntry1.age)
+  local tDate2 = date(tEntry2.age)
 
-	return tDate1<tDate2
+  return tDate1<tDate2
 end
 
 
@@ -546,7 +547,7 @@ function Cache:_remove_odd_files(tSQLDatabase)
   self.tLog.debug('Clean the cache by removing odd files from "%s".', self.strRepositoryRootPath)
 
   -- Loop over all files in the repository.
-  for strRoot,astrDirs,astrFiles in self.pl.dir.walk(self.strRepositoryRootPath, false, true) do
+  for strRoot, _, astrFiles in self.pl.dir.walk(self.strRepositoryRootPath, false, true) do
     -- Loop over all files in the current directory.
     for _,strFile in pairs(astrFiles) do
       -- Get the full path of the file.
@@ -886,7 +887,7 @@ function Cache:get_available_versions(strGroup, strModule, strArtifact)
           if tVersionResult~=true then
             self.tLog.warning('Error in database: ignoring invalid "version" for %s/%s/%s: %s', strGroup, strModule, strArtifact, strError)
           else
-            strVersion = tVersion:get()
+            local strVersion = tVersion:get()
 
             -- Do not add a version more than once.
             if atVersionExists[strVersion]==nil then
@@ -1030,7 +1031,7 @@ function Cache:get_artifact(cArtifact, strDestinationFolder)
         -- NOTE: Do this in the depack folder.
         local fHashOk = self.hash:check_file(strLocalPath, strHash, atAttr.strArtifactHashPath)
         if fHashOk~=true then
-          self.tLog.error('The hash of the artifact %s in the depack folder does not match the expected hash.', strGMAV)
+          self.tLog.error('The hash of the artifact %s in the depack folder does not match the expected hash.', strGMAVP)
           self.uiStatistics_RequestsArtifactMiss = self.uiStatistics_RequestsArtifactMiss + 1
           -- FIXME: Check the hash in the cache itself. If it does not match too, remove the artifact from the cache.
         else
@@ -1051,7 +1052,6 @@ end
 
 function Cache:add_versions(strGroup, strModule, strArtifact, atNewVersions)
   local tResult = nil
-  local strError
 
   local atExistingVersions = self:get_available_versions(strGroup, strModule, strArtifact)
   if atExistingVersions==nil then
@@ -1089,7 +1089,6 @@ end
 
 function Cache:add_configuration(cArtifact, strSourceRepository)
   local tResult = nil
-  local strError
 
   local tInfo = cArtifact.tInfo
   local strGroup = tInfo.strGroup
@@ -1139,7 +1138,6 @@ end
 
 function Cache:add_artifact(cArtifact, strArtifactSourcePath, strSourceRepository)
   local tResult = nil
-  local strError
 
   local tInfo = cArtifact.tInfo
   local strGroup = tInfo.strGroup

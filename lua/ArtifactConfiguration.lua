@@ -99,7 +99,7 @@ end
 -- @param strName The name of the new element.
 function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttributes)
   local aLxpAttr = tParser:getcallbacks().userdata
-  local iPosLine, iPosColumn, iPosAbs = tParser:pos()
+  local iPosLine, iPosColumn = tParser:pos()
 
   table.insert(aLxpAttr.atCurrentPath, strName)
   aLxpAttr.strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
@@ -302,7 +302,6 @@ end
 -- @param strName The name of the closed element.
 function ArtifactConfiguration.parseCfg_EndElement(tParser, strName)
   local aLxpAttr = tParser:getcallbacks().userdata
-  local iPosLine, iPosColumn, iPosAbs = tParser:pos()
 
   table.remove(aLxpAttr.atCurrentPath)
   aLxpAttr.strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
