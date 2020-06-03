@@ -116,6 +116,12 @@ else
 end
 
 
+-- Get the LUA version number in the form major * 100 + minor .
+local strMaj, strMin = string.match(_VERSION, '^Lua (%d+)%.(%d+)$')
+if strMaj~=nil then
+  LUA_VER_NUM = tonumber(strMaj) * 100 + tonumber(strMin)
+end
+
 ------------------------------------------------------------------------------
 
 local argparse = require 'argparse'
@@ -216,6 +222,21 @@ tParserCommandInstall:option('-v --verbose')
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
+tParserCommandInstall:option('-l --logfile')
+  :description('Write all output to FILE.')
+  :argname('<FILE>')
+  :default(nil)
+  :target('strLogFileName')
+tParserCommandInstall:mutex(
+  tParserCommandInstall:flag('--color')
+    :description('Use colors to beautify the console output. This is the default on Linux.')
+    :action("store_true")
+    :target('fUseColor'),
+  tParserCommandInstall:flag('--no-color')
+    :description('Do not use colors for the console output. This is the default on Windows.')
+    :action("store_false")
+    :target('fUseColor')
+)
 
 -- Add the "install-dependencies" command and all its options.
 local tParserCommandInstallDependencies = tParser:command('install-dependencies', 'Install all dependencies of an artifact, but not the artifact itself.')
@@ -270,6 +291,21 @@ tParserCommandInstallDependencies:option('-v --verbose')
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
+tParserCommandInstallDependencies:option('-l --logfile')
+  :description('Write all output to FILE.')
+  :argname('<FILE>')
+  :default(nil)
+  :target('strLogFileName')
+tParserCommandInstallDependencies:mutex(
+  tParserCommandInstallDependencies:flag('--color')
+    :description('Use colors to beautify the console output. This is the default on Linux.')
+    :action("store_true")
+    :target('fUseColor'),
+  tParserCommandInstallDependencies:flag('--no-color')
+    :description('Do not use colors for the console output. This is the default on Windows.')
+    :action("store_false")
+    :target('fUseColor')
+)
 
 -- Add the "cache" command and all its options.
 local tParserCommandCache = tParser:command('cache c', 'Examine and modify the cache.')
@@ -287,6 +323,21 @@ tParserCommandCacheCheck:option('-v --verbose')
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
+tParserCommandCacheCheck:option('-l --logfile')
+  :description('Write all output to FILE.')
+  :argname('<FILE>')
+  :default(nil)
+  :target('strLogFileName')
+tParserCommandCacheCheck:mutex(
+  tParserCommandCacheCheck:flag('--color')
+    :description('Use colors to beautify the console output. This is the default on Linux.')
+    :action("store_true")
+    :target('fUseColor'),
+  tParserCommandCacheCheck:flag('--no-color')
+    :description('Do not use colors for the console output. This is the default on Windows.')
+    :action("store_false")
+    :target('fUseColor')
+)
 local tParserCommandCacheClear = tParserCommandCache:command('clear', 'Remove all entries from the cache.')
   :target('fCommandCacheClearSelected')
 tParserCommandCacheClear:option('-s --syscfg')
@@ -299,6 +350,21 @@ tParserCommandCacheClear:option('-v --verbose')
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
+tParserCommandCacheClear:option('-l --logfile')
+  :description('Write all output to FILE.')
+  :argname('<FILE>')
+  :default(nil)
+  :target('strLogFileName')
+tParserCommandCacheClear:mutex(
+  tParserCommandCacheClear:flag('--color')
+    :description('Use colors to beautify the console output. This is the default on Linux.')
+    :action("store_true")
+    :target('fUseColor'),
+  tParserCommandCacheClear:flag('--no-color')
+    :description('Do not use colors for the console output. This is the default on Windows.')
+    :action("store_false")
+    :target('fUseColor')
+)
 local tParserCommandCacheShow = tParserCommandCache:command('show', 'Show all contents of the cache.')
   :target('fCommandCacheShowSelected')
 tParserCommandCacheShow:option('-s --syscfg')
@@ -311,6 +377,21 @@ tParserCommandCacheShow:option('-v --verbose')
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
+tParserCommandCacheShow:option('-l --logfile')
+  :description('Write all output to FILE.')
+  :argname('<FILE>')
+  :default(nil)
+  :target('strLogFileName')
+tParserCommandCacheShow:mutex(
+  tParserCommandCacheShow:flag('--color')
+    :description('Use colors to beautify the console output. This is the default on Linux.')
+    :action("store_true")
+    :target('fUseColor'),
+  tParserCommandCacheShow:flag('--no-color')
+    :description('Do not use colors for the console output. This is the default on Windows.')
+    :action("store_false")
+    :target('fUseColor')
+)
 
 local tArgs = tParser:parse()
 
@@ -325,10 +406,46 @@ end
 -- Create a log writer.
 --
 
+local fUseColor = tArgs.fUseColor
+if fUseColor==nil then
+  if pl.path.is_windows==true then
+    -- Running on windows. Do not use colors by default as cmd.exe
+    -- does not support ANSI on all windows versions.
+    fUseColor = false
+  else
+    -- Running on Linux. Use colors by default.
+    fUseColor = true
+  end
+end
+
+-- Collect all log writers.
+local atLogWriters = {}
+
+-- Create the console logger.
+local tLogWriterConsole
+if fUseColor==true then
+  tLogWriterConsole = require 'log.writer.console.color'.new()
+else
+  tLogWriterConsole = require 'log.writer.console'.new()
+end
+table.insert(atLogWriters, tLogWriterConsole)
+
+-- Create the file logger if requested.
+local tLogWriterFile
+if tArgs.strLogFileName~=nil then
+  tLogWriterFile = require 'log.writer.file'.new{ log_name=tArgs.strLogFileName }
+  table.insert(atLogWriters, tLogWriterFile)
+end
+
+-- Combine all writers.
+if LUA_VER_NUM==501 then
+  tLogWriter = require 'log.writer.list'.new(unpack(atLogWriters))
+else
+  tLogWriter = require 'log.writer.list'.new(table.unpack(atLogWriters))
+end
+
 -- Set the logger level from the command line options.
-local cLogWriter = require 'log.writer.filter'.new(tArgs.strLogLevel,
-  require 'log.writer.console'.new()
-)
+local cLogWriter = require 'log.writer.filter'.new(tArgs.strLogLevel, tLogWriter)
 local cLogWriterSystem = require 'log.writer.prefix'.new('[System] ', cLogWriter)
 local cLog = require "log".new(
   -- maximum log level
