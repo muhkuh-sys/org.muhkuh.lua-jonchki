@@ -43,6 +43,9 @@ function InstallHelper:_init(cLog, fInstallBuildDependencies, atPostTriggers)
   -- The "penlight" module is used for various helpers.
   self.pl = require'pl.import_into'()
 
+  -- Hash is required to build the hash file.
+  self.hash = require 'Hash'
+
   -- This is the list of installed files for the complete installation procedure (i.e. over all packages).
   self.atInstalledFiles = {}
 
@@ -336,6 +339,97 @@ function InstallHelper:copy(strSrc, strDst)
   local tResult, strError = self.pl.file.copy(strSrc, strDst)
 
   return tResult, strError
+end
+
+
+
+function InstallHelper:createPackageFile()
+  local strPackageText = self:replace_template([[PACKAGE_NAME=${root_artifact_artifact}
+PACKAGE_VERSION=${root_artifact_version}
+PACKAGE_VCS_ID=${root_artifact_vcs_id}
+HOST_DISTRIBUTION_ID=${platform_distribution_id}
+HOST_DISTRIBUTION_VERSION=${platform_distribution_version}
+HOST_CPU_ARCHITECTURE=${platform_cpu_architecture}
+]])
+  local strPackagePath = self:replace_template('${install_base}/.jonchki/package.txt')
+  local tFileError, strError = self.pl.utils.writefile(strPackagePath, strPackageText, false)
+  if tFileError==nil then
+    self.tLogInstallHelper.error('Failed to write the package file "%s": %s', strPackagePath, strError)
+    error('Failed to write the package file.')
+  end
+end
+
+
+
+function InstallHelper:createHashFile()
+  local tLog = self.tLogInstallHelper
+  local pl = self.pl
+
+  local strInstallBase = self:replace_template('${install_base}')
+  local astrPackageFiles = pl.dir.getallfiles(strInstallBase)
+  local astrHashes = {}
+  local tHash = self.hash(self.cLog)
+  for _, strPackageAbsFile in ipairs(astrPackageFiles) do
+    -- Get the hash for the file.
+    local strHash = tHash:_get_hash_for_file(strPackageAbsFile, 'SHA384')
+    if strHash==nil then
+      tLog.error('Failed to build the hash for %s.', strPackageAbsFile)
+      error('Failed to build the hash.')
+    end
+    local strPackageFile = pl.path.relpath(strPackageAbsFile, strInstallBase)
+    table.insert(astrHashes, string.format('%s *%s', strHash, strPackageFile))
+  end
+  local strHashFilePath = self:replace_template('${install_base}/.jonchki/package.sha384')
+  local strHashFile = table.concat(astrHashes, '\n')
+  local tFileError, strError = pl.utils.writefile(strHashFilePath, strHashFile, false)
+  if tFileError==nil then
+    tLog.error('Failed to write the hash file "%s": %s', strHashFilePath, strError)
+    error('Failed to write the hash file.')
+  end
+end
+
+
+
+function InstallHelper:createArchive(strOutputPath, strFormatHint)
+  strFormatHint = strFormatHint or 'native'
+
+  local archives = require 'installer.archives'
+  local Archive = archives(self.cLog)
+
+  local strDistId, strDistVersion, strCpuArch = self:get_platform()
+
+  local strArchiveExtension, tFormat, atFilter
+  if strFormatHint=='native' then
+    if strDistId=='windows' then
+      strArchiveExtension = 'zip'
+      tFormat = Archive.archive.ARCHIVE_FORMAT_ZIP
+      atFilter = {}
+    else
+      strArchiveExtension = 'tar.gz'
+      tFormat = Archive.archive.ARCHIVE_FORMAT_TAR_GNUTAR
+      atFilter = { Archive.archive.ARCHIVE_FILTER_GZIP }
+    end
+  elseif strFormatHint=='best' then
+    strArchiveExtension = 'tar.lzip'
+    tFormat = Archive.archive.ARCHIVE_FORMAT_TAR_GNUTAR
+    atFilter = { Archive.archive.ARCHIVE_FILTER_LZIP }
+  else
+    error(string.format('Unknown format hint: "%s"', strFormatHint))
+  end
+
+  local strArtifactVersion = self:replace_template('${root_artifact_artifact}-${root_artifact_version}')
+  local strDV = '-' .. strDistVersion
+  if strDistVersion=='' then
+    strDV = ''
+  end
+  local strArchive = string.format('%s/%s-%s%s_%s.%s', strOutputPath, strArtifactVersion, strDistId, strDV, strCpuArch, strArchiveExtension)
+  local strDiskPath = self:replace_template('${install_base}')
+  local strArchiveMemberPrefix = strArtifactVersion
+
+  local tResult = Archive:pack_archive(strArchive, tFormat, atFilter, strDiskPath, strArchiveMemberPrefix)
+  if tResult~=true then
+    error('Failed to pack the archive.')
+  end
 end
 
 
