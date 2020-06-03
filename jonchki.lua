@@ -96,10 +96,9 @@ local function command_install_dependencies(cCore, tArgs, cLog)
 end
 
 
-
 ------------------------------------------------------------------------------
 --
--- Add some subfolders to the search list.
+-- Get the path to the application.
 --
 local strJonchkiPath = debug.getinfo(1, "S").source:sub(2)
 strJonchkiPath = string.gsub(strJonchkiPath, '\\', '/')
@@ -115,8 +114,6 @@ if iLastSlash==nil then
 else
   strJonchkiPath = string.sub(strJonchkiPath, 1, iLastSlash - 1)
 end
-package.path = package.path .. ';' .. strJonchkiPath .. '/lua/?.lua;' .. strJonchkiPath .. '/lua/?/init.lua'
-package.cpath = package.cpath .. ';' .. strJonchkiPath .. '/lua_plugins/?.so;' .. strJonchkiPath .. '/lua_plugins/?.dll'
 
 
 ------------------------------------------------------------------------------
