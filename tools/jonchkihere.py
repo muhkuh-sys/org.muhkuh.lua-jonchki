@@ -137,7 +137,7 @@ class ProgressOutput:
         # Flush the output stream.
         tLastFlush = time.time() - self.m_tTimeLastFlushTime
         if tLastFlush >= self.m_tTimeMinimumFlushIntervall:
-                sys.stdout.flush()
+            sys.stdout.flush()
 
     def finish(self):
         if self.m_uiDotsPrintedInCurrentLine is not None:
@@ -206,7 +206,7 @@ class PlatformDetect:
 
         # Try to parse the output of the 'lscpu' command.
         strOutput = subprocess.check_output(['lscpu'])
-        tMatch = re.search('Architecture: *(\S+)', strOutput)
+        tMatch = re.search(r'Architecture: *(\S+)', strOutput)
         if tMatch is None:
             raise Exception('Failed to get the CPU architecture with "lscpu".')
 
@@ -227,10 +227,10 @@ class PlatformDetect:
             raise Exception('Failed to detect the Linux distribution with '
                             '/etc/lsb-release.')
         for strLine in tFile:
-            tMatch = re.match('DISTRIB_ID=(.+)', strLine)
+            tMatch = re.match(r'DISTRIB_ID=(.+)', strLine)
             if tMatch is not None:
                 strDistributionId = string.lower(tMatch.group(1))
-            tMatch = re.match('DISTRIB_RELEASE=(.+)', strLine)
+            tMatch = re.match(r'DISTRIB_RELEASE=(.+)', strLine)
             if tMatch is not None:
                 strDistributionVersion = tMatch.group(1)
         tFile.close()
@@ -352,7 +352,7 @@ def __check_jonchki_version(
                 logging.debug('Failed to get the version from the %s tool.' %
                               strID)
                 strOutput = ''
-            tMatch = re.match('jonchki V(\d+.\d+.\d+.\d+)', strOutput)
+            tMatch = re.match(r'jonchki V(\d+.\d+.\d+.\d+)', strOutput)
             if tMatch is None:
                 logging.debug('Failed to extract the version '
                               'from the %s output.' % strID)
