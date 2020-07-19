@@ -952,7 +952,7 @@ end
 
 
 
-function Resolver:assign_id_recursive(tResolv, uiID, atIdTab)
+function Resolver:assign_id_recursive(tResolv, uiID, atIdTab, tDependencyLog)
   local strGroup = tResolv.strGroup
   local strModule = tResolv.strModule
   local strArtifact = tResolv.strArtifact
@@ -978,12 +978,15 @@ function Resolver:assign_id_recursive(tResolv, uiID, atIdTab)
     tResolv.uiID = uiID
     atIdTab[strGMA] = uiID
 
+    -- Add the item to the dependency log.
+    tDependencyLog:addDependency(strGroup, strModule, strArtifact, tResolv.ptActiveVersion.tVersion)
+
     self.tLog.debug('[COUNTING]: Processing dependencies for %s.', strGMA)
     local atDependencies = atV.atDependencies
     if atDependencies~=nil then
       for _, tDependency in pairs(atDependencies) do
         uiID = uiID + 1
-        uiID = self:assign_id_recursive(tDependency, uiID, atIdTab)
+        uiID = self:assign_id_recursive(tDependency, uiID, atIdTab, tDependencyLog)
       end
     end
   end
@@ -1065,7 +1068,7 @@ end
 
 
 
-function Resolver:get_all_dependencies(fSkipRootArtifact)
+function Resolver:get_all_dependencies(fSkipRootArtifact, tDependencyLog)
   -- Start at the root element of the resolv table.
   local tResolvRoot = self.atResolvTab
   -- Collect all ID assignments in this table.
@@ -1073,7 +1076,7 @@ function Resolver:get_all_dependencies(fSkipRootArtifact)
 
   -- Assign a running number to all used artifacts.
   -- This must be done before building the link chain.
-  self:assign_id_recursive(tResolvRoot, 0, atIdTab)
+  self:assign_id_recursive(tResolvRoot, 0, atIdTab, tDependencyLog)
 
   -- Collect all artifacts and build the link information in the report.
   local atArtifacts = self:get_all_dependencies_recursive(tResolvRoot, {}, atIdTab, fSkipRootArtifact)

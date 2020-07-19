@@ -32,7 +32,7 @@ local function command_install(cCore, tArgs, cLog)
             if tResult==true then
 
               -- Download and install all artifacts.
-              tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, tArgs.fSkipRootArtifact, tArgs.strFinalizerScript)
+              tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, tArgs.fSkipRootArtifact, tArgs.strFinalizerScript, tArgs.strDependencyLogFile)
             end
           end
         end
@@ -83,7 +83,7 @@ local function command_install_dependencies(cCore, tArgs, cLog)
               if tResult==true then
 
                 -- Download and install all artifacts.
-                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, true, tArgs.strFinalizerScript)
+                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, true, tArgs.strFinalizerScript, tArgs.strDependencyLogFile)
               end
             end
           end
@@ -197,6 +197,11 @@ tParserCommandInstall:option('-s --syscfg')
   :argname('<FILE>')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
+tParserCommandInstall:option('-d --dependency-log')
+  :description('Use the dependency log in FILE.')
+  :argname('<FILE>')
+  :default('dependency-log.xml')
+  :target('strDependencyLogFile')
 tParserCommandInstall:option('--cpu-architecture')
   :description('Set the CPU architecture for the installation to ARCH. The default is to autodetect it.')
   :argname('<ARCH>')
@@ -266,6 +271,11 @@ tParserCommandInstallDependencies:option('-s --syscfg')
   :argname('<FILE>')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
+tParserCommandInstallDependencies:option('-d --dependency-log')
+  :description('Use the dependency log in FILE.')
+  :argname('<FILE>')
+  :default('dependency-log.xml')
+  :target('strDependencyLogFile')
 tParserCommandInstallDependencies:option('--cpu-architecture')
   :description('Set the CPU architecture for the installation to ARCH. The default is to autodetect it.')
   :argname('<ARCH>')
