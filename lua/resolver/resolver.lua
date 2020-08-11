@@ -21,6 +21,8 @@ function Resolver:_init(cLog, cReport, strID, fInstallBuildDependencies)
   self.cResolverChain = nil
   self.atRepositoryByID = nil
 
+  self.tDependencyLog = nil
+
   self.cLog = cLog
   local tLogWriter = require 'log.writer.prefix'.new('[Resolver] ', cLog)
   self.tLog = require "log".new(
@@ -143,6 +145,29 @@ function Resolver:create_policy_list(astrPolicyIDs)
   end
 
   return atPolicyList
+end
+
+
+
+function Resolver:read_dependency_log(strDependencyLogFile)
+  local tLog = self.tLog
+  local pl = self.pl
+
+  -- Try to read the dependency log.
+  if pl.path.exists(strDependencyLogFile)~=strDependencyLogFile then
+    tLog.debug('The dependency log file "%s" does not exist.', strDependencyLogFile)
+  elseif pl.path.isfile(strDependencyLogFile)~=true then
+    tLog.error('The dependency log file "%s" is not a file. Ignoring it for now.', strDependencyLogFile)
+  else
+    local strDependencyLog, strError = pl.utils.readfile(strDependencyLogFile, false)
+    if strDependencyLog==nil then
+      tLog.error('Failed to read the dependency log file "%s": %s', strDependencyLogFile, strError)
+    else
+      local tDependencyLog = require 'DependencyLog'(tLog)
+      tDependencyLog:parse_configuration(strDependencyLog, strDependencyLogFile)
+      self.tDependencyLog = tDependencyLog
+    end
+  end
 end
 
 
@@ -344,8 +369,26 @@ function Resolver:add_versions_from_repositories(tResolv)
 
     table.insert(atNewVersions, tExistingVersion)
   else
-    -- Add all members of the set as new versions.
-    atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
+    local tPinnedVersion
+    local tDependencyLog = self.tDependencyLog
+    if tDependencyLog~=nil then
+      tPinnedVersion = tDependencyLog:getVersion(strGroup, strModule, strArtifact)
+    end
+
+    local fFound = false
+    if tPinnedVersion~=nil then
+      -- Check if the fixed version is already present in the cache.
+      -- This prevents scanning all repositories for versions.
+      -- FIXME: Do not access the cache object like this. Make a wrapper in the resolver chain instead.
+      fFound = self.cResolverChain:probe_cache(strGroup, strModule, strArtifact, tPinnedVersion)
+      if fFound==true then
+        table.insert(atNewVersions, tPinnedVersion)
+      end
+    end
+    if fFound~=true then
+      -- Add all members of the set as new versions.
+      atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
+    end
   end
 
   -- Append all available versions.

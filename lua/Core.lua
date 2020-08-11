@@ -209,7 +209,7 @@ end
 --
 -- Create the resolver.
 --
-function Core:create_resolver(fInstallBuildDependencies)
+function Core:create_resolver(fInstallBuildDependencies, strDependencyLogFile)
   local strResolverID = 'default'
   local cResolver = self.Resolver(self.cLog, self.cReport, strResolverID, fInstallBuildDependencies)
   -- Create all policy lists.
@@ -217,6 +217,9 @@ function Core:create_resolver(fInstallBuildDependencies)
   if tResult~=true then
     self.tLog.fatal('Failed to create all policy lists.')
   else
+    -- Read the dependency log.
+    cResolver:read_dependency_log(strDependencyLogFile)
+
     -- Use the resolver for the core.
     self.cResolver = cResolver
   end

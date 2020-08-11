@@ -24,7 +24,7 @@ local function command_install(cCore, tArgs, cLog)
           cCore:create_resolver_chain()
 
           -- Create the resolver.
-          tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies)
+          tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies, tArgs.strDependencyLogFile)
           if tResult==true then
 
             -- Resolve the root artifact and all dependencies.
@@ -75,7 +75,7 @@ local function command_install_dependencies(cCore, tArgs, cLog)
           if tResult==true then
 
             -- Create the resolver.
-            tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies)
+            tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies, tArgs.strDependencyLogFile)
             if tResult==true then
 
               -- Resolve all dependencies.

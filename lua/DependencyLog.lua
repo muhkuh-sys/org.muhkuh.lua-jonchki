@@ -291,7 +291,7 @@ function DependencyLog:writeToFile(strFile)
     ))
   end
   table.insert(astrData, '\t</build-dependencies>')
-  
+
   table.insert(astrData, '</dependency-log>')
 
   tLog.debug('Writing the dependency log file to "%s".', strFile)
@@ -336,6 +336,20 @@ function DependencyLog:__tostring()
   table.insert(astrRepr, ')')
 
   return table.concat(astrRepr, '\n')
+end
+
+
+
+function DependencyLog:getVersion(strGroup, strModule, strArtifact)
+  local tVersion
+  for _, tAttr in pairs(self.atDependencies) do
+    if tAttr.strGroup==strGroup and tAttr.strModule==strModule and tAttr.strArtifact==strArtifact then
+      tVersion = tAttr.tVersion
+      break
+    end
+  end
+
+  return tVersion
 end
 
 
