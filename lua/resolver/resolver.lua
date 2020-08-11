@@ -708,6 +708,8 @@ end
 
 
 function Resolver:resolve_step(tResolv)
+  local tLog = self.tLog
+
   -- If no parameter was given, start at the root of the tree and print the step counter.
   if tResolv==nil then
     tResolv = self.atResolvTab
@@ -718,16 +720,16 @@ function Resolver:resolve_step(tResolv)
     self.uiResolveStepCounter = uiResolveStepCounter
 
     -- Print the counter.
-    self.tLog.debug('[RESOLVE] **************')
-    self.tLog.debug('[RESOLVE] *  Step %03d  *', uiResolveStepCounter)
-    self.tLog.debug('[RESOLVE] **************')
+    tLog.debug('[RESOLVE] **************')
+    tLog.debug('[RESOLVE] *  Step %03d  *', uiResolveStepCounter)
+    tLog.debug('[RESOLVE] **************')
   end
 
   local strGMA = string.format('%s/%s/%s', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact)
 
   local tStatus = tResolv.eStatus
   if tStatus==self.RT_Initialized then
-    self.tLog.debug('[RESOLVE] Select a version for %s', strGMA)
+    tLog.debug('[RESOLVE] Select a version for %s', strGMA)
     -- Was the version already selected somewhere else?
     local tVersion = self:_get_used_artifact(tResolv)
     if tVersion==nil then
@@ -783,12 +785,12 @@ function Resolver:resolve_step(tResolv)
     local strArtifact = tResolv.strArtifact
     local tVersion = tResolv.ptActiveVersion.tVersion
 
-    self.tLog.debug('[RESOLVE] Get the configuration for %s/%s', strGMA, tVersion:get())
+    tLog.debug('[RESOLVE] Get the configuration for %s/%s', strGMA, tVersion:get())
 
     local tResult = self.cResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
     if tResult==nil then
       -- The configuration file could not be retrieved.
-      self.tLog.info('Failed to get the configuration file for %s/%s.', strGMA, tVersion:get())
+      tLog.info('Failed to get the configuration file for %s/%s.', strGMA, tVersion:get())
 
       -- This item is now blocked.
       tStatus = self.RT_Blocked
@@ -812,7 +814,7 @@ function Resolver:resolve_step(tResolv)
 
   elseif tStatus==self.RT_GetDependencyVersions then
     local tVersion = tResolv.ptActiveVersion.tVersion
-    self.tLog.debug('[RESOLVE] Get the available versions for the dependencies for %s/%s', strGMA, tVersion:get())
+    tLog.debug('[RESOLVE] Get the available versions for the dependencies for %s/%s', strGMA, tVersion:get())
 
     self:resolvetab_get_dependency_versions(tResolv)
 
@@ -821,7 +823,7 @@ function Resolver:resolve_step(tResolv)
 
   elseif tStatus==self.RT_ResolvingDependencies then
     local tVersion = tResolv.ptActiveVersion.tVersion
-    self.tLog.debug('[RESOLVE] Resolve the dependencies for %s/%s', strGMA, tVersion:get())
+    tLog.debug('[RESOLVE] Resolve the dependencies for %s/%s', strGMA, tVersion:get())
 
     -- Loop over all dependencies.
     -- Set the default status to "resolved". This is good for empty lists.
@@ -829,7 +831,7 @@ function Resolver:resolve_step(tResolv)
     for _,tDependency in pairs(tResolv.ptActiveVersion.atDependencies) do
       -- Do not process the dependencies again if the artifact was already used.
       if tDependency.fIsDouble==true then
-        self.tLog.debug('[RESOLVE] Already processed %s/%s/%s', tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
+        tLog.debug('[RESOLVE] Already processed %s/%s/%s', tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
       else
         -- The artifact was not used yet.
         local tChildStatus = self:resolve_step(tDependency)
@@ -865,7 +867,7 @@ function Resolver:resolve_step(tResolv)
     -- Pass this up.
 
   else
-    self.tLog.error('[RESOLVE] %s has an invalid state of %d', strGMA, tStatus)
+    tLog.error('[RESOLVE] %s has an invalid state of %d', strGMA, tStatus)
     error('Internal error!')
   end
 
