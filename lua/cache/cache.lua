@@ -303,7 +303,7 @@ end
 
 
 
-function Cache:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+function Cache:find_GMAV(strGroup, strModule, strArtifact, tVersion)
   -- First try the platform independent package.
   local strCurrentPlatform = ''
   local fFound, atAttr = self:_find_GMAVP(strGroup, strModule, strArtifact, tVersion, strCurrentPlatform)
@@ -919,7 +919,7 @@ function Cache:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local strGMAV = string.format('%s/%s/%s/%s', strGroup, strModule, strArtifact, tVersion:get())
 
   -- Search the artifact in the cache database. First try the PIP, then the PSP.
-  local fFound, atAttr, strCurrentPlatform = self:_find_GMAV(strGroup, strModule, strArtifact, tVersion)
+  local fFound, atAttr, strCurrentPlatform = self:find_GMAV(strGroup, strModule, strArtifact, tVersion)
   if fFound==nil then
     self.tLog.error('Failed to search the cache.')
     self.uiStatistics_RequestsConfigMiss = self.uiStatistics_RequestsConfigMiss + 1

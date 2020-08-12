@@ -209,7 +209,7 @@ end
 --
 -- Create the resolver.
 --
-function Core:create_resolver(fInstallBuildDependencies)
+function Core:create_resolver(fInstallBuildDependencies, strDependencyLogFile)
   local strResolverID = 'default'
   local cResolver = self.Resolver(self.cLog, self.cReport, strResolverID, fInstallBuildDependencies)
   -- Create all policy lists.
@@ -217,6 +217,9 @@ function Core:create_resolver(fInstallBuildDependencies)
   if tResult~=true then
     self.tLog.fatal('Failed to create all policy lists.')
   else
+    -- Read the dependency log.
+    cResolver:read_dependency_log(strDependencyLogFile)
+
     -- Use the resolver for the core.
     self.cResolver = cResolver
   end
@@ -270,8 +273,10 @@ end
 --
 -- Download and install all artifacts.
 --
-function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSkipRootArtifact, strFinalizerScript)
-  local atArtifacts, atIdTab = self.cResolver:get_all_dependencies(fSkipRootArtifact)
+function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSkipRootArtifact, strFinalizerScript, strDependencyLogFile)
+  local tDependencyLog = require 'DependencyLog'(self.cLog)
+  local atArtifacts, atIdTab = self.cResolver:get_all_dependencies(fSkipRootArtifact, tDependencyLog)
+  tDependencyLog:writeToFile(strDependencyLogFile)
 
   local tResult = self.cResolverChain:retrieve_artifacts(atArtifacts)
   if tResult==nil then

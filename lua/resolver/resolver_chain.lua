@@ -345,6 +345,30 @@ end
 
 
 
+function ResolverChain:probe_cache(strGroup, strModule, strArtifact, tVersion)
+  local cCache = self.cCache
+
+  local fFound = false
+
+  -- Loop over the repository list.
+  for _, tRepository in pairs(self.atResolverChain) do
+    -- Get the ID of the current repository.
+    local strSourceID = tRepository:get_id()
+
+    -- Does a cache exist?
+    if tRepository.fCacheable and (self.cCache~=nil) then
+      fFound = cCache:find_GMAV(strGroup, strModule, strArtifact, tVersion)
+      if fFound==true then
+        self:add_to_ga_v(strGroup, strModule, strArtifact, tVersion, strSourceID)
+      end
+    end
+  end
+
+  return fFound
+end
+
+
+
 function ResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
   local tResult = nil
 

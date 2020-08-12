@@ -21,6 +21,8 @@ function Resolver:_init(cLog, cReport, strID, fInstallBuildDependencies)
   self.cResolverChain = nil
   self.atRepositoryByID = nil
 
+  self.tDependencyLog = nil
+
   self.cLog = cLog
   local tLogWriter = require 'log.writer.prefix'.new('[Resolver] ', cLog)
   self.tLog = require "log".new(
@@ -143,6 +145,29 @@ function Resolver:create_policy_list(astrPolicyIDs)
   end
 
   return atPolicyList
+end
+
+
+
+function Resolver:read_dependency_log(strDependencyLogFile)
+  local tLog = self.tLog
+  local pl = self.pl
+
+  -- Try to read the dependency log.
+  if pl.path.exists(strDependencyLogFile)~=strDependencyLogFile then
+    tLog.debug('The dependency log file "%s" does not exist.', strDependencyLogFile)
+  elseif pl.path.isfile(strDependencyLogFile)~=true then
+    tLog.error('The dependency log file "%s" is not a file. Ignoring it for now.', strDependencyLogFile)
+  else
+    local strDependencyLog, strError = pl.utils.readfile(strDependencyLogFile, false)
+    if strDependencyLog==nil then
+      tLog.error('Failed to read the dependency log file "%s": %s', strDependencyLogFile, strError)
+    else
+      local tDependencyLog = require 'DependencyLog'(tLog)
+      tDependencyLog:parse_configuration(strDependencyLog, strDependencyLogFile)
+      self.tDependencyLog = tDependencyLog
+    end
+  end
 end
 
 
@@ -344,8 +369,26 @@ function Resolver:add_versions_from_repositories(tResolv)
 
     table.insert(atNewVersions, tExistingVersion)
   else
-    -- Add all members of the set as new versions.
-    atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
+    local tPinnedVersion
+    local tDependencyLog = self.tDependencyLog
+    if tDependencyLog~=nil then
+      tPinnedVersion = tDependencyLog:getVersion(strGroup, strModule, strArtifact)
+    end
+
+    local fFound = false
+    if tPinnedVersion~=nil then
+      -- Check if the fixed version is already present in the cache.
+      -- This prevents scanning all repositories for versions.
+      -- FIXME: Do not access the cache object like this. Make a wrapper in the resolver chain instead.
+      fFound = self.cResolverChain:probe_cache(strGroup, strModule, strArtifact, tPinnedVersion)
+      if fFound==true then
+        table.insert(atNewVersions, tPinnedVersion)
+      end
+    end
+    if fFound~=true then
+      -- Add all members of the set as new versions.
+      atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
+    end
   end
 
   -- Append all available versions.
@@ -708,6 +751,8 @@ end
 
 
 function Resolver:resolve_step(tResolv)
+  local tLog = self.tLog
+
   -- If no parameter was given, start at the root of the tree and print the step counter.
   if tResolv==nil then
     tResolv = self.atResolvTab
@@ -718,16 +763,16 @@ function Resolver:resolve_step(tResolv)
     self.uiResolveStepCounter = uiResolveStepCounter
 
     -- Print the counter.
-    self.tLog.debug('[RESOLVE] **************')
-    self.tLog.debug('[RESOLVE] *  Step %03d  *', uiResolveStepCounter)
-    self.tLog.debug('[RESOLVE] **************')
+    tLog.debug('[RESOLVE] **************')
+    tLog.debug('[RESOLVE] *  Step %03d  *', uiResolveStepCounter)
+    tLog.debug('[RESOLVE] **************')
   end
 
   local strGMA = string.format('%s/%s/%s', tResolv.strGroup, tResolv.strModule, tResolv.strArtifact)
 
   local tStatus = tResolv.eStatus
   if tStatus==self.RT_Initialized then
-    self.tLog.debug('[RESOLVE] Select a version for %s', strGMA)
+    tLog.debug('[RESOLVE] Select a version for %s', strGMA)
     -- Was the version already selected somewhere else?
     local tVersion = self:_get_used_artifact(tResolv)
     if tVersion==nil then
@@ -783,12 +828,12 @@ function Resolver:resolve_step(tResolv)
     local strArtifact = tResolv.strArtifact
     local tVersion = tResolv.ptActiveVersion.tVersion
 
-    self.tLog.debug('[RESOLVE] Get the configuration for %s/%s', strGMA, tVersion:get())
+    tLog.debug('[RESOLVE] Get the configuration for %s/%s', strGMA, tVersion:get())
 
     local tResult = self.cResolverChain:get_configuration(strGroup, strModule, strArtifact, tVersion)
     if tResult==nil then
       -- The configuration file could not be retrieved.
-      self.tLog.info('Failed to get the configuration file for %s/%s.', strGMA, tVersion:get())
+      tLog.info('Failed to get the configuration file for %s/%s.', strGMA, tVersion:get())
 
       -- This item is now blocked.
       tStatus = self.RT_Blocked
@@ -812,7 +857,7 @@ function Resolver:resolve_step(tResolv)
 
   elseif tStatus==self.RT_GetDependencyVersions then
     local tVersion = tResolv.ptActiveVersion.tVersion
-    self.tLog.debug('[RESOLVE] Get the available versions for the dependencies for %s/%s', strGMA, tVersion:get())
+    tLog.debug('[RESOLVE] Get the available versions for the dependencies for %s/%s', strGMA, tVersion:get())
 
     self:resolvetab_get_dependency_versions(tResolv)
 
@@ -821,7 +866,7 @@ function Resolver:resolve_step(tResolv)
 
   elseif tStatus==self.RT_ResolvingDependencies then
     local tVersion = tResolv.ptActiveVersion.tVersion
-    self.tLog.debug('[RESOLVE] Resolve the dependencies for %s/%s', strGMA, tVersion:get())
+    tLog.debug('[RESOLVE] Resolve the dependencies for %s/%s', strGMA, tVersion:get())
 
     -- Loop over all dependencies.
     -- Set the default status to "resolved". This is good for empty lists.
@@ -829,7 +874,7 @@ function Resolver:resolve_step(tResolv)
     for _,tDependency in pairs(tResolv.ptActiveVersion.atDependencies) do
       -- Do not process the dependencies again if the artifact was already used.
       if tDependency.fIsDouble==true then
-        self.tLog.debug('[RESOLVE] Already processed %s/%s/%s', tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
+        tLog.debug('[RESOLVE] Already processed %s/%s/%s', tDependency.strGroup, tDependency.strModule, tDependency.strArtifact)
       else
         -- The artifact was not used yet.
         local tChildStatus = self:resolve_step(tDependency)
@@ -865,7 +910,7 @@ function Resolver:resolve_step(tResolv)
     -- Pass this up.
 
   else
-    self.tLog.error('[RESOLVE] %s has an invalid state of %d', strGMA, tStatus)
+    tLog.error('[RESOLVE] %s has an invalid state of %d', strGMA, tStatus)
     error('Internal error!')
   end
 
@@ -952,7 +997,7 @@ end
 
 
 
-function Resolver:assign_id_recursive(tResolv, uiID, atIdTab)
+function Resolver:assign_id_recursive(tResolv, uiID, atIdTab, tDependencyLog)
   local strGroup = tResolv.strGroup
   local strModule = tResolv.strModule
   local strArtifact = tResolv.strArtifact
@@ -978,12 +1023,15 @@ function Resolver:assign_id_recursive(tResolv, uiID, atIdTab)
     tResolv.uiID = uiID
     atIdTab[strGMA] = uiID
 
+    -- Add the item to the dependency log.
+    tDependencyLog:addDependency(strGroup, strModule, strArtifact, tResolv.ptActiveVersion.tVersion)
+
     self.tLog.debug('[COUNTING]: Processing dependencies for %s.', strGMA)
     local atDependencies = atV.atDependencies
     if atDependencies~=nil then
       for _, tDependency in pairs(atDependencies) do
         uiID = uiID + 1
-        uiID = self:assign_id_recursive(tDependency, uiID, atIdTab)
+        uiID = self:assign_id_recursive(tDependency, uiID, atIdTab, tDependencyLog)
       end
     end
   end
@@ -1065,7 +1113,7 @@ end
 
 
 
-function Resolver:get_all_dependencies(fSkipRootArtifact)
+function Resolver:get_all_dependencies(fSkipRootArtifact, tDependencyLog)
   -- Start at the root element of the resolv table.
   local tResolvRoot = self.atResolvTab
   -- Collect all ID assignments in this table.
@@ -1073,7 +1121,7 @@ function Resolver:get_all_dependencies(fSkipRootArtifact)
 
   -- Assign a running number to all used artifacts.
   -- This must be done before building the link chain.
-  self:assign_id_recursive(tResolvRoot, 0, atIdTab)
+  self:assign_id_recursive(tResolvRoot, 0, atIdTab, tDependencyLog)
 
   -- Collect all artifacts and build the link information in the report.
   local atArtifacts = self:get_all_dependencies_recursive(tResolvRoot, {}, atIdTab, fSkipRootArtifact)
