@@ -97,7 +97,7 @@ rm -rf ${WORK}
 mkdir -p ${WORK}
 
 # The common options are the same for all targets.
-COMMON_OPTIONS="--syscfg ${PRJ_DIR}/installer/jonchkisys.cfg --prjcfg ${PRJ_DIR}/installer/jonchkicfg.xml --finalizer ${PRJ_DIR}/installer/finalizer.lua ${WORK_BASE}/jonchki.xml"
+COMMON_OPTIONS="--syscfg ${PRJ_DIR}/installer/jonchkisys.cfg --prjcfg ${PRJ_DIR}/installer/jonchkicfg.xml --finalizer ${PRJ_DIR}/installer/finalizer.lua --dependency-log ${PRJ_DIR}/dependency-log.xml ${WORK_BASE}/jonchki.xml"
 
 # Build the artifact.
 pushd ${WORK}
