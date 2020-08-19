@@ -101,5 +101,5 @@ COMMON_OPTIONS="--syscfg ${PRJ_DIR}/installer/jonchkisys.cfg --prjcfg ${PRJ_DIR}
 
 # Build the artifact.
 pushd ${WORK}
-LD_LIBRARY_PATH=${JONCHKI_PATH} ${JONCHKI_PATH}/lua5.1 ${JONCHKI} install-dependencies -v ${VERBOSE_LEVEL} --distribution-id "${JONCHKI_DISTRIBUTION_ID}" --distribution-version "${JONCHKI_DISTRIBUTION_VERSION}" --cpu-architecture "${JONCHKI_CPU_ARCHITECTURE}" ${COMMON_OPTIONS}
+${JONCHKI_PATH}/lua5.1 ${JONCHKI} install-dependencies -v ${VERBOSE_LEVEL} --distribution-id "${JONCHKI_DISTRIBUTION_ID}" --distribution-version "${JONCHKI_DISTRIBUTION_VERSION}" --cpu-architecture "${JONCHKI_CPU_ARCHITECTURE}" ${COMMON_OPTIONS}
 popd
