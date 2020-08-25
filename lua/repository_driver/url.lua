@@ -137,7 +137,7 @@ function RepositoryDriverUrl:curl_progress(ulDlTotal, ulDlNow)
     if ulDlTotal==0 then
       print(string.format('%d/unknown', ulDlNow))
     else
-      print(string.format('%d%% (%d/%d)', ulDlNow/ulDlTotal*100, ulDlNow, ulDlTotal))
+      print(string.format('%d%% (%d/%d)', math.floor(ulDlNow/ulDlTotal*100), ulDlNow, ulDlTotal))
     end
     self.tLastProgressTime = tNow
   end
