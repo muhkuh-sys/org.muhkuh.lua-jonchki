@@ -354,6 +354,7 @@ end
 
 
 function Resolver:add_versions_from_repositories(tResolv)
+  local tLog = self.tLog
   local strGroup = tResolv.strGroup
   local strModule = tResolv.strModule
   local strArtifact = tResolv.strArtifact
@@ -363,6 +364,8 @@ function Resolver:add_versions_from_repositories(tResolv)
   -- Was this artifact used before?
   local tExistingVersion = self:_get_used_artifact(tResolv)
   if tExistingVersion~=nil then
+    tLog.alert('%s/%s/%s was used before: %s', strGroup, strModule, strArtifact, tExistingVersion:get())
+
     -- If the artifact was used before, a version is already selected.
     -- Do not change a previously selected version as it might affect the
     -- path leading to the current situation.
@@ -375,18 +378,40 @@ function Resolver:add_versions_from_repositories(tResolv)
       tPinnedVersion = tDependencyLog:getVersion(strGroup, strModule, strArtifact)
     end
 
-    local fFound = false
     if tPinnedVersion~=nil then
+      tLog.alert('Found pinned version for %s/%s/%s: %s', strGroup, strModule, strArtifact, tPinnedVersion:get())
+
+      local fFound = false
       -- Check if the fixed version is already present in the cache.
       -- This prevents scanning all repositories for versions.
-      -- FIXME: Do not access the cache object like this. Make a wrapper in the resolver chain instead.
       fFound = self.cResolverChain:probe_cache(strGroup, strModule, strArtifact, tPinnedVersion)
       if fFound==true then
+        tLog.alert('The artifact is in the cache. Add only this version.')
         table.insert(atNewVersions, tPinnedVersion)
+
+      else
+        tLog.alert('The artifact was not found in the cache. Scanning the repositories.')
+
+        -- The pinned version is not yet cached, scan the repositories for all
+        -- available versions and block all except the pinned version.
+        local atAllVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
+
+        local strPinnedVersion = tPinnedVersion:get()
+        for _, tVersionCnt in pairs(atAllVersions) do
+          local strVersionCnt = tVersionCnt:get()
+          if strVersionCnt==strPinnedVersion then
+            tLog.debug('Found the pinned version %s.', strVersionCnt)
+            table.insert(atNewVersions, tPinnedVersion)
+          else
+            tLog.debug('Ignoring version %s as it is not the pinned version.', strVersionCnt)
+          end
+        end
       end
-    end
-    if fFound~=true then
-      -- Add all members of the set as new versions.
+    else
+      tLog.alert('%s/%s/%s is not in the dependency log. Do a normal scan.', strGroup, strModule, strArtifact)
+
+      -- The artifact is not part of the dependency log.
+      -- Get all available versions from the repositories.
       atNewVersions = self.cResolverChain:get_available_versions(strGroup, strModule, strArtifact)
     end
   end
