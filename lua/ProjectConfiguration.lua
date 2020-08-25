@@ -59,7 +59,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
     local strID = atAttributes['id']
     if strID==nil or strID=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
     else
       -- Is the ID already defined?
       local fIsDuplicate = false
@@ -71,13 +71,13 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
       end
       if fIsDuplicate==true then
         aLxpAttr.tResult = nil
-        aLxpAttr.tLogger:fatal('Error in line %d, col %d: the ID "%s" is already used.', iPosLine, iPosColumn, strID)
+        aLxpAttr.tLog.fatal('Error in line %d, col %d: the ID "%s" is already used.', iPosLine, iPosColumn, strID)
       else
         tCurrentRepository.strID = strID
         local strType = atAttributes['type']
         if strType==nil or strType=='' then
           aLxpAttr.tResult = nil
-          aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "type".', iPosLine, iPosColumn)
+          aLxpAttr.tLog.fatal('Error in line %d, col %d: missing "type".', iPosLine, iPosColumn)
         else
           tCurrentRepository.strType = strType
           local fCacheable = nil
@@ -92,7 +92,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
           end
           if fCacheable==nil then
             aLxpAttr.tResult = nil
-            aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "cacheable": "%s".', iPosLine, iPosColumn, strCacheable)
+            aLxpAttr.tLog.fatal('Error in line %d, col %d: invalid value for "cacheable": "%s".', iPosLine, iPosColumn, strCacheable)
           else
             tCurrentRepository.cacheable = fCacheable
 
@@ -105,11 +105,11 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
               ulRescan = tonumber(strRescan)
               if ulRescan==nil then
                 aLxpAttr.tResult = nil
-                aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "rescan", not a number: "%s".', iPosLine, iPosColumn, strRescan)
+                aLxpAttr.tLog.fatal('Error in line %d, col %d: invalid value for "rescan", not a number: "%s".', iPosLine, iPosColumn, strRescan)
               elseif ulRescan<0 then
                 ulRescan = nil
                 aLxpAttr.tResult = nil
-                aLxpAttr.tLogger:fatal('Error in line %d, col %d: invalid value for "rescan", must not be negative: %d.', iPosLine, iPosColumn, ulRescan)
+                aLxpAttr.tLog.fatal('Error in line %d, col %d: invalid value for "rescan", must not be negative: %d.', iPosLine, iPosColumn, ulRescan)
               end
             end
             if ulRescan~=nil then
@@ -130,7 +130,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
     local strID = atAttributes['id']
     if strID==nil or strID=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
     else
       table.insert(aLxpAttr.atPolicyListDefault, strID)
     end
@@ -139,17 +139,17 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
     else
       local strModule = atAttributes['module']
       if strModule==nil or strModule=='' then
         aLxpAttr.tResult = nil
-        aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
+        aLxpAttr.tLog.fatal('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
       else
         local strArtifact = atAttributes['artifact']
         if strArtifact==nil or strArtifact=='' then
           aLxpAttr.tResult = nil
-          aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
+          aLxpAttr.tLog.fatal('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
         else
           local strItem = string.format('%s/%s/%s', strGroup, strModule, strArtifact)
           aLxpAttr.strCurrentPolicyOverrideItem = strItem
@@ -162,7 +162,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
     local strID = atAttributes['id']
     if strID==nil or strID=='' then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: missing "id".', iPosLine, iPosColumn)
     else
       table.insert(aLxpAttr.atCurrentPolicyOverrides, strID)
     end
@@ -204,7 +204,7 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
     end
     if #astrMissing ~= 0 then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:fatal('Error in line %d, col %d: missing items: %s', iPosLine, iPosColumn, table.concat(astrMissing))
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: missing items: %s', iPosLine, iPosColumn, table.concat(astrMissing))
     else
       -- All data is present.
       table.insert(aLxpAttr.atRepositories, tCurrentRepository)
@@ -215,7 +215,7 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
     -- The default list must not be empty.
     if #aLxpAttr.atPolicyListDefault == 0 then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:fatal('Error in line %d, col %d: the default policies must not be empty', iPosLine, iPosColumn)
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: the default policies must not be empty', iPosLine, iPosColumn)
     end
 
   elseif aLxpAttr.strCurrentPath=="/jonchkicfg/policies/override" then
@@ -223,12 +223,12 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
     -- The override must not be empty.
     if #aLxpAttr.atCurrentPolicyOverrides == 0 then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLogger:fatal('Error in line %d, col %d: the overrides policies must not be empty', iPosLine, iPosColumn)
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: the overrides policies must not be empty', iPosLine, iPosColumn)
     else
       local strCurrentPolicyOverrideItem = aLxpAttr.strCurrentPolicyOverrideItem
       if aLxpAttr.atPolicyListOverrides[strCurrentPolicyOverrideItem] ~= nil then
         aLxpAttr.tResult = nil
-        aLxpAttr.tLogger:fatal('Error in line %d, col %d: overriding %s more than once', iPosLine, iPosColumn, strCurrentPolicyOverrideItem)
+        aLxpAttr.tLog.fatal('Error in line %d, col %d: overriding %s more than once', iPosLine, iPosColumn, strCurrentPolicyOverrideItem)
       else
         aLxpAttr.atPolicyListOverrides[strCurrentPolicyOverrideItem] = aLxpAttr.atCurrentPolicyOverrides
       end
@@ -293,7 +293,7 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
       atPolicyListOverrides = {},
 
       tResult = true,
-      tLogger = self.tLogger
+      tLog = self.tLog
     }
 
     local aLxpCallbacks = {}
