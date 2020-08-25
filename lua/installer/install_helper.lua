@@ -391,6 +391,7 @@ end
 
 
 function InstallHelper:createArchive(strOutputPath, strFormatHint)
+  strOutputPath = self:replace_template(strOutputPath)
   strFormatHint = strFormatHint or 'native'
 
   local archives = require 'installer.archives'
