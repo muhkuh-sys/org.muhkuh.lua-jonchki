@@ -5,4 +5,4 @@ rem https://stackoverflow.com/questions/3827567/how-to-get-the-path-of-the-batch
 
 SET SELFBAT=%~dp0
 SET SELFDIR=%SELFBAT:~0,-1%
-%SELFDIR%\lua5.1 %SELFDIR%\jonchki.lua %*
+%SELFDIR%\lua5.4 %SELFDIR%\jonchki.lua %*

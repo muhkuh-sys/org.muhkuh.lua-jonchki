@@ -259,7 +259,7 @@ function Hash:_parse_hashes(strText, strSourceURL)
         else
           -- The size of the hash string must be a multiple of 2.
           local uiHashSize = string.len(strHash)
-          if math.mod(uiHashSize, 2)~=0 then
+          if (uiHashSize%2)~=0 then
             self.tLog.error('%s line %d: The length of the hash sum is not a multiple of 2.', strSourceURL, uiLineNumber)
             tResult = nil
             break

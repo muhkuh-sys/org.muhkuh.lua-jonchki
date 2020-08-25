@@ -44,9 +44,15 @@ function ResolverChain:_init(cLog, cPlatform, cSystemConfiguration, strID)
   self.cCache = nil
 
   -- Get all available repository drivers.
+  local astrRepositoryDriverModules = {
+    'repository_driver.filesystem',
+    'repository_driver.url'
+  }
   local atRepositoryDriverClasses = {}
-  table.insert(atRepositoryDriverClasses, require 'repository_driver.filesystem')
-  table.insert(atRepositoryDriverClasses, require 'repository_driver.url')
+  for _, strRepositoryDriverModule in ipairs(astrRepositoryDriverModules) do
+    local tModule = require(strRepositoryDriverModule)
+    table.insert(atRepositoryDriverClasses, tModule)
+  end
   self.atRepositoryDriverClasses = atRepositoryDriverClasses
 end
 

@@ -260,6 +260,7 @@ end
 
 function DependencyLog:writeToFile(strFile)
   local tLog = self.tLog
+  local pl = self.pl
 
   -- Dump the complete file as XML.
   local astrData = {}
@@ -295,13 +296,11 @@ function DependencyLog:writeToFile(strFile)
   table.insert(astrData, '</dependency-log>')
 
   tLog.debug('Writing the dependency log file to "%s".', strFile)
-  local tFile, strError = io.open(strFile, 'wt')
-  if tFile==nil then
+  local tResult, strError = pl.utils.writefile(strFile, table.concat(astrData, '\n'), false)
+  if tResult==nil then
     tLog.error('Failed to open "%s" for writing: %s', strFile, strError)
     error('Failed to open the dependency log for writing.')
   end
-  tFile:write(table.concat(astrData, '\n'))
-  tFile:close()
 end
 
 

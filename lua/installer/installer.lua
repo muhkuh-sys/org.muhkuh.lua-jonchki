@@ -71,6 +71,7 @@ function Installer:run_install_script(strInstallScriptFile, strDepackPath, strGM
       else
         -- Parse the install script.
         local strInstallScript = tResult
+        local loadstring = loadstring or load
         tResult, strError = loadstring(strInstallScript, strInstallScriptFile)
         if tResult==nil then
           tResult = nil
