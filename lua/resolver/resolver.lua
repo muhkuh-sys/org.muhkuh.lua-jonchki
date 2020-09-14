@@ -364,7 +364,7 @@ function Resolver:add_versions_from_repositories(tResolv)
   -- Was this artifact used before?
   local tExistingVersion = self:_get_used_artifact(tResolv)
   if tExistingVersion~=nil then
-    tLog.alert('%s/%s/%s was used before: %s', strGroup, strModule, strArtifact, tExistingVersion:get())
+    tLog.debug('%s/%s/%s was used before: %s', strGroup, strModule, strArtifact, tExistingVersion:get())
 
     -- If the artifact was used before, a version is already selected.
     -- Do not change a previously selected version as it might affect the
@@ -379,18 +379,18 @@ function Resolver:add_versions_from_repositories(tResolv)
     end
 
     if tPinnedVersion~=nil then
-      tLog.alert('Found pinned version for %s/%s/%s: %s', strGroup, strModule, strArtifact, tPinnedVersion:get())
+      tLog.debug('Found pinned version for %s/%s/%s: %s', strGroup, strModule, strArtifact, tPinnedVersion:get())
 
       local fFound = false
       -- Check if the fixed version is already present in the cache.
       -- This prevents scanning all repositories for versions.
       fFound = self.cResolverChain:probe_cache(strGroup, strModule, strArtifact, tPinnedVersion)
       if fFound==true then
-        tLog.alert('The artifact is in the cache. Add only this version.')
+        tLog.debug('The artifact is in the cache. Add only this version.')
         table.insert(atNewVersions, tPinnedVersion)
 
       else
-        tLog.alert('The artifact was not found in the cache. Scanning the repositories.')
+        tLog.debug('The artifact was not found in the cache. Scanning the repositories.')
 
         -- The pinned version is not yet cached, scan the repositories for all
         -- available versions and block all except the pinned version.
@@ -408,7 +408,7 @@ function Resolver:add_versions_from_repositories(tResolv)
         end
       end
     else
-      tLog.alert('%s/%s/%s is not in the dependency log. Do a normal scan.', strGroup, strModule, strArtifact)
+      tLog.debug('%s/%s/%s is not in the dependency log. Do a normal scan.', strGroup, strModule, strArtifact)
 
       -- The artifact is not part of the dependency log.
       -- Get all available versions from the repositories.
