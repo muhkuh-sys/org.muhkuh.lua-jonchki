@@ -151,8 +151,36 @@ function InstallHelper:register_post_trigger(fnAction, tUserData, uiLevel)
 end
 
 
-function InstallHelper:replace_template(strPath)
-  return string.gsub(strPath, '%${([a-zA-Z0-9_%.-]+)}', self.atReplacements)
+function InstallHelper:replace_template(strTemplate, astrUserReplacements)
+  local tLog = self.tLogInstallHelper
+
+  -- Copy all replacements to a new table.
+  local atMergedReplacements = {}
+  for strKey, strValue in pairs(self.atReplacements) do
+    atMergedReplacements[strKey] = strValue
+  end
+
+  -- Add all user replacements.
+  if astrUserReplacements~=nil then
+    -- Loop over all user replacements.
+    for strKey, strValue in pairs(astrUserReplacements) do
+      -- Do not check for overwrites here. It should be possible to modify values.
+      atMergedReplacements[strKey] = strValue
+    end
+  end
+
+  -- Add a conditional distribution version separator.
+  local strConditionalSeparator = ''
+  local strPlatformDistributionVersion = atMergedReplacements.platform_distribution_version
+  if strPlatformDistributionVersion~=nil then
+    local strSeparator = atMergedReplacements.platform_distribution_version_separator
+    if strSeparator~=nil and strPlatformDistributionVersion~='' then
+      strConditionalSeparator = strSeparator
+    end
+  end
+  atMergedReplacements.conditional_platform_distribution_version_separator = strConditionalSeparator
+
+  return string.gsub(strTemplate, '%${([a-zA-Z0-9_%.-]+)}', atMergedReplacements)
 end
 
 
@@ -397,15 +425,25 @@ end
 
 
 
-function InstallHelper:createArchive(strOutputPath, strFormatHint)
+function InstallHelper:createArchive(strOutputPath, strFormatHint, astrUserReplacements)
   local pl = self.pl
   strOutputPath = pl.path.normpath(self:replace_template(strOutputPath))
   strFormatHint = strFormatHint or 'native'
 
+  local astrLocalUserReplacements = {}
+  if astrUserReplacements~=nil then
+    for strKey, strValue in pairs(astrUserReplacements) do
+      astrLocalUserReplacements[strKey] = strValue
+    end
+  end
+  if astrLocalUserReplacements.default_archive_name==nil then
+    astrLocalUserReplacements.default_archive_name = '${root_artifact_artifact}-${root_artifact_version}-${platform_distribution_id}${conditional_platform_distribution_version_separator}${platform_distribution_version}_${platform_cpu_architecture}.${archive_extension}'
+  end
+
   local archives = require 'installer.archives'
   local Archive = archives(self.cLog)
 
-  local strDistId, strDistVersion, strCpuArch = self:get_platform()
+  local strDistId = self:get_platform_distribution_id()
 
   local strArchiveExtension, tFormat, atFilter
   if strFormatHint=='native' then
@@ -425,15 +463,15 @@ function InstallHelper:createArchive(strOutputPath, strFormatHint)
   else
     error(string.format('Unknown format hint: "%s"', strFormatHint))
   end
-
-  local strArtifactVersion = self:replace_template('${root_artifact_artifact}-${root_artifact_version}')
-  local strDV = '-' .. strDistVersion
-  if strDistVersion=='' then
-    strDV = ''
+  if astrLocalUserReplacements.archive_extension==nil then
+    astrLocalUserReplacements.archive_extension = strArchiveExtension
   end
-  local strArchive = string.format('%s/%s-%s%s_%s.%s', strOutputPath, strArtifactVersion, strDistId, strDV, strCpuArch, strArchiveExtension)
+
+  astrLocalUserReplacements.default_archive_name = self:replace_template(astrLocalUserReplacements.default_archive_name, astrLocalUserReplacements)
+
+  local strArchive = self:replace_template(strOutputPath, astrLocalUserReplacements)
   local strDiskPath = self:replace_template('${install_base}')
-  local strArchiveMemberPrefix = strArtifactVersion
+  local strArchiveMemberPrefix = self:replace_template('${root_artifact_artifact}-${root_artifact_version}')
 
   local tResult = Archive:pack_archive(strArchive, tFormat, atFilter, strDiskPath, strArchiveMemberPrefix)
   if tResult~=true then

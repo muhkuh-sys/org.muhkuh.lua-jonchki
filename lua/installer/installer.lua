@@ -127,6 +127,7 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
     ['platform_cpu_architecture'] = cPlatform:get_cpu_architecture(),
     ['platform_distribution_id'] = cPlatform:get_distribution_id(),
     ['platform_distribution_version'] = cPlatform:get_distribution_version(),
+    ['platform_distribution_version_separator'] = '-',
 
     ['root_artifact_group'] = self.cRootArtifactConfiguration.tInfo.strGroup,
     ['root_artifact_module'] = self.cRootArtifactConfiguration.tInfo.strModule,
