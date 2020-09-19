@@ -2,7 +2,7 @@
 	<repositories>
 		<!-- The local repository can be used to add snapshot packages. -->
 		<repository id="local" type="file" cacheable="false">
-			<root>../local_repository</root>
+			<root>../../../installer/local_repository</root>
 			<versions>[group]/[module]</versions>
 			<config>[group]/[module]/[version]/[artifact]-[version][platform].[extension]</config>
 			<artifact>[group]/[module]/[version]/[artifact]-[version][platform].[extension]</artifact>
