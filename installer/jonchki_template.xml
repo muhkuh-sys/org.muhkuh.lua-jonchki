@@ -22,5 +22,6 @@
 		<dependency group="org.muhkuh.lua" module="archive" artifact="lua5.4-archive" version="0.0.1"/>
 		<dependency group="org.muhkuh.lua" module="mhash" artifact="lua5.4-mhash" version="0.9.9.9"/>
 		<dependency group="uk.co.matthewwild" module="luaexpat" artifact="lua5.4-luaexpat" version="1.3"/>
+		<dependency group="com.github.SatyendraBanjare" module="luagit2" artifact="lua5.4-luagit2" version="0.0"/>
 	</dependencies>
 </jonchki-artifact>
