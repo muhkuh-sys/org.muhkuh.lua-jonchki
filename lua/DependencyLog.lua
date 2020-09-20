@@ -262,6 +262,13 @@ function DependencyLog:writeToFile(strFile)
   local tLog = self.tLog
   local pl = self.pl
 
+  -- Create a compare function for 2 dependency log entries.
+  local fCmp = function(a, b)
+    local strA = string.format('%s/%s/%s/%s', a.strGroup, a.strModule, a.strArtifact, a.tVersion:get())
+    local strB = string.format('%s/%s/%s/%s', b.strGroup, b.strModule, b.strArtifact, b.tVersion:get())
+    return strA < strB
+  end
+
   -- Dump the complete file as XML.
   local astrData = {}
   table.insert(astrData, '<?xml version="1.0" encoding="UTF-8"?>')
@@ -269,7 +276,7 @@ function DependencyLog:writeToFile(strFile)
 
   local atDependencies = self.atDependencies
   table.insert(astrData, '\t<dependencies>')
-  for _,tAttr in pairs(atDependencies) do
+  for _,tAttr in pl.tablex.sortv(atDependencies, fCmp) do
     table.insert(astrData, string.format(
       '\t\t<dependency group="%s" module="%s" artifact="%s" version="%s"/>',
       tAttr.strGroup,
@@ -282,7 +289,7 @@ function DependencyLog:writeToFile(strFile)
 
   local atBuildDependencies = self.atBuildDependencies
   table.insert(astrData, '\t<build-dependencies>')
-  for _,tAttr in pairs(atBuildDependencies) do
+  for _,tAttr in pl.tablex.sortv(atBuildDependencies, fCmp) do
     table.insert(astrData, string.format(
       '\t\t<dependency group="%s" module="%s" artifact="%s" version="%s"/>',
       tAttr.strGroup,
@@ -294,6 +301,8 @@ function DependencyLog:writeToFile(strFile)
   table.insert(astrData, '\t</build-dependencies>')
 
   table.insert(astrData, '</dependency-log>')
+  -- End the file with a newline.
+  table.insert(astrData, '')
 
   tLog.debug('Writing the dependency log file to "%s".', strFile)
   local tResult, strError = pl.utils.writefile(strFile, table.concat(astrData, '\n'), false)
@@ -308,12 +317,21 @@ end
 --- Return the complete configuration as a string.
 -- @return The configuration as a string. 
 function DependencyLog:__tostring()
+  local pl = self.pl
+
   local astrRepr = {}
   table.insert(astrRepr, 'DependencyLog(')
 
+  -- Create a compare function for 2 dependency log entries.
+  local fCmp = function(a, b)
+    local strA = string.format('%s/%s/%s/%s', a.strGroup, a.strModule, a.strArtifact, a.tVersion:get())
+    local strB = string.format('%s/%s/%s/%s', b.strGroup, b.strModule, b.strArtifact, b.tVersion:get())
+    return strA < strB
+  end
+
   local atDependencies = self.atDependencies
   table.insert(astrRepr, string.format('    dependencies: %d', #atDependencies))
-  for uiCnt,tAttr in pairs(atDependencies) do
+  for uiCnt,tAttr in pl.tablex.sortv(atDependencies, fCmp) do
     table.insert(astrRepr, string.format('    %d:', uiCnt))
     table.insert(astrRepr, string.format('      group: %s', tAttr.strGroup))
     table.insert(astrRepr, string.format('      module: %s', tAttr.strModule))
@@ -324,7 +342,7 @@ function DependencyLog:__tostring()
 
   local atBuildDependencies = self.atBuildDependencies
   table.insert(astrRepr, string.format('    build dependencies: %d', #atBuildDependencies))
-  for uiCnt,tAttr in pairs(atBuildDependencies) do
+  for uiCnt,tAttr in pl.tablex.sortv(atBuildDependencies, fCmp) do
     table.insert(astrRepr, string.format('    %d:', uiCnt))
     table.insert(astrRepr, string.format('      group: %s', tAttr.strGroup))
     table.insert(astrRepr, string.format('      module: %s', tAttr.strModule))
