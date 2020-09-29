@@ -47,7 +47,7 @@ t:createPackageFile()
 t:createHashFile()
 
 -- Build the artifact.
-t:createArchive('${install_base}/../../../../${default_archive_name}', 'native')
+t:createArchive('${install_base}/../../../../${root_artifact_artifact}-${root_artifact_version}-${platform_distribution_id}${platform_distribution_version}_${platform_cpu_architecture}.${archive_extension}', 'native')
 
 return true
 
