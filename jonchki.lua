@@ -7,32 +7,39 @@ local function command_install(cCore, tArgs, cLog)
     tResult = cCore:get_platform_id(tArgs.strCpuArchitecture, tArgs.strDistributionId, tArgs.strDistributionVersion)
     if tResult~=nil then
 
-      -- Read the project configuration.
-      tResult = cCore:read_project_configuration(tArgs.strProjectConfigurationFile)
+      -- Run the prepare script if there is one.
+      local strPrepareScript = tArgs.strPrepareScript
+      if strPrepareScript~=nil then
+        tResult = cCore:runPrepareScript(strPrepareScript)
+      end
       if tResult~=nil then
+        -- Read the project configuration.
+        tResult = cCore:read_project_configuration(tArgs.strProjectConfigurationFile)
+        if tResult~=nil then
 
-        -- Create the cache.
-        if tArgs.fNoCache==true then
-          cLog.info('Do not use a cache as requested.')
-          tResult = true
-        else
-          tResult = cCore:create_cache()
-        end
-        if tResult==true then
-
-          -- Create the resolver chain.
-          cCore:create_resolver_chain()
-
-          -- Create the resolver.
-          tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies, tArgs.strDependencyLogFile)
+          -- Create the cache.
+          if tArgs.fNoCache==true then
+            cLog.info('Do not use a cache as requested.')
+            tResult = true
+          else
+            tResult = cCore:create_cache()
+          end
           if tResult==true then
 
-            -- Resolve the root artifact and all dependencies.
-            tResult = cCore:resolve_root_and_dependencies(tArgs.strGroup, tArgs.strModule, tArgs.strArtifact, tArgs.strVersion)
+            -- Create the resolver chain.
+            cCore:create_resolver_chain()
+
+            -- Create the resolver.
+            tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies, tArgs.strDependencyLogFile)
             if tResult==true then
 
-              -- Download and install all artifacts.
-              tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, tArgs.fSkipRootArtifact, tArgs.strFinalizerScript, tArgs.strDependencyLogFile)
+              -- Resolve the root artifact and all dependencies.
+              tResult = cCore:resolve_root_and_dependencies(tArgs.strGroup, tArgs.strModule, tArgs.strArtifact, tArgs.strVersion)
+              if tResult==true then
+
+                -- Download and install all artifacts.
+                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, tArgs.fSkipRootArtifact, tArgs.strFinalizerScript, tArgs.strDependencyLogFile)
+              end
             end
           end
         end
@@ -54,36 +61,44 @@ local function command_install_dependencies(cCore, tArgs, cLog)
     tResult = cCore:get_platform_id(tArgs.strCpuArchitecture, tArgs.strDistributionId, tArgs.strDistributionVersion)
     if tResult~=nil then
 
-      -- Read the project configuration.
-      tResult = cCore:read_project_configuration(tArgs.strProjectConfigurationFile)
+      -- Run the prepare script if there is one.
+      local strPrepareScript = tArgs.strPrepareScript
+      if strPrepareScript~=nil then
+        tResult = cCore:runPrepareScript(strPrepareScript)
+      end
       if tResult~=nil then
 
-        -- Create the cache.
-        if tArgs.fNoCache==true then
-          cLog.info('Do not use a cache as requested.')
-          tResult = true
-        else
-          tResult = cCore:create_cache()
-        end
-        if tResult==true then
+        -- Read the project configuration.
+        tResult = cCore:read_project_configuration(tArgs.strProjectConfigurationFile)
+        if tResult~=nil then
 
-          -- Create the resolver chain.
-          cCore:create_resolver_chain()
-
-          -- Read the artifact configuration.
-          tResult = cCore:read_artifact_configuration(tArgs.strInputFile)
+          -- Create the cache.
+          if tArgs.fNoCache==true then
+            cLog.info('Do not use a cache as requested.')
+            tResult = true
+          else
+            tResult = cCore:create_cache()
+          end
           if tResult==true then
 
-            -- Create the resolver.
-            tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies, tArgs.strDependencyLogFile)
+            -- Create the resolver chain.
+            cCore:create_resolver_chain()
+
+            -- Read the artifact configuration.
+            tResult = cCore:read_artifact_configuration(tArgs.strInputFile)
             if tResult==true then
 
-              -- Resolve all dependencies.
-              tResult = cCore:resolve_all_dependencies()
+              -- Create the resolver.
+              tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies, tArgs.strDependencyLogFile)
               if tResult==true then
 
-                -- Download and install all artifacts.
-                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, true, tArgs.strFinalizerScript, tArgs.strDependencyLogFile)
+                -- Resolve all dependencies.
+                tResult = cCore:resolve_all_dependencies()
+                if tResult==true then
+
+                  -- Download and install all artifacts.
+                  tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, true, tArgs.strFinalizerScript, tArgs.strDependencyLogFile)
+                end
               end
             end
           end
@@ -178,6 +193,11 @@ tParserCommandInstall:flag('-r --skip-root-artifact')
   :description('Do not install the root artifact but only its dependencies.')
   :default(false)
   :target('fSkipRootArtifact')
+tParserCommandInstall:option('--prepare')
+  :description('Run the installer script SCRIPT before everything else.')
+  :argname('<SCRIPT>')
+  :default(nil)
+  :target('strPrepareScript')
 tParserCommandInstall:option('-f --finalizer')
   :description('Run the installer script SCRIPT as a finalizer.')
   :argname('<SCRIPT>')
@@ -252,6 +272,11 @@ tParserCommandInstallDependencies:flag('-b --build-dependencies')
   :description('Install the build dependencies.')
   :default(false)
   :target('fInstallBuildDependencies')
+tParserCommandInstallDependencies:option('--prepare')
+  :description('Run the installer script SCRIPT before everything else.')
+  :argname('<SCRIPT>')
+  :default(nil)
+  :target('strPrepareScript')
 tParserCommandInstallDependencies:option('-f --finalizer')
   :description('Run the installer script SCRIPT as a finalizer.')
   :argname('<SCRIPT>')

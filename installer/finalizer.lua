@@ -13,6 +13,7 @@ t:install{
   ['../lua/installer/installer.lua']                  = '${install_lua_path}/installer/',
   ['../lua/installer/install_helper.lua']             = '${install_lua_path}/installer/',
   ['../lua/platform/platform.lua']                    = '${install_lua_path}/platform/',
+  ['../lua/prepare/prepare_helper.lua']               = '${install_lua_path}/prepare/',
   ['../lua/repository_driver/repository_driver.lua']  = '${install_lua_path}/repository_driver/',
   ['../lua/repository_driver/filesystem.lua']         = '${install_lua_path}/repository_driver/',
   ['../lua/repository_driver/url.lua']                = '${install_lua_path}/repository_driver/',

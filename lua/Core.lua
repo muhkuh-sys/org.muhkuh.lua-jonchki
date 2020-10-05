@@ -313,4 +313,61 @@ function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSki
 end
 
 
+function Core:runPrepareScript(strPrepareScriptFile)
+  local pl = self.pl
+  local tLog = self.tLog
+  local tResult
+
+  -- Get the path to the script.
+  tLog.info('Running the prepare script "%s".', strPrepareScriptFile)
+  -- Check if the file exists.
+  if pl.path.exists(strPrepareScriptFile)~=strPrepareScriptFile then
+    tResult = nil
+    tLog.error('The prepare script "%s" does not exist.', strPrepareScriptFile)
+  else
+    -- Check if the prepare script is a file.
+    if pl.path.isfile(strPrepareScriptFile)~=true then
+      tResult = nil
+      tLog.error('The prepare script "%s" is no file.', strPrepareScriptFile)
+    else
+      -- Call the prepare script.
+      local strError
+      tResult, strError = pl.utils.readfile(strPrepareScriptFile, false)
+      if tResult==nil then
+        tResult = nil
+        tLog.error('Failed to read the prepare script "%s": %s', strPrepareScriptFile, strError)
+      else
+        -- Parse the prepare script.
+        local strPrepareScript = tResult
+        local loadstring = loadstring or load
+        tResult, strError = loadstring(strPrepareScript, strPrepareScriptFile)
+        if tResult==nil then
+          tResult = nil
+          tLog.error('Failed to parse the prepare script "%s": %s', strPrepareScriptFile, strError)
+        else
+          local fnPrepare = tResult
+
+          -- Create a new prepare helper.
+          local tPrepareHelper = require 'prepare.prepare_helper'(self.cLog)
+
+          -- Call the prepare script.
+          tResult, strError = pcall(fnPrepare, tPrepareHelper)
+          if tResult~=true then
+            tResult = nil
+            tLog.error('Failed to run the prepare script "%s": %s', strPrepareScriptFile, tostring(strError))
+
+          -- The second value is the return value.
+          elseif strError~=true then
+            tResult = nil
+            tLog.error('The prepare script "%s" returned "%s".', strPrepareScriptFile, tostring(strError))
+          end
+        end
+      end
+    end
+  end
+
+  return tResult
+end
+
+
 return Core
