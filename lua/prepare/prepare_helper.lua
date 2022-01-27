@@ -157,7 +157,7 @@ function PrepareHelper:filterVcsId(strRepositorPath, strSourceFile, strDestinati
   -- Read the test template.
   local strTestcaseTemplate, strErrorRead = pl.utils.readfile(strSourceFile, false)
   if strTestcaseTemplate==nil then
-    tLog('Failed to read "%s": %s', strSourceFile, tostring(strErrorRead))
+    tLog.error('Failed to read "%s": %s', strSourceFile, tostring(strErrorRead))
     error('Failed to read the source file.')
   else
     local atReplace = {
