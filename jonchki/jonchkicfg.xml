@@ -2,15 +2,7 @@
 	<repositories>
 		<!-- The local repository can be used to add snapshot packages. -->
 		<repository id="local" type="file" cacheable="false">
-			<root>../../../installer/local_repository</root>
-			<versions>[group]/[module]</versions>
-			<config>[group]/[module]/[version]/[artifact]-[version][platform].[extension]</config>
-			<artifact>[group]/[module]/[version]/[artifact]-[version][platform].[extension]</artifact>
-		</repository>
-
-		<!-- The bintray repository contains stable artifacts. -->
-		<repository id="bintray" type="url" cacheable="true" rescan="1800">
-			<root>https://dl.bintray.com/muhkuh/jonchki</root>
+			<root>../../installer/local_repository</root>
 			<versions>[group]/[module]</versions>
 			<config>[group]/[module]/[version]/[artifact]-[version][platform].[extension]</config>
 			<artifact>[group]/[module]/[version]/[artifact]-[version][platform].[extension]</artifact>
@@ -25,11 +17,13 @@
 		</repository>
 
 		<!-- The sourceforge repository contains stable artifacts. -->
+<!-- Sourceforge does not work right now. It needs better http parsing.
 		<repository id="sourceforge" type="url" cacheable="true" rescan="1800">
 			<root>https://sourceforge.net/projects/muhkuh/files/jonchki</root>
 			<versions>[group]/[module]/</versions>
 			<config>[group]/[module]/[version]/[artifact]-[version][platform].[extension]/download</config>
 			<artifact>[group]/[module]/[version]/[artifact]-[version][platform].[extension]/download</artifact>
 		</repository>
+-->
 	</repositories>
 </jonchkicfg>
