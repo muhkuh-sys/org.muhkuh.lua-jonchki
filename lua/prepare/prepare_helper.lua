@@ -151,7 +151,11 @@ function PrepareHelper:filterVcsId(strRepositorPath, strSourceFile, strDestinati
   local pl = self.pl
   local tLog = self.tLog
   local strRepositoryPathAbs = pl.path.abspath(strRepositorPath)
-  local strGitId = self:getGitDescription(strRepositoryPathAbs)
+  local fResult, strGitId = pcall(self.getGitDescription, self, strRepositoryPathAbs)
+  if fResult~=true then
+    tLog.warning('Failed to get the Git ID: %s', strGitId)
+    strGitId = ''
+  end
   local strProjectVersionVcs, strProjectVersionVcsLong = self:parseGitID(strGitId)
 
   -- Read the test template.
