@@ -96,7 +96,7 @@ function ProjectConfiguration.parseCfg_StartElement(tParser, strName, atAttribut
           else
             tCurrentRepository.cacheable = fCacheable
 
-            local ulRescan = nil
+            local ulRescan
             local strRescan = atAttributes['rescan']
             -- Default to a rescan time of 0.
             if strRescan==nil then
@@ -372,7 +372,7 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
         -- Add the policy overrides to the report.
         -- FIXME: sort the overrides by GAV. Maybe with penlight?
         local uiCnt = 1
-        for strGMA, atPolicies in pairs(self.atPolicyListOverrides) do
+        for _, atPolicies in pairs(self.atPolicyListOverrides) do
           self.tReport:addData(string.format('configuration/project/policies/override@idx=%d/GAV', uiCnt), strPolicies)
           for uiCnt, strPolicy in ipairs(atPolicies) do
             self.tReport:addData(string.format('configuration/project/policies/override@idx=%d/policy', uiCnt), strPolicy)

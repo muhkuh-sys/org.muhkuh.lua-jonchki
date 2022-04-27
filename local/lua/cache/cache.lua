@@ -60,12 +60,13 @@ end
 --- Check the table structure.
 -- This function compares the present structure of a table in a database with a required structure.
 -- It detects if the running software requires a different table structure than the database provides.
--- 
+--
 -- This is done by comparing the SQL statement which is used to create the present table with the
 -- create statement from the software. SQLite3 provides the create statements for each table in a database.
--- 
+--
 -- If the table is not present yet, it is created with the structure from the software.
--- If the present table structure in the database differs from the structure required by the software, the table is deleted and re-created.
+-- If the present table structure in the database differs from the structure required by the software, the
+-- table is deleted and re-created.
 -- If the present table structure matches the structure required by the software, the existing table is used.
 -- @param tSQLCon The SQL connection object.
 -- @param strTableName The name of the table.
@@ -118,7 +119,7 @@ function Cache:_sql_create_table(tSQLCon, strTableName, strCreateStatement)
         tSQLCon:commit()
 
         -- Re-create a new table.
-        local tSqlResult, strError = tSQLCon:execute(strCreateStatement)
+        tSqlResult, strError = tSQLCon:execute(strCreateStatement)
         if tSqlResult==nil then
           self.tLog.error('Failed to re-create the table "%s": %s', strTableName, strError)
         else
@@ -447,7 +448,7 @@ end
 
 
 function Cache:_cachefs_write_configuration(cArtifact)
-  local tResult = nil
+  local tResult
   local strError
 
 
@@ -488,7 +489,7 @@ end
 
 
 function Cache:_cachefs_write_artifact(cArtifact, strArtifactSourcePath)
-  local tResult = nil
+  local tResult
   local strError
 
 
@@ -580,13 +581,12 @@ function Cache:_remove_odd_files(tSQLDatabase)
             if iCnt==0 then
               -- The path was not found in the database.
               self.tLog.debug('Removing stray file "%s".', strFullPath)
-              local tDeleteResult, strError = self.pl.file.delete(strFullPath)
+              local tDeleteResult, strDeleteError = self.pl.file.delete(strFullPath)
               if tDeleteResult~=true then
-                self.tLog.warning('Failed to remove stray file "%s": %s', strFullPath, strError)
+                self.tLog.warning('Failed to remove stray file "%s": %s', strFullPath, strDeleteError)
               end
-            elseif iCnt==1 then
-              -- The path was found in the database.
-            else
+            elseif iCnt~=1 then
+              -- The path was found more than once in the database.
               self.tLog.error('Invalid result from database for query "%s": "%s"', strQuery, tostring(strResult))
               tResult = nil
               break
@@ -647,7 +647,7 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
             tResult = nil
           else
             repeat
-              local atData = tCursor:fetch({}, 'a')
+              atData = tCursor:fetch({}, 'a')
               if atData~=nil then
                 -- Add all paths to the delete list.
                 table.insert(astrDeleteFiles, atData.strConfigurationPath)
@@ -680,9 +680,9 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
                 self.tLog.debug('Deleting SQL ID %d.', iId)
 
                 strQuery = string.format('DELETE FROM cache WHERE iId=%d', iId)
-                local tSqlResult, strError = tSQLDatabase:execute(strQuery)
+                local tSqlResult, strSqlError = tSQLDatabase:execute(strQuery)
                 if tSqlResult==nil then
-                  self.tLog.error('Failed to delete an entry in the cache: %s', strError)
+                  self.tLog.error('Failed to delete an entry in the cache: %s', strSqlError)
                   tResult = nil
                   break
                 else
@@ -695,9 +695,9 @@ function Cache:_enforce_maximum_size(tSQLDatabase, ulFreeSpaceNeeded)
                 for _, strPath in pairs(astrDeleteFiles) do
                   self.tLog.debug('Deleting "%s".', strPath)
 
-                  local tDeleteResult, strError = self.pl.file.delete(strPath)
+                  local tDeleteResult, strDeleteError = self.pl.file.delete(strPath)
                   if tDeleteResult~=true then
-                    self.tLog.error('Failed to remove file "%s": %s', strPath, strError)
+                    self.tLog.error('Failed to remove file "%s": %s', strPath, strDeleteError)
                     tResult = nil
                     break
                   end
@@ -883,9 +883,9 @@ function Cache:get_available_versions(strGroup, strModule, strArtifact)
         local atData = tCursor:fetch({}, 'a')
         if atData~=nil then
           local tVersion = self.Version()
-          local tVersionResult, strError = tVersion:set(atData.strVersion)
+          local tVersionResult, strVersionError = tVersion:set(atData.strVersion)
           if tVersionResult~=true then
-            self.tLog.warning('Error in database: ignoring invalid "version" for %s/%s/%s: %s', strGroup, strModule, strArtifact, strError)
+            self.tLog.warning('Error in database: ignoring invalid "version" for %s/%s/%s: %s', strGroup, strModule, strArtifact, strVersionError)
           else
             local strVersion = tVersion:get()
 
@@ -1137,7 +1137,7 @@ end
 
 
 function Cache:add_artifact(cArtifact, strArtifactSourcePath, strSourceRepository)
-  local tResult = nil
+  local tResult
 
   local tInfo = cArtifact.tInfo
   local strGroup = tInfo.strGroup
