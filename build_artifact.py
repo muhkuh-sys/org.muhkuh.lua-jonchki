@@ -21,7 +21,7 @@ print('Building for %s' % tPlatform['platform_id'])
 strCfg_projectFolder = os.path.dirname(os.path.realpath(__file__))
 
 # This is the Jonchki version to use.
-strCfg_jonchkiVersion = '0.0.6.1'
+strCfg_jonchkiVersion = '0.0.7.1'
 # Look in this folder for Jonchki archives before downloading them.
 strCfg_jonchkiLocalArchives = os.path.join(
     strCfg_projectFolder,
