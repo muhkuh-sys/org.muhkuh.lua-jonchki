@@ -214,7 +214,7 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
     end
     if #astrMissing ~= 0 then
       aLxpAttr.tResult = nil
-      aLxpAttr.tLog.fatal('Error in line %d, col %d: missing items: %s', iPosLine, iPosColumn, table.concat(astrMissing))
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: missing items: %s', iPosLine, iPosColumn, table.concat(astrMissing, ', '))
     else
       -- All data is present.
       table.insert(aLxpAttr.atRepositories, tCurrentRepository)
