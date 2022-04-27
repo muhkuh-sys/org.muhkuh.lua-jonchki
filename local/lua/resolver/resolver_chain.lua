@@ -46,6 +46,7 @@ function ResolverChain:_init(cLog, cPlatform, cSystemConfiguration, strID)
   -- Get all available repository drivers.
   local astrRepositoryDriverModules = {
     'repository_driver.filesystem',
+    'repository_driver.http',
     'repository_driver.url'
   }
   local atRepositoryDriverClasses = {}

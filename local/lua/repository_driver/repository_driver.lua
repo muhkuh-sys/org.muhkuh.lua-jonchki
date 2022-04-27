@@ -51,7 +51,7 @@ end
 
 
 
-function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersion, strPlatform, strExtension, strTemplate)
+function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersion, strPlatform, strExtension, strTemplate, atAdditional)
   -- Convert the group to a list of folders.
   local strSlashGroup = self.pl.stringx.replace(strGroup, '.', '/')
 
@@ -67,15 +67,19 @@ function RepositoryDriver:replace_path(strGroup, strModule, strArtifact, tVersio
   end
 
   -- Construct the replace table.
-  local atReplace = {
-    ['dotgroup'] = strGroup,
-    ['group'] = strSlashGroup,
-    ['module'] = strModule,
-    ['artifact'] = strArtifact,
-    ['version'] = strVersion,
-    ['extension'] = strExtension,
-    ['platform'] = strPlatform
-  }
+  local atReplace = {}
+  if atAdditional~=nil then
+    for strKey, strValue in pairs(atAdditional) do
+      atReplace[strKey] = strValue
+    end
+  end
+  atReplace['dotgroup'] = strGroup
+  atReplace['group'] = strSlashGroup
+  atReplace['module'] = strModule
+  atReplace['artifact'] = strArtifact
+  atReplace['version'] = strVersion
+  atReplace['extension'] = strExtension
+  atReplace['platform'] = strPlatform
 
   -- Replace the keywords.
   return string.gsub(strTemplate, '%[(%w+)%]', atReplace)

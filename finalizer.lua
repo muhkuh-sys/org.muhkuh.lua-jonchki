@@ -16,6 +16,7 @@ t:install{
   ['local/lua/prepare/prepare_helper.lua']               = '${install_lua_path}/prepare/',
   ['local/lua/repository_driver/repository_driver.lua']  = '${install_lua_path}/repository_driver/',
   ['local/lua/repository_driver/filesystem.lua']         = '${install_lua_path}/repository_driver/',
+  ['local/lua/repository_driver/http.lua']               = '${install_lua_path}/repository_driver/',
   ['local/lua/repository_driver/url.lua']                = '${install_lua_path}/repository_driver/',
   ['local/lua/resolver/policies/policy.lua']             = '${install_lua_path}/resolver/policies/',
   ['local/lua/resolver/policies/policy002.lua']          = '${install_lua_path}/resolver/policies/',

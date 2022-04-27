@@ -187,20 +187,30 @@ function ProjectConfiguration.parseCfg_EndElement(tParser, strName)
     if tCurrentRepository.strID==nil then
       table.insert(astrMissing, 'id')
     end
-    if tCurrentRepository.strType==nil then
+    local strType = tCurrentRepository.strType
+    if strType==nil then
       table.insert(astrMissing, 'type')
-    end
-    if tCurrentRepository.strRoot==nil then
-      table.insert(astrMissing, 'root')
-    end
-    if tCurrentRepository.strVersions==nil then
-      table.insert(astrMissing, 'versions')
-    end
-    if tCurrentRepository.strConfig==nil then
-      table.insert(astrMissing, 'config')
-    end
-    if tCurrentRepository.strArtifact==nil then
-      table.insert(astrMissing, 'artifact')
+    else
+      if tCurrentRepository.strRoot==nil then
+        table.insert(astrMissing, 'root')
+      end
+      if tCurrentRepository.strVersions==nil then
+        table.insert(astrMissing, 'versions')
+      end
+      if tCurrentRepository.strConfig==nil then
+        table.insert(astrMissing, 'config')
+      end
+      if tCurrentRepository.strArtifact==nil then
+        table.insert(astrMissing, 'artifact')
+      end
+      if strType=='http' then
+        if tCurrentRepository.strInitialPage==nil then
+          table.insert(astrMissing, 'initialpage')
+        end
+        if tCurrentRepository.strVersionParser==nil then
+          table.insert(astrMissing, 'versionparser')
+        end
+      end
     end
     if #astrMissing ~= 0 then
       aLxpAttr.tResult = nil
@@ -254,14 +264,19 @@ function ProjectConfiguration.parseCfg_CharacterData(tParser, strData)
   local aLxpAttr = tParser:getcallbacks().userdata
   local tCurrentRepository = aLxpAttr.tCurrentRepository
 
-  if aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/root" then
+  local strCurrentPath = aLxpAttr.strCurrentPath
+  if strCurrentPath=="/jonchkicfg/repositories/repository/root" then
     tCurrentRepository.strRoot = strData
-  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/versions" then
+  elseif strCurrentPath=="/jonchkicfg/repositories/repository/versions" then
     tCurrentRepository.strVersions = strData
-  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/config" then
+  elseif strCurrentPath=="/jonchkicfg/repositories/repository/config" then
     tCurrentRepository.strConfig = strData
-  elseif aLxpAttr.strCurrentPath=="/jonchkicfg/repositories/repository/artifact" then
+  elseif strCurrentPath=="/jonchkicfg/repositories/repository/artifact" then
     tCurrentRepository.strArtifact = strData
+  elseif strCurrentPath=="/jonchkicfg/repositories/repository/initialpage" then
+    tCurrentRepository.strInitialPage = strData
+  elseif strCurrentPath=="/jonchkicfg/repositories/repository/versionparser" then
+    tCurrentRepository.strVersionParser = strData
   end
 end
 
@@ -343,6 +358,10 @@ function ProjectConfiguration:parse_configuration(strConfigurationFilename)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/versions', uiCnt), tRepository.strVersions)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/config', uiCnt), tRepository.strConfig)
           self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/artifact', uiCnt), tRepository.strArtifact)
+          if tRepository.strType=='http' then
+            self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/initialpage', uiCnt), tRepository.strInitialPage)
+            self.tReport:addData(string.format('configuration/project/repositories/repository@idx=%d/versionparser', uiCnt), tRepository.strVersionParser)
+          end
         end
 
         -- Add all default policies to the report.
