@@ -8,7 +8,7 @@
 local class = require 'pl.class'
 local Core = class()
 
-function Core:_init(cLog, cReport, strJonchkiPath)
+function Core:_init(cLog, cReport)
   -- The "penlight" module is always useful.
   self.pl = require'pl.import_into'()
 
@@ -36,9 +36,6 @@ function Core:_init(cLog, cReport, strJonchkiPath)
 
   -- Store the report.
   self.cReport = cReport
-
-  -- Store the jonchki path.
-  self.strJonchkiPath = strJonchkiPath
 
   -- No system configuration yet.
   self.cSysCfg = nil
@@ -72,7 +69,7 @@ end
 --
 function Core:read_system_configuration(strSystemConfigurationFile, fInstallBuildDependencies)
   -- Create a configuration object.
-  local cSysCfg = self.SystemConfiguration(self.cLog, self.strJonchkiPath, fInstallBuildDependencies)
+  local cSysCfg = self.SystemConfiguration(self.cLog, fInstallBuildDependencies)
   -- Read the settings from the system configuration file.
   local tResult = cSysCfg:parse_configuration(strSystemConfigurationFile)
   if tResult==nil then

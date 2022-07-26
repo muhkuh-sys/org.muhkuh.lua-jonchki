@@ -504,7 +504,7 @@ local cReport = Report(cLogWriter, strJonchkiPath)
 -- Create a core.
 --
 local Core = require 'Core'
-local cCore = Core(cLogWriter, cReport, strJonchkiPath)
+local cCore = Core(cLogWriter, cReport)
 
 
 -----------------------------------------------------------------------------

@@ -11,7 +11,7 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLog, strJonchkiPath, fInstallBuildDependencies)
+function SystemConfiguration:_init(cLog, fInstallBuildDependencies)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -24,7 +24,6 @@ function SystemConfiguration:_init(cLog, strJonchkiPath, fInstallBuildDependenci
     require "log.formatter.format".new()
   )
 
-  self.strJonchkiPath = strJonchkiPath
   self.fInstallBuildDependencies = fInstallBuildDependencies
 
   -- There is no configuration yet.
