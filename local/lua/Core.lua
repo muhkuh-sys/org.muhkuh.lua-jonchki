@@ -285,7 +285,7 @@ function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSki
     -- Now each atrifact has a source repository set. This was the last missing piece of information.
     self.cResolver:write_artifact_tree_to_report(atIdTab)
 
-    local cInstaller = self.Installer(self.cLog, self.cReport, self.cSysCfg, self.cRootArtifactCfg)
+    local cInstaller = self.Installer(self.cLog, self.cReport, self.cSysCfg, self.cRootArtifactCfg, strFinalizerScript)
     tResult = cInstaller:install_artifacts(atArtifacts, self.cPlatform, fInstallBuildDependencies)
     if tResult==nil then
       self.tLog.fatal('Failed to install all artifacts.')
@@ -298,14 +298,6 @@ function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSki
 
       -- Write the report.
       self.cReport:write()
-
-      -- Run the finalizer script.
-      tResult = self.cInstaller:run_finalizer(strFinalizerScript)
-      if tResult==nil then
-        self.tLog.fatal('Failed to run the finalizer script "%s".', strFinalizerScript)
-      else
-        tResult = true
-      end
     end
   end
 

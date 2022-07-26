@@ -8,7 +8,7 @@ local Installer = class()
 
 
 --- Initialize a new instance of the installer.
-function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfiguration)
+function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfiguration, strFinalizerScript)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -40,6 +40,9 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
 
   -- The configuration object for the root artifact.
   self.cRootArtifactConfiguration = cRootArtifactConfiguration
+
+  -- The finalizer script for the post trigger.
+  self.strFinalizerScript = strFinalizerScript
 end
 
 
@@ -111,6 +114,8 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
 
   -- Create the installation helper.
   local cInstallHelper = self.InstallHelper(self.cLog, fInstallBuildDependencies, self.atPostTriggers)
+  -- Register the finalizer as a post trigger.
+  cInstallHelper:register_post_trigger(self.run_finalizer, self, 75)
   -- Add replacement variables.
   local atReplacements = {
     ['install_base'] = self.cSystemConfiguration.tConfiguration.install_base,
@@ -241,8 +246,9 @@ end
 
 
 
-function Installer:run_finalizer(strFinalizerScript)
+function Installer:run_finalizer()
   local tResult = true
+  local strFinalizerScript = self.strFinalizerScript
 
   if strFinalizerScript~=nil then
     -- Get the absolute path for the finalizer script.
