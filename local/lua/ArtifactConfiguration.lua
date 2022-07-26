@@ -42,6 +42,7 @@ function ArtifactConfiguration:_init(cLog)
   self.tInfo = nil
   self.atBuildDependencies = nil
   self.atDependencies = nil
+  self.atActions = nil
 
   -- These are the IDs of the repositories serving the configuration and the
   -- artifact.
@@ -291,6 +292,42 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     end
 
     table.insert(aLxpAttr.atCurrentDependencyGroup.atDependencies, tDependency)
+
+  elseif strCurrentPath=='/jonchki-artifact/actions/action' then
+    local tAction = {}
+
+    local strName = atAttributes['name']
+    if strName==nil or strName=='' then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLog.error('Error in line %d, col %d: missing "name" element', iPosLine, iPosColumn)
+    end
+    tAction.strName = strName
+
+    local strLevel = atAttributes['level']
+    local ulLevel
+    if strLevel~=nil and strLevel~='' then
+      ulLevel = tonumber(strLevel)
+      if ulLevel==nil then
+        aLxpAttr.tResult = nil
+        aLxpAttr.tLog.error('Error in line %d, col %d: invalid "level": not a number', iPosLine, iPosColumn)
+      end
+    end
+    tAction.ulLevel = ulLevel
+
+    local strFile = atAttributes['file']
+    if strFile=='' then
+      strFile = nil
+    end
+    tAction.strFile = strFile
+
+    local strPath = atAttributes['path']
+    if strPath=='' then
+      strPath = nil
+    end
+    tAction.strPath = strPath
+
+    aLxpAttr.atCurrentAction = tAction
+
   end
 end
 
@@ -303,6 +340,22 @@ end
 -- @param strName The name of the closed element.
 function ArtifactConfiguration.parseCfg_EndElement(tParser, strName)
   local aLxpAttr = tParser:getcallbacks().userdata
+  local iPosLine, iPosColumn = tParser:pos()
+  local strCurrentPath = aLxpAttr.strCurrentPath
+
+  if strCurrentPath=='/jonchki-artifact/actions/action' then
+    -- An action must have a code or file element.
+    local tAction = aLxpAttr.atCurrentAction
+    if tAction.strFile==nil and tAction.strCode==nil then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: the action has no file attribute or code contents.', iPosLine, iPosColumn)
+    elseif tAction.strFile~=nil and tAction.strCode~=nil then
+      aLxpAttr.tResult = nil
+      aLxpAttr.tLog.fatal('Error in line %d, col %d: the action has a file attribute and code contents, but there should be only one.', iPosLine, iPosColumn)
+    else
+      table.insert(aLxpAttr.atActions, tAction)
+    end
+  end
 
   table.remove(aLxpAttr.atCurrentPath)
   aLxpAttr.strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
@@ -317,9 +370,13 @@ end
 -- @param strData The character data.
 function ArtifactConfiguration.parseCfg_CharacterData(tParser, strData)
   local aLxpAttr = tParser:getcallbacks().userdata
+  local strCurrentPath = aLxpAttr.strCurrentPath
 
-  if aLxpAttr.strCurrentPath=="/jonchki-artifact/info/description" then
+  if strCurrentPath=="/jonchki-artifact/info/description" then
     aLxpAttr.tInfo.strDescription = strData
+
+  elseif strCurrentPath=='/jonchki-artifact/actions/action' then
+    aLxpAttr.atCurrentAction.strCode = strData
   end
 end
 
@@ -363,6 +420,8 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
     tInfo = nil,
     atDependencies = {},
     atCurrentDependencyGroup = {},
+    atCurrentAction = nil,
+    atActions = {},
 
     strDefaultExtension = self.strDefaultExtension,
     tResult = true,
@@ -394,6 +453,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
     self.tVersion = aLxpCallbacks.userdata.tVersion
     self.tInfo = aLxpCallbacks.userdata.tInfo
     self.atDependencies = aLxpCallbacks.userdata.atDependencies
+    self.atActions = aLxpCallbacks.userdata.atActions
 
     -- Check if all required components are present.
     -- NOTE: the dependency block is optional.

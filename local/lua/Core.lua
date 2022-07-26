@@ -270,7 +270,7 @@ end
 --
 -- Download and install all artifacts.
 --
-function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSkipRootArtifact, strFinalizerScript, strDependencyLogFile)
+function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSkipRootArtifact, strDependencyLogFile)
   local tDependencyLog = require 'DependencyLog'(self.cLog)
   local atArtifacts, atIdTab = self.cResolver:get_all_dependencies(fSkipRootArtifact, tDependencyLog)
   tDependencyLog:writeToFile(strDependencyLogFile)
@@ -282,7 +282,7 @@ function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSki
     -- Now each atrifact has a source repository set. This was the last missing piece of information.
     self.cResolver:write_artifact_tree_to_report(atIdTab)
 
-    local cInstaller = self.Installer(self.cLog, self.cReport, self.cSysCfg, self.cRootArtifactCfg, strFinalizerScript)
+    local cInstaller = self.Installer(self.cLog, self.cReport, self.cSysCfg, self.cRootArtifactCfg)
     tResult = cInstaller:install_artifacts(atArtifacts, self.cPlatform, fInstallBuildDependencies)
     if tResult==nil then
       self.tLog.fatal('Failed to install all artifacts.')

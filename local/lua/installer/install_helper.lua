@@ -11,7 +11,7 @@ local InstallHelper = class()
 
 --- Initialize a new instance of the install class.
 -- @param strID The ID identifies the resolver.
-function InstallHelper:_init(cLog, fInstallBuildDependencies, atPostTriggers)
+function InstallHelper:_init(cLog, fInstallBuildDependencies, atActions)
   self.cLog = cLog
   local tLogWriter_InstallHelper = require 'log.writer.prefix'.new('[InstallHelper] ', cLog)
   self.tLogInstallHelper = require "log".new(
@@ -22,17 +22,9 @@ function InstallHelper:_init(cLog, fInstallBuildDependencies, atPostTriggers)
     require "log.formatter.format".new()
   )
 
-  -- Create a log object for the finalizer.
-  local tLogWriter_Finalizer = require 'log.writer.prefix'.new('[Finalizer] ', cLog)
-  self.tLog = require "log".new(
-    -- maximum log level
-    "trace",
-    tLogWriter_Finalizer,
-    -- Formatter
-    require "log.formatter.format".new()
-  )
+  self.tLog = nil
 
-  self.atPostTriggers = atPostTriggers
+  self.atActions = atActions
 
   -- No replacement variables yet.
   self.atReplacements = {}
@@ -51,7 +43,7 @@ function InstallHelper:_init(cLog, fInstallBuildDependencies, atPostTriggers)
 
   -- This is an identifier string which can be used in error messages.
   -- It is set with the "setId" method.
-  self.strGMAV = ''
+  self.strInstallerId = ''
 
   -- The current working folder is the source path if the installation. Here the artifact archive is depacked.
   self.strCwd = ''
@@ -87,9 +79,20 @@ end
 
 
 
-function InstallHelper:setId(strGMAV)
+function InstallHelper:setId(strInstallerId)
   -- Update the identifier.
-  self.strGMAV = strGMAV
+  self.strInstallerId = strInstallerId
+
+  -- Create a log object for the finalizer.
+  local tLogWriter_Finalizer = require 'log.writer.prefix'.new(
+    string.format('[%s] ', strInstallerId),
+    self.cLog
+  )
+  self.tLog = require "log".new(
+    'trace',
+    tLogWriter_Finalizer,
+    require "log.formatter.format".new()
+  )
 end
 
 
@@ -128,26 +131,69 @@ function InstallHelper:register_post_trigger(fnAction, tUserData, uiLevel)
     error('The "register_post_trigger" method was called without a proper "self" argument. Use "t:register_post_trigger(function, userdata, level)" to call the function.')
   end
 
-  -- The second argument must be a function.
+  -- The 2nd argument must be a function.
   if type(fnAction)~='function' then
-    error('The second argument of the "register_post_trigger" method must be a function.')
+    error('The 2nd argument of the "register_post_trigger" method must be a function.')
   end
 
-  -- The fourth argument must be a number.
+  -- The 4th argument must be a number.
   if type(uiLevel)~='number' then
     error('The 4th argument of the "register_post_trigger" method must be a number.')
   end
 
+  local strName = 'unnamed post trigger'
+  local strWorkingPath = self.pl.path.currentdir()
+  self:register_action(strName, fnAction, tUserData, strWorkingPath, uiLevel)
+end
+
+
+
+function InstallHelper:register_action(strName, fnAction, tUserData, strWorkingPath, uiLevel)
+  -- The first argument must be an "Install" class.
+  if not(type(self)=='table' and type(self.is_a)=='function' and self:is_a(InstallHelper)==true) then
+    self.tLogInstallHelper.debug('Wrong self argument for the "install" method!')
+    self.tLogInstallHelper.debug('type(self) = "%s".', type(self))
+    self.tLogInstallHelper.debug('type(self.is_a) = "%s"', type(self.is_a))
+    self.tLogInstallHelper.debug('self:is_a(InstallHelper) = %s', tostring(self:is_a(InstallHelper)))
+    error('The "register_post_trigger" method was called without a proper "self" argument. Use "t:register_post_trigger(function, userdata, level)" to call the function.')
+  end
+
+    -- The second argument must be a string.
+    if type(strName)~='string' then
+      error('The second argument of the "register_post_trigger" method must be a string.')
+    end
+
+  -- The 3rd argument must be a function.
+  if type(fnAction)~='function' then
+    error('The 3rd argument of the "register_post_trigger" method must be a function.')
+  end
+
+  -- The 5th argument must be a string.
+  if type(strWorkingPath)~='string' then
+    error('The 5th argument of the "register_post_trigger" method must be a string.')
+  end
+
+  -- The 6th argument must be a number.
+  if type(uiLevel)~='number' then
+    error('The 6th argument of the "register_post_trigger" method must be a number.')
+  end
+
   -- Does the level already exist?
-  local atLevel = self.atPostTriggers[uiLevel]
+  local atLevel = self.atActions[uiLevel]
   if atLevel==nil then
     -- No, the level does not yet exist. Create it now.
     atLevel = {}
-    self.atPostTriggers[uiLevel] = atLevel
+    self.atActions[uiLevel] = atLevel
   end
 
   -- Append the new post trigger to the level.
-  table.insert(atLevel, {fn=fnAction, userdata=tUserData})
+  local tAction = {
+    name = strName,
+    fn = fnAction,
+    userdata = tUserData,
+    path = strWorkingPath
+  }
+  table.insert(atLevel, tAction)
 end
 
 
@@ -307,7 +353,7 @@ function InstallHelper:install(tSrc, strDst)
           -- Yes -> refuse to overwrite it.
           error(string.format('The file "%s" was already installed by the artifact %s.', strDstPath, strPackage))
         end
-        self.atInstalledFiles[strDstPath] = self.strGMAV
+        self.atInstalledFiles[strDstPath] = self.strInstallerId
 
         -- Create the output folder.
         local tResult, strError = self.pl.dir.makepath(strDstDirname)
@@ -353,7 +399,7 @@ function InstallHelper:install(tSrc, strDst)
               -- Yes -> refuse to overwrite it.
               error(string.format('The file "%s" was already installed by the artifact %s.', strDstPath, strPackage))
             end
-            self.atInstalledFiles[strDstPath] = self.strGMAV
+            self.atInstalledFiles[strDstPath] = self.strInstallerId
 
             -- Copy the file.
             local tResult, strError = self:copy(strSrcPath, strDstPath)

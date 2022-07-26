@@ -8,7 +8,7 @@ local Installer = class()
 
 
 --- Initialize a new instance of the installer.
-function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfiguration, strFinalizerScript)
+function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfiguration)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -18,7 +18,7 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
   self.archives = cArchives(cLog)
 
   -- Create an empty list of post triggers.
-  self.atPostTriggers = {}
+  self.atActions = {}
 
   -- The install helper class.
   self.InstallHelper = require 'installer.install_helper'
@@ -41,8 +41,27 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
   -- The configuration object for the root artifact.
   self.cRootArtifactConfiguration = cRootArtifactConfiguration
 
-  -- The finalizer script for the post trigger.
-  self.strFinalizerScript = strFinalizerScript
+  self.ulDefaultLevel = 50
+  self.atDefaultLevels = {
+    ['finalizer'] = 75,
+    ['pack'] = 80
+  }
+  self.atDefaultActions = {
+    {
+      name = 'pack',
+      code = [[
+        local t = ...
+
+        t:createPackageFile()
+        t:createHashFile()
+        t:createArchive('${install_base}/../${default_archive_name}', 'native')
+
+        return true
+      ]],
+      path = '${install_base}',
+      level = 80
+    }
+  }
 end
 
 
@@ -161,6 +180,97 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
       end
     end
   end
+
+  if tResult==true then
+    -- Register all actions.
+    for _, tAction in ipairs(self.cRootArtifactConfiguration.atActions) do
+      -- Get the name.
+      local strName = tAction.strName
+      -- Get the level.
+      local ulLevel = tAction.ulLevel
+      if ulLevel==nil then
+        -- Get the default level if the test has a name.
+        if strName~=nil then
+          ulLevel = self.atDefaultLevels[strName]
+        end
+        -- Assign the default level as the last fallback.
+        if ulLevel==nil then
+          ulLevel = self.ulDefaultLevel
+        end
+      end
+      -- Get the code.
+      local fnAction
+      local strWorkingPath
+      if tAction.strFile~=nil then
+        -- Read the code from a file.
+
+        -- Get the absolute path for the script.
+        local strPath = cInstallHelper:replace_template(tAction.strFile)
+        local strScriptAbs = pl.path.abspath(strPath)
+
+        -- Check if the file exists.
+        if pl.path.exists(strScriptAbs)~=strScriptAbs then
+          tResult = nil
+          tLog.error('The file for action script "%s" does not exist: %s', strName, strScriptAbs)
+          break
+
+        -- Check if the action script is a file.
+        elseif pl.path.isfile(strScriptAbs)~=true then
+          tResult = nil
+          tLog.error('The path for action script "%s" is no file: %s', strName, strScriptAbs)
+          break
+
+        else
+          -- Read the action script.
+          local strActionScript, strFileError = pl.utils.readfile(strScriptAbs, false)
+          if strActionScript==nil then
+            tResult = nil
+            tLog.error('Failed to read action script "%s" from file %s: %s', strName, strScriptAbs, strFileError)
+            break
+
+          else
+            -- Parse the install script.
+            local loadstring = loadstring or load
+            local strParseError
+            fnAction, strParseError = loadstring(strActionScript, string.format('action script %s', strName))
+            if fnAction==nil then
+              tResult = nil
+              tLog.error('Failed to parse the action script "%s" from file %s: %s', strName, strScriptAbs, strParseError)
+              break
+
+            else
+              -- Get the working path of the script. Use the "path" attribute. If it is not set, get the path component of the script.
+              strWorkingPath = tAction.strPath
+              if strWorkingPath==nil then
+                strWorkingPath = pl.path.dirname(strScriptAbs)
+              end
+            end
+          end
+        end
+      else
+
+        -- Parse the install script.
+        local loadstring = loadstring or load
+        local strParseError
+        fnAction, strParseError = loadstring(tAction.strCode, strScriptAbs)
+        if fnAction==nil then
+          tResult = nil
+          tLog.error('Failed to parse the action script "%s" from embedded code: %s', strName, strParseError)
+          break
+
+        else
+          -- Get the working path of the script. Use the "path" attribute. If it is not set, use the project root.
+          strWorkingPath = tAction.strPath
+          if strWorkingPath==nil then
+            strWorkingPath = '${prj_root}'
+          end
+        end
+      end
+
+      cInstallHelper:register_action(strName, fnAction, cInstallHelper, strWorkingPath, ulLevel)
+    end
+  end
+
   if tResult==true then
     self.tCurrentInstallHelper = cInstallHelper
 
@@ -231,39 +341,68 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
     end
 
     if tResult==true then
-      -- Run all post triggers.
-      self.tLog.debug('Running post trigger scripts.')
-      for uiLevel, atLevel in self.pl.tablex.sort(self.atPostTriggers) do
-        self.tLog.debug('Running post trigger actions for level %d.', uiLevel)
-        for _, tPostAction in ipairs(atLevel) do
-          tResult = tPostAction.fn(tPostAction.userdata, cInstallHelper)
-          if tResult==nil then
-            self.tLog.error('Error running the post trigger action script.')
+      -- Add all missing default actions.
+      for _, tDefaultAction in ipairs(self.atDefaultActions) do
+        local strName = tDefaultAction.name
+
+        -- Does an action with this name already exist?
+        local fFound = false
+        for _, atLevel in pairs(self.atActions) do
+          for _, tAction in ipairs(atLevel) do
+            if tAction.name==strName then
+              fFound = true
+              break
+            end
+          end
+          if fFound==true then
             break
           end
         end
+        if fFound~=true then
+          tLog.info('Using default action script for "%s".', strName)
+          -- Parse the action code.
+          local loadstring = loadstring or load
+          local fnAction, strParseError = loadstring(tDefaultAction.code, string.format('default action script %s', strName))
+          if fnAction==nil then
+            tResult = nil
+            tLog.error('Failed to parse the action script "%s" from embedded code: %s', strName, strParseError)
+            break
+
+          else
+            -- Register the action.
+            cInstallHelper:register_action(strName, fnAction, cInstallHelper, tDefaultAction.path, tDefaultAction.level)
+          end
+        end
       end
-    end
-  end
 
-  return tResult
-end
+      -- Run all action scripts.
+      self.tLog.debug('Running action scripts.')
+      for uiLevel, atLevel in self.pl.tablex.sort(self.atActions) do
+        self.tLog.debug('Running actions for level %d.', uiLevel)
+        for _, tAction in ipairs(atLevel) do
+          -- Set the artifact's depack path as the current working folder.
+          local strPath = cInstallHelper:replace_template(tAction.path)
+          cInstallHelper:setCwd(strPath)
 
+          -- Set the current artifact identification for error messages.
+          cInstallHelper:setId(tAction.name)
 
+          local tPcallResult, tFnResult = pcall(tAction.fn, tAction.userdata, cInstallHelper)
+          if tPcallResult==nil then
+            tResult = nil
+            tLog.error('Error running action script "%s": %s', tAction.name, tostring(tFnResult))
+            break
+          elseif tFnResult~=true then
+            tResult = nil
+            tLog.error('The action script "%s" returned %s', tAction.name, tostring(tFnResult))
+            break
+          end
+        end
 
-function Installer:run_finalizer()
-  local tResult = true
-  local strFinalizerScript = self.strFinalizerScript
-
-  if strFinalizerScript~=nil then
-    -- Get the absolute path for the finalizer script.
-    local strFinalizerScriptAbs = self.pl.path.abspath(strFinalizerScript)
-    -- Get the path component of the finalizer script.
-    local strWorkingPath = self.pl.path.dirname(strFinalizerScriptAbs)
-    self.tLog.info('Run the finalizer script "%s".', strFinalizerScriptAbs)
-    tResult = self:run_install_script(strFinalizerScriptAbs, strWorkingPath, 'finalizer script')
-    if tResult==nil then
-      self.tLog.error('Error running the finalizer script.')
+        if tResult~=true then
+          break
+        end
+      end
     end
   end
 

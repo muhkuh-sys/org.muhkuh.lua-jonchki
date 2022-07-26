@@ -42,7 +42,7 @@ local function command_install(cCore, tArgs, cLog)
               if tResult==true then
 
                 -- Download and install all artifacts.
-                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, tArgs.fSkipRootArtifact, tArgs.strFinalizerScript, tArgs.strDependencyLogFile)
+                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, tArgs.fSkipRootArtifact, tArgs.strDependencyLogFile)
               end
             end
           end
@@ -105,7 +105,7 @@ local function command_install_dependencies(cCore, tArgs, cLog)
                 if tResult==true then
 
                   -- Download and install all artifacts.
-                  tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, true, tArgs.strFinalizerScript, tArgs.strDependencyLogFile)
+                  tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, true, tArgs.strDependencyLogFile)
                 end
               end
             end
