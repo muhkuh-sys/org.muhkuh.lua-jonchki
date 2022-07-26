@@ -102,9 +102,10 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
   local iPosLine, iPosColumn = tParser:pos()
 
   table.insert(aLxpAttr.atCurrentPath, strName)
-  aLxpAttr.strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
+  local strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
+  aLxpAttr.strCurrentPath = strCurrentPath
 
-  if aLxpAttr.strCurrentPath=='/jonchki-artifact' then
+  if strCurrentPath=='/jonchki-artifact' then
     local strVersion = atAttributes['version']
     if strVersion==nil or strVersion=='' then
       aLxpAttr.tResult = nil
@@ -118,7 +119,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     end
     aLxpAttr.tVersion = tVersion
 
-  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/info' then
+  elseif strCurrentPath=='/jonchki-artifact/info' then
     -- Create a new "info" table.
     local tInfo = {}
     -- Set some default values for the optional elements.
@@ -183,7 +184,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
 
     aLxpAttr.tInfo = tInfo
 
-  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/info/license' then
+  elseif strCurrentPath=='/jonchki-artifact/info/license' then
     local tInfo = aLxpAttr.tInfo
 
     local strLicense = atAttributes['name']
@@ -191,7 +192,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       tInfo.strLicense = strLicense
     end
 
-  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/info/author' then
+  elseif strCurrentPath=='/jonchki-artifact/info/author' then
     local tInfo = aLxpAttr.tInfo
 
     local strAuthorName = atAttributes['name']
@@ -204,16 +205,16 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
       tInfo.strAuthorUrl = strAuthorUrl
     end
 
-  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies' then
+  elseif strCurrentPath=='/jonchki-artifact/dependencies' then
     local atCurrentDependencyGroup = {}
     atCurrentDependencyGroup.atDependencies = {}
     atCurrentDependencyGroup.atBuildDependencies = {}
     aLxpAttr.atCurrentDependencyGroup = atCurrentDependencyGroup
     table.insert(aLxpAttr.atDependencies, atCurrentDependencyGroup)
 
-  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies/build-dependency' then
+  elseif strCurrentPath=='/jonchki-artifact/dependencies/build-dependency' then
     local tDependency = {}
-    
+
     local strGroup = atAttributes['group']
     if strGroup==nil or strGroup=='' then
       aLxpAttr.tResult = nil
@@ -250,7 +251,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
 
     table.insert(aLxpAttr.atCurrentDependencyGroup.atBuildDependencies, tDependency)
 
-  elseif aLxpAttr.strCurrentPath=='/jonchki-artifact/dependencies/dependency' then
+  elseif strCurrentPath=='/jonchki-artifact/dependencies/dependency' then
     local tDependency = {}
 
     local strGroup = atAttributes['group']
@@ -475,7 +476,7 @@ end
 
 
 --- Return the complete configuration as a string.
--- @return The configuration as a string. 
+-- @return The configuration as a string.
 function ArtifactConfiguration:__tostring()
   local astrRepr = {}
   table.insert(astrRepr, 'ArtifactConfiguration(')
