@@ -1,6 +1,10 @@
 local function command_install(cCore, tArgs, cLog)
+  -- Get default for the project root.
+  local path = require 'pl.path'
+  local strProjectRoot = tArgs.strProjectRoot or path.currentdir()
+
   -- Read the system configuration.
-  local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies)
+  local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies, strProjectRoot)
   if tResult~=nil then
 
     -- Get the platform ID.
@@ -53,8 +57,12 @@ end
 
 
 local function command_install_dependencies(cCore, tArgs, cLog)
+  -- Get default for the project root.
+  local path = require 'pl.path'
+  local strProjectRoot = tArgs.strProjectRoot or path.abspath(path.dirname(tArgs.strInputFile))
+
   -- Read the system configuration.
-  local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies)
+  local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies, strProjectRoot)
   if tResult~=nil then
 
     -- Get the platform ID.
@@ -198,11 +206,11 @@ tParserCommandInstall:option('--prepare')
   :argname('<SCRIPT>')
   :default(nil)
   :target('strPrepareScript')
-tParserCommandInstall:option('-f --finalizer')
-  :description('Run the installer script SCRIPT as a finalizer.')
-  :argname('<SCRIPT>')
+tParserCommandInstall:option('--project-root')
+  :description('Use PATH as the project root. Default is the current working folder.')
+  :argname('<PATH>')
   :default(nil)
-  :target('strFinalizerScript')
+  :target('strProjectRoot')
 tParserCommandInstall:flag('-n --no-cache')
   :description('Do not use a cache, even if repositories are marked as cacheable.')
   :default(false)
@@ -277,11 +285,11 @@ tParserCommandInstallDependencies:option('--prepare')
   :argname('<SCRIPT>')
   :default(nil)
   :target('strPrepareScript')
-tParserCommandInstallDependencies:option('-f --finalizer')
-  :description('Run the installer script SCRIPT as a finalizer.')
-  :argname('<SCRIPT>')
+tParserCommandInstallDependencies:option('--project-root')
+  :description('Use PATH as the project root. Default is the path of the artifact configuration.')
+  :argname('<PATH>')
   :default(nil)
-  :target('strFinalizerScript')
+  :target('strProjectRoot')
 tParserCommandInstallDependencies:flag('-n --no-cache')
   :description('Do not use a cache, even if repositories are marked as cacheable.')
   :default(false)

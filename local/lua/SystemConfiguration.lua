@@ -11,7 +11,7 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLog, fInstallBuildDependencies)
+function SystemConfiguration:_init(cLog, fInstallBuildDependencies, strProjectRoot)
   -- The "penlight" module is used to parse the configuration file.
   self.pl = require'pl.import_into'()
 
@@ -25,6 +25,7 @@ function SystemConfiguration:_init(cLog, fInstallBuildDependencies)
   )
 
   self.fInstallBuildDependencies = fInstallBuildDependencies
+  self.strProjectRoot = strProjectRoot
 
   -- There is no configuration yet.
   self.tConfiguration = nil
@@ -156,6 +157,11 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         -- Collect all replacements in a new table.
         local atReplacements = {}
 
+        -- Add the project root.
+        local strProjectRoot = self.strProjectRoot
+        atConfiguration['prj_root'] = strProjectRoot
+        atReplacements['prj_root'] = strProjectRoot
+
         -- Parse all options.
         for _,tAttr in ipairs(atOptions) do
           -- Get the key.
@@ -185,6 +191,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
           atConfiguration.cache_max_size = ulValue
 
           -- Convert all paths to ablosute.
+          atConfiguration.prj_root = self.pl.path.abspath(atConfiguration.prj_root)
           atConfiguration.work = self.pl.path.abspath(atConfiguration.work)
           atConfiguration.depack = self.pl.path.abspath(atConfiguration.depack)
           atConfiguration.install_base = self.pl.path.abspath(atConfiguration.install_base)
