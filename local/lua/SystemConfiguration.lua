@@ -111,6 +111,8 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         { key='cache',                  required=false, replacement=false, default='${work}/cache' },
         { key='cache_max_size',         required=false, replacement=false, default='512M' },
         { key='depack',                 required=false, replacement=false, default='${work}/depack' },
+        { key='build',                  required=false, replacement=true,  default='${work}/build' },
+        { key='build_doc',              required=false, replacement=false, default='${build}/doc' },
         { key='install_base',           required=false, replacement=true,  default='${work}/install' },
         { key='install_executables',    required=false, replacement=false, default='${install_base}' },
         { key='install_shared_objects', required=false, replacement=false, default='${install_base}' },
@@ -194,6 +196,8 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
           atConfiguration.prj_root = self.pl.path.abspath(atConfiguration.prj_root)
           atConfiguration.work = self.pl.path.abspath(atConfiguration.work)
           atConfiguration.depack = self.pl.path.abspath(atConfiguration.depack)
+          atConfiguration.build = self.pl.path.abspath(atConfiguration.build)
+          atConfiguration.build_doc = self.pl.path.abspath(atConfiguration.build_doc)
           atConfiguration.install_base = self.pl.path.abspath(atConfiguration.install_base)
           atConfiguration.install_executables = self.pl.path.abspath(atConfiguration.install_executables)
           atConfiguration.install_shared_objects = self.pl.path.abspath(atConfiguration.install_shared_objects)
@@ -253,6 +257,8 @@ function SystemConfiguration:initialize_paths()
   table.insert(atPaths, { strKey='work',                   fClear=false })
   table.insert(atPaths, { strKey='cache',                  fClear=false })
   table.insert(atPaths, { strKey='depack',                 fClear=true })
+  table.insert(atPaths, { strKey='build',                  fClear=true })
+  table.insert(atPaths, { strKey='build_doc',              fClear=true })
   table.insert(atPaths, { strKey='install_base',           fClear=true })
   table.insert(atPaths, { strKey='install_executables',    fClear=true })
   table.insert(atPaths, { strKey='install_shared_objects', fClear=true })

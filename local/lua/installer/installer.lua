@@ -142,6 +142,9 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
   local atReplacements = {
     ['prj_root'] = tConfiguration.prj_root,
 
+    ['build'] = tConfiguration.build,
+    ['build_doc'] = tConfiguration.build_doc,
+
     ['install_base'] = tConfiguration.install_base,
     ['install_executables'] = tConfiguration.install_executables,
     ['install_shared_objects'] = tConfiguration.install_shared_objects,
