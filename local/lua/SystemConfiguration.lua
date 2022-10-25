@@ -12,9 +12,6 @@ local SystemConfiguration = class()
 
 
 function SystemConfiguration:_init(cLog, fInstallBuildDependencies, strProjectRoot)
-  -- The "penlight" module is used to parse the configuration file.
-  self.pl = require'pl.import_into'()
-
   local tLogWriter = require 'log.writer.prefix'.new('[SystemConfiguration] ', cLog)
   self.tLog = require "log".new(
     -- maximum log level
@@ -41,7 +38,7 @@ end
 -- 1024*1024*1024.
 -- @param strNumber The number as a string.
 -- @return The converted number.
-function SystemConfiguration:pretty_string_to_number(strNumber)
+function SystemConfiguration.pretty_string_to_number(strNumber)
   local atMultiplier = {
     K = 1024,
     M = 1024*1024,
@@ -73,7 +70,7 @@ end
 
 
 
-function SystemConfiguration:is_path_child_or_equal(strPathRoot, strPathChild)
+function SystemConfiguration.is_path_child_or_equal(strPathRoot, strPathChild)
   local tResult
 
 
@@ -81,7 +78,8 @@ function SystemConfiguration:is_path_child_or_equal(strPathRoot, strPathChild)
     tResult = true
   else
     -- Get the relative path from the child to the root path.
-    local strPath = self.pl.path.relpath(strPathRoot, strPathChild)
+    local path = require 'pl.path'
+    local strPath = path.relpath(strPathRoot, strPathChild)
     -- If child is really below root, this must start with "..".
     tResult = (string.sub(strPath, 1, 2) == "..")
   end
@@ -92,19 +90,22 @@ end
 
 
 function SystemConfiguration:parse_configuration(strConfigurationFilename)
+  local tLog = self.tLog
+
   -- Be pessimistic...
   local tResult = nil
 
-  self.tLog.info('Reading the system configuration from "%s"', strConfigurationFilename)
+  tLog.info('Reading the system configuration from "%s"', strConfigurationFilename)
 
   -- The filename of the configuration is a required parameter.
   if strConfigurationFilename==nil then
-    self.tLog.fatal('The SystemConfiguration class expects a filename as a parameter.')
+    tLog.fatal('The SystemConfiguration class expects a filename as a parameter.')
   else
     -- Read the configuration file into a LUA table.
-    local tCfg,strError = self.pl.config.read(strConfigurationFilename)
+    local config = require 'pl.config'
+    local tCfg,strError = config.read(strConfigurationFilename)
     if tCfg==nil then
-      self.tLog.fatal('Failed to read the configuration file: %s', strError)
+      tLog.fatal('Failed to read the configuration file: %s', strError)
     else
       local atOptions = {
         { key='work',                   required=true,  replacement=true,  default=nil },
@@ -134,7 +135,10 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         end
       end
       if #atMissing ~= 0 then
-        self.tLog.fatal('Invalid configuration. The following required keys are not present: %s', table.concat(atMissing, ', '))
+        tLog.fatal(
+          'Invalid configuration. The following required keys are not present: %s',
+          table.concat(atMissing, ', ')
+        )
       else
         -- Loop over all configuration entries and check if they are valid.
         local atUnknown = {}
@@ -151,7 +155,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
           end
         end
         if #atUnknown ~= 0 then
-          self.tLog.warning('Warning: Ignoring unknown configuration entries: %s', table.concat(atUnknown, ', '))
+          tLog.warning('Warning: Ignoring unknown configuration entries: %s', table.concat(atUnknown, ', '))
         end
 
         -- Collect all options in a new table.
@@ -186,48 +190,53 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
 
         -- 'cache_max_size' must be a number.
         local strValue = atConfiguration.cache_max_size
-        local ulValue = self:pretty_string_to_number(strValue)
+        local ulValue = self.pretty_string_to_number(strValue)
         if ulValue==nil then
-          self.tLog.fatal('Invalid value for "cache_max_size": %s', strValue)
+          tLog.fatal('Invalid value for "cache_max_size": %s', strValue)
         else
           atConfiguration.cache_max_size = ulValue
 
           -- Convert all paths to ablosute.
-          atConfiguration.prj_root = self.pl.path.abspath(atConfiguration.prj_root)
-          atConfiguration.work = self.pl.path.abspath(atConfiguration.work)
-          atConfiguration.depack = self.pl.path.abspath(atConfiguration.depack)
-          atConfiguration.build = self.pl.path.abspath(atConfiguration.build)
-          atConfiguration.build_doc = self.pl.path.abspath(atConfiguration.build_doc)
-          atConfiguration.install_base = self.pl.path.abspath(atConfiguration.install_base)
-          atConfiguration.install_executables = self.pl.path.abspath(atConfiguration.install_executables)
-          atConfiguration.install_shared_objects = self.pl.path.abspath(atConfiguration.install_shared_objects)
-          atConfiguration.install_lua_path = self.pl.path.abspath(atConfiguration.install_lua_path)
-          atConfiguration.install_lua_cpath = self.pl.path.abspath(atConfiguration.install_lua_cpath)
-          atConfiguration.install_doc = self.pl.path.abspath(atConfiguration.install_doc)
-          atConfiguration.install_dev = self.pl.path.abspath(atConfiguration.install_dev)
-          atConfiguration.install_dev_include = self.pl.path.abspath(atConfiguration.install_dev_include)
-          atConfiguration.install_dev_lib = self.pl.path.abspath(atConfiguration.install_dev_lib)
-          atConfiguration.install_dev_cmake = self.pl.path.abspath(atConfiguration.install_dev_cmake)
+          local path = require 'pl.path'
+          atConfiguration.prj_root = path.abspath(path.expanduser(atConfiguration.prj_root))
+          atConfiguration.work = path.abspath(path.expanduser(atConfiguration.work))
+          atConfiguration.cache = path.abspath(path.expanduser(atConfiguration.cache))
+          atConfiguration.depack = path.abspath(path.expanduser(atConfiguration.depack))
+          atConfiguration.build = path.abspath(path.expanduser(atConfiguration.build))
+          atConfiguration.build_doc = path.abspath(path.expanduser(atConfiguration.build_doc))
+          atConfiguration.install_base = path.abspath(path.expanduser(atConfiguration.install_base))
+          atConfiguration.install_executables = path.abspath(path.expanduser(atConfiguration.install_executables))
+          atConfiguration.install_shared_objects = path.abspath(
+            path.expanduser(atConfiguration.install_shared_objects)
+          )
+          atConfiguration.install_lua_path = path.abspath(path.expanduser(atConfiguration.install_lua_path))
+          atConfiguration.install_lua_cpath = path.abspath(path.expanduser(atConfiguration.install_lua_cpath))
+          atConfiguration.install_doc = path.abspath(path.expanduser(atConfiguration.install_doc))
+          atConfiguration.install_dev = path.abspath(path.expanduser(atConfiguration.install_dev))
+          atConfiguration.install_dev_include = path.abspath(path.expanduser(atConfiguration.install_dev_include))
+          atConfiguration.install_dev_lib = path.abspath(path.expanduser(atConfiguration.install_dev_lib))
+          atConfiguration.install_dev_cmake = path.abspath(path.expanduser(atConfiguration.install_dev_cmake))
 
           -- install_lua_path must be below install_base.
-          if self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_lua_path)~=true then
-            self.tLog.fatal("The path install_lua_path is not below install_base!")
-          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_lua_cpath)~=true then
-            self.tLog.fatal("The path install_lua_cpath is not below install_base!")
-          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_executables)~=true then
-            self.tLog.fatal("The path install_executables is not below install_base!")
-          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_shared_objects)~=true then
-            self.tLog.fatal("The path install_shared_objects is not below install_base!")
-          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_doc)~=true then
-            self.tLog.fatal("The path install_doc is not below install_base!")
-          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev)~=true then
-            self.tLog.fatal("The path install_dev is not below install_base!")
-          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_include)~=true then
-            self.tLog.fatal("The path install_dev_include is not below install_base!")
-          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_lib)~=true then
-            self.tLog.fatal("The path install_dev_lib is not below install_base!")
-          elseif self:is_path_child_or_equal(atConfiguration.install_base, atConfiguration.install_dev_cmake)~=true then
-            self.tLog.fatal("The path install_dev_cmake is not below install_base!")
+          local fnCheck = self.is_path_child_or_equal
+          if fnCheck(atConfiguration.install_base, atConfiguration.install_lua_path)~=true then
+            tLog.fatal("The path install_lua_path is not below install_base!")
+          elseif fnCheck(atConfiguration.install_base, atConfiguration.install_lua_cpath)~=true then
+            tLog.fatal("The path install_lua_cpath is not below install_base!")
+          elseif fnCheck(atConfiguration.install_base, atConfiguration.install_executables)~=true then
+            tLog.fatal("The path install_executables is not below install_base!")
+          elseif fnCheck(atConfiguration.install_base, atConfiguration.install_shared_objects)~=true then
+            tLog.fatal("The path install_shared_objects is not below install_base!")
+          elseif fnCheck(atConfiguration.install_base, atConfiguration.install_doc)~=true then
+            tLog.fatal("The path install_doc is not below install_base!")
+          elseif fnCheck(atConfiguration.install_base, atConfiguration.install_dev)~=true then
+            tLog.fatal("The path install_dev is not below install_base!")
+          elseif fnCheck(atConfiguration.install_base, atConfiguration.install_dev_include)~=true then
+            tLog.fatal("The path install_dev_include is not below install_base!")
+          elseif fnCheck(atConfiguration.install_base, atConfiguration.install_dev_lib)~=true then
+            tLog.fatal("The path install_dev_lib is not below install_base!")
+          elseif fnCheck(atConfiguration.install_base, atConfiguration.install_dev_cmake)~=true then
+            tLog.fatal("The path install_dev_cmake is not below install_base!")
           else
             -- Store the configuration.
             self.tConfiguration = atConfiguration
@@ -236,7 +245,7 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
             tResult = true
 
             -- Show tht configuration in the debug log.
-            self.tLog.debug('System configuration: %s', tostring(self))
+            tLog.debug('System configuration: %s', tostring(self))
           end
         end
       end
@@ -249,6 +258,7 @@ end
 
 
 function SystemConfiguration:initialize_paths()
+  local tLog = self.tLog
   -- Be optimistic!
   local tResult = true
   local strError
@@ -278,37 +288,39 @@ function SystemConfiguration:initialize_paths()
     local strPath = self.tConfiguration[tAttr.strKey]
 
     -- Check if the path already exists.
-    if self.pl.path.exists(strPath)~=strPath then
+    local path = require 'pl.path'
+    local dir = require 'pl.dir'
+    if path.exists(strPath)~=strPath then
       -- The path does not exist yet. Try to create it.
-      tResult, strError = self.pl.dir.makepath(strPath)
+      tResult, strError = dir.makepath(strPath)
       if tResult~=true then
         tResult = nil
-        self.tLog.fatal('Failed to create the path "%s": %s', strPath, strError)
+        tLog.fatal('Failed to create the path "%s": %s', strPath, strError)
         break
       end
 
     else
       -- The path already exists. It must be a folder.
-      if self.pl.path.isdir(strPath)~=true then
+      if path.isdir(strPath)~=true then
         tResult = nil
-        self.tLog.fatal('The path "%s" is no directory!', strPath)
+        tLog.fatal('The path "%s" is no directory!', strPath)
         break
       end
 
       -- Clear the path.
       if tAttr.fClear==true then
-        tResult, strError = self.pl.dir.rmtree(strPath)
+        tResult, strError = dir.rmtree(strPath)
         if tResult~=true then
           tResult = nil
-          self.tLog.fatal('Failed to remove the path "%s": %s', strPath, strError)
+          tLog.fatal('Failed to remove the path "%s": %s', strPath, strError)
           break
         end
 
         -- Create the path again.
-        tResult, strError = self.pl.dir.makepath(strPath)
+        tResult, strError = dir.makepath(strPath)
         if tResult~=true then
           tResult = nil
-          self.tLog.fatal('Failed to create the path "%s": %s', strPath, strError)
+          tLog.fatal('Failed to create the path "%s": %s', strPath, strError)
           break
         end
       end
@@ -328,7 +340,8 @@ function SystemConfiguration:__tostring()
   if self.tConfiguration==nil then
     strCfg = 'SystemConfiguration()'
   else
-    strCfg = string.format('SystemConfiguration(\n%s\n)', self.pl.pretty.write(self.tConfiguration))
+    local pretty = require 'pl.pretty'
+    strCfg = string.format('SystemConfiguration(\n%s\n)', pretty.write(self.tConfiguration))
   end
 
   return strCfg
