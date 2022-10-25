@@ -432,7 +432,19 @@ HOST_DISTRIBUTION_ID=${platform_distribution_id}
 HOST_DISTRIBUTION_VERSION=${platform_distribution_version}
 HOST_CPU_ARCHITECTURE=${platform_cpu_architecture}
 ]])
-  local strPackagePath = self:replace_template('${install_base}/.jonchki/package.txt')
+  local strPackageDirectory = self:replace_template('${install_base}/.jonchki')
+  if self.pl.path.exists(strPackageDirectory)~=strPackageDirectory then
+    -- The folder ".jonchki" does not exist yet. Create it now.
+    local tResult, strError = self.pl.dir.makepath(strPackageDirectory)
+    if tResult==nil then
+      self.tLogInstallHelper.error('Failed to create the path "%s": %s', strPackageDirectory, strError)
+      error('Failed to create the .jonchki folder.')
+    end
+  elseif self.pl.path.isdir(strPackageDirectory)==false then
+    self.tLogInstallHelper.error('The path "%s" must be a directory, but it is not.', strPackageDirectory)
+    error('The path .jonchki is no directory.')
+  end
+  local strPackagePath = self.pl.path.join(strPackageDirectory, 'package.txt')
   local tFileError, strError = self.pl.utils.writefile(strPackagePath, strPackageText, false)
   if tFileError==nil then
     self.tLogInstallHelper.error('Failed to write the package file "%s": %s', strPackagePath, strError)
@@ -460,7 +472,19 @@ function InstallHelper:createHashFile()
     local strPackageFile = pl.path.relpath(strPackageAbsFile, strInstallBase)
     table.insert(astrHashes, string.format('%s *%s', strHash, strPackageFile))
   end
-  local strHashFilePath = self:replace_template('${install_base}/.jonchki/package.sha384')
+  local strHashFileDir = self:replace_template('${install_base}/.jonchki')
+  if self.pl.path.exists(strHashFileDir)~=strHashFileDir then
+    -- The folder ".jonchki" does not exist yet. Create it now.
+    local tResult, strError = self.pl.dir.makepath(strHashFileDir)
+    if tResult==nil then
+      self.tLogInstallHelper.error('Failed to create the path "%s": %s', strHashFileDir, strError)
+      error('Failed to create the .jonchki folder.')
+    end
+  elseif self.pl.path.isdir(strHashFileDir)==false then
+    self.tLogInstallHelper.error('The path "%s" must be a directory, but it is not.', strHashFileDir)
+    error('The path .jonchki is no directory.')
+  end
+  local strHashFilePath = self.pl.path.join(strHashFileDir, 'package.sha384')
   local strHashFile = table.concat(astrHashes, '\n')
   local tFileError, strError = pl.utils.writefile(strHashFilePath, strHashFile, false)
   if tFileError==nil then
