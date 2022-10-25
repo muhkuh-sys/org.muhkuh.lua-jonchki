@@ -476,7 +476,10 @@ table.insert(atLogWriters, tLogWriterConsole)
 -- Create the file logger if requested.
 local tLogWriterFile
 if tArgs.strLogFileName~=nil then
-  tLogWriterFile = require 'log.writer.file'.new{ log_name=tArgs.strLogFileName }
+  tLogWriterFile = require 'log.writer.file'.new{
+    log_name = pl.path.basename(tArgs.strLogFileName),
+    log_dir = pl.path.dirname(tArgs.strLogFileName)
+  }
   table.insert(atLogWriters, tLogWriterFile)
 end
 
