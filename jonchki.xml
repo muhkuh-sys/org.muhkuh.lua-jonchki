@@ -3,7 +3,7 @@
 	<info group="org.muhkuh.lua"
 	      module="jonchki"
 	      artifact="jonchki"
-	      version="0.0.9.1"
+	      version="0.0.10.1"
 	      vcs-id="${PROJECT_VERSION_VCS_LONG}">
 		<license name="GPL-2.0"/>
 		<author name="Muhkuh team" url="https://github.com/muhkuh-sys" />
