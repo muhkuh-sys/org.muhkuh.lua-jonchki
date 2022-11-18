@@ -57,9 +57,6 @@ function Core:_init(cLog, cReport)
 
   -- No resolver yet.
   self.cResolver = nil
-
-  -- No installer yet.
-  self.cInstaller = nil
 end
 
 
@@ -287,9 +284,6 @@ function Core:download_and_install_all_artifacts(fInstallBuildDependencies, fSki
     if tResult==nil then
       self.tLog.fatal('Failed to install all artifacts.')
     else
-      -- Use the installer for the core.
-      self.cInstaller = cInstaller
-
       -- Show some statistics.
       self.cResolverChain:show_statistics(self.cReport)
 
