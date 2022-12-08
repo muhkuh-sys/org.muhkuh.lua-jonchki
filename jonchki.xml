@@ -24,5 +24,6 @@
 		<dependency group="org.muhkuh.lua" module="mhash" artifact="lua5.4-mhash" version="0.9.9.9"/>
 		<dependency group="com.github.lunarmodules" module="luaexpat" artifact="lua5.4-luaexpat" version="1.4"/>
 		<dependency group="com.github.SatyendraBanjare" module="luagit2" artifact="lua5.4-luagit2" version="0.0"/>
+		<dependency group="com.github.openresty" module="lua-cjson" artifact="lua5.4-lua-cjson" version="2.1"/>
 	</dependencies>
 </jonchki-artifact>
