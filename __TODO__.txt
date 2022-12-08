@@ -1,6 +1,21 @@
 TODO
 ----
 
+* Every test step has an "install_testcase.lua" file which differs only in the ID.
+Is there a better way?
+
+* In "install.lua" the documentation must be copied to a path consisting the group, module and artifact.
+Can this be done with a replacement variable?
+
+* Old log files are renamed to a filename with a date and timestamp.
+It is good not to loose old logs but there should be some kind of limit.
+
+* Change Repository download errors into debug message.
+
+* ResolverChain, Archive, Installer InstallHelper infos -> debug
+
+
+
 * Platform specific aritfacts
 Currently the artifacts are one bundle for all supported platforms. This makes
 it cumbersome to add a new platform - it always requires a new version.
@@ -123,6 +138,8 @@ Maybe we should add a system replacement for lua51-mhash if it is not available.
 
 DONE
 ----
+
+* Replace "~" in config paths, e.g. "cache".
 
 * Select the "install root artifact" parameter with a command mode.
 A complete install (i.e. including the root artifact) should be "install".
