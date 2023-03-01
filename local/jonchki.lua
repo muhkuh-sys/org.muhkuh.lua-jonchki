@@ -179,7 +179,7 @@ tParser:flag('--version')
   :description('Show the version and exit.')
   :action(function()
     print(string.format('jonchki V%s %s', strJonchkiVersion, strJonchkiVcsVersion))
-    os.exit(0)
+    os.exit(0, true)
   end)
 
 -- Add the "install" command and all its options.
@@ -540,8 +540,8 @@ end
 
 -- Exit.
 if tResult~=true then
-  os.exit(1)
+  os.exit(1, true)
 else
   cLog.info('All OK!')
-  os.exit(0)
+  os.exit(0, true)
 end
