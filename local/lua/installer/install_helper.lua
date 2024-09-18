@@ -47,6 +47,44 @@ function InstallHelper:_init(cLog, fInstallBuildDependencies, atActions)
 
   -- The current working folder is the source path if the installation. Here the artifact archive is depacked.
   self.strCwd = ''
+
+  -- Create a list of known archive formats.
+  local archive = require 'archive'
+  self.atArchiveFormats = {
+    ['tar.bz2'] = {
+      extension = 'tar.bz2',
+      format = archive.ARCHIVE_FORMAT_TAR_GNUTAR,
+      filter = {
+        archive.ARCHIVE_FILTER_BZIP2
+      }
+    },
+    ['tar.gz'] = {
+      extension = 'tar.gz',
+      format = archive.ARCHIVE_FORMAT_TAR_GNUTAR,
+      filter = {
+        archive.ARCHIVE_FILTER_GZIP
+      }
+    },
+    ['tar.lzip'] = {
+      extension = 'tar.lzip',
+      format = archive.ARCHIVE_FORMAT_TAR_GNUTAR,
+      filter = {
+        archive.ARCHIVE_FILTER_LZIP
+      }
+    },
+    ['tar.xz'] = {
+      extension = 'tar.xz',
+      format = archive.ARCHIVE_FORMAT_TAR_GNUTAR,
+      filter = {
+        archive.ARCHIVE_FILTER_XZ
+      }
+    },
+    ['zip'] = {
+      extension = 'zip',
+      format = archive.ARCHIVE_FORMAT_ZIP,
+      filter = {}
+    }
+  }
 end
 
 
@@ -497,15 +535,16 @@ end
 
 function InstallHelper:createArchive(strOutputPath, strFormatHint, astrUserReplacements)
   local pl = self.pl
-  strOutputPath = pl.path.normpath(self:replace_template(strOutputPath))
-  strFormatHint = strFormatHint or 'native'
 
+  -- Create a copy of the user replacements.
+  -- This is necessary to keep the input table unmodified as more elements are added in this function.
   local astrLocalUserReplacements = {}
   if astrUserReplacements~=nil then
     for strKey, strValue in pairs(astrUserReplacements) do
       astrLocalUserReplacements[strKey] = strValue
     end
   end
+  -- Add a default replacement for the archive name if the user replacement does not already have one.
   if astrLocalUserReplacements.default_archive_name==nil then
     astrLocalUserReplacements.default_archive_name = '${root_artifact_artifact}-${root_artifact_version}-${platform_distribution_id}${conditional_platform_distribution_version_separator}${platform_distribution_version}_${platform_cpu_architecture}.${archive_extension}'
   end
@@ -513,40 +552,60 @@ function InstallHelper:createArchive(strOutputPath, strFormatHint, astrUserRepla
   local archives = require 'installer.archives'
   local Archive = archives(self.cLog)
 
+  -- Translate the format hints "native" and "best" to clearly defined formats like "zip".
   local strDistId = self:get_platform_distribution_id()
-
-  local strArchiveExtension, tFormat, atFilter
-  if strFormatHint=='native' then
+  if strFormatHint==nil then
+    strFormatHint = self:replace_template('${root_artifact_extension}')
+  elseif strFormatHint=='native' then
     if strDistId=='windows' then
-      strArchiveExtension = 'zip'
-      tFormat = Archive.archive.ARCHIVE_FORMAT_ZIP
-      atFilter = {}
+      strFormatHint = 'zip'
     else
-      strArchiveExtension = 'tar.gz'
-      tFormat = Archive.archive.ARCHIVE_FORMAT_TAR_GNUTAR
-      atFilter = { Archive.archive.ARCHIVE_FILTER_GZIP }
+      strFormatHint = 'tar.gz'
     end
   elseif strFormatHint=='best' then
-    strArchiveExtension = 'tar.lzip'
-    tFormat = Archive.archive.ARCHIVE_FORMAT_TAR_GNUTAR
-    atFilter = { Archive.archive.ARCHIVE_FILTER_LZIP }
-  else
+    strFormatHint = 'tar.lzip'
+  end
+
+  -- Get the attributes for the format hint.
+  local tFormatHints = self.atArchiveFormats[strFormatHint]
+  if tFormatHints==nil then
     error(string.format('Unknown format hint: "%s"', strFormatHint))
   end
+  -- Provide the archive extension unless the user specified an override for it.
+  -- This can be used to replace extensions like "tar.gz" with "tgz".
   if astrLocalUserReplacements.archive_extension==nil then
-    astrLocalUserReplacements.archive_extension = strArchiveExtension
+    astrLocalUserReplacements.archive_extension = tFormatHints.extension
   end
 
   astrLocalUserReplacements.default_archive_name = self:replace_template(astrLocalUserReplacements.default_archive_name, astrLocalUserReplacements)
 
-  local strArchive = self:replace_template(strOutputPath, astrLocalUserReplacements)
+  -- Create a normalized path to the destination archive.
+  local strArchive = pl.path.normpath(self:replace_template(strOutputPath, astrLocalUserReplacements))
+  -- Get the path to the contents of the archive.
   local strDiskPath = self:replace_template('${install_base}')
+  -- Place all archive members in a folder.
+  -- If the archive is depacked, just one new folder appears.
   local strArchiveMemberPrefix = self:replace_template('${root_artifact_artifact}-${root_artifact_version}')
 
-  local tResult = Archive:pack_archive(strArchive, tFormat, atFilter, strDiskPath, strArchiveMemberPrefix)
+  -- Pack the archive.
+  local tResult = Archive:pack_archive(strArchive, tFormatHints.format, tFormatHints.filter, strDiskPath, strArchiveMemberPrefix)
   if tResult~=true then
     error('Failed to pack the archive.')
   end
+
+  -- Get the extension of the archive.
+  local strRootPart, strExtension = pl.path.splitext(strArchive)
+  local _, strExt1 = pl.path.splitext(strRootPart)
+  if strExt1=='.tar' then
+    strExtension = strExt1 .. strExtension
+  end
+  -- Cut off a leading dot.
+  if string.sub(strExtension, 1, 1)=='.' then
+    strExtension = string.sub(strExtension, 2)
+  end
+
+  -- Return the path to the created archive and the extension.
+  return strArchive, strExtension
 end
 
 
