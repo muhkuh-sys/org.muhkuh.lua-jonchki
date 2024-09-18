@@ -435,7 +435,7 @@ def __extract_archive(tFile, strArchiveFormat, strOutputFolder):
 
 def install(strCfg_JonchkiVersion, strCfg_OutputFolder, **kwargs):
     strCfg_LocalArchivesFolder = None
-    strCfg_LuaInterpreter = 'lua5.1'
+    strCfg_LuaInterpreter = 'lua5.4'
     tCfg_LogLevel = logging.DEBUG
 
     # Parse the kwargs.
@@ -684,7 +684,7 @@ if __name__ == '__main__':
     tParser.add_argument(
         '-i', '--lua-interpreter',
         dest='strLuaInterpreter',
-        default='lua5.1',
+        default='lua5.4',
         metavar='PATH',
         help='Use the LUA interpreter in PATH to run the jonchki-light tool.'
     )
