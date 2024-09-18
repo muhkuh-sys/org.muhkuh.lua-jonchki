@@ -18,11 +18,11 @@
 		<dependency group="com.github.lua-curl" module="lua-curlv3" artifact="lua5.4-lua-curlv3" version="0.3"/>
 		<dependency group="com.github.mpeterv" module="argparse" artifact="argparse" version="0.6"/>
 		<dependency group="com.github.moteus" module="lua-log" artifact="lua-log" version="0.1"/>
-		<dependency group="com.github.lunarmodules" module="Penlight" artifact="Penlight" version="1.12"/>
+		<dependency group="com.github.lunarmodules" module="Penlight" artifact="Penlight" version="1.13"/>
 		<dependency group="com.github.tieske" module="date" artifact="date" version="2.2"/>
 		<dependency group="org.muhkuh.lua" module="archive" artifact="lua5.4-archive" version="0.0"/>
 		<dependency group="org.muhkuh.lua" module="mhash" artifact="lua5.4-mhash" version="0.9.9.9"/>
-		<dependency group="com.github.lunarmodules" module="luaexpat" artifact="lua5.4-luaexpat" version="1.4"/>
+		<dependency group="com.github.lunarmodules" module="luaexpat" artifact="lua5.4-luaexpat" version="1.5"/>
 		<dependency group="com.github.SatyendraBanjare" module="luagit2" artifact="lua5.4-luagit2" version="0.0"/>
 		<dependency group="com.github.openresty" module="lua-cjson" artifact="lua5.4-lua-cjson" version="2.1"/>
 	</dependencies>
