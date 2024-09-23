@@ -40,14 +40,4 @@ t:install{
   ['${report_path}']                                     = '${install_base}/.jonchki/'
 }
 
--- Create the package file.
-t:createPackageFile()
-
--- Create a hash file.
-t:createHashFile()
-
--- Build the artifact.
-t:createArchive('${install_base}/../../../../targets/${root_artifact_artifact}-${root_artifact_version}-${platform_distribution_id}${platform_distribution_version}_${platform_cpu_architecture}.${archive_extension}', 'native')
-
 return true
-
