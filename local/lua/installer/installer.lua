@@ -54,7 +54,9 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
 
         t:createPackageFile()
         t:createHashFile()
-        t:createArchive('${install_base}/../${default_archive_name}', 'native')
+        local strArchivePath, strRealExtension = t:createArchive('${prj_root}/targets/${default_archive_name}')
+        t:add_replacement('root_artifact_path', strArchivePath)
+        t:add_replacement('root_artifact_extension_real', strRealExtension)
 
         return true
       ]],
