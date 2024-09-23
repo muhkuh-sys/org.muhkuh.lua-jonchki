@@ -42,10 +42,11 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
   self.cRootArtifactConfiguration = cRootArtifactConfiguration
 
   self.ulDefaultLevel = 50
-  self.atDefaultLevels = {
+  local atDefaultLevels = {
     ['finalizer'] = 75,
     ['pack'] = 80
   }
+  self.atDefaultLevels = atDefaultLevels
   self.atDefaultActions = {
     {
       name = 'pack',
@@ -61,7 +62,7 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
         return true
       ]],
       path = '${install_base}',
-      level = 80
+      level = atDefaultLevels['pack']
     }
   }
 end
