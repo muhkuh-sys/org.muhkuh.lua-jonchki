@@ -12,12 +12,6 @@ local ArtifactConfiguration = class()
 
 
 function ArtifactConfiguration:_init(cLog)
-  -- The "penlight" module is used to parse the configuration file.
-  self.pl = require'pl.import_into'()
-
-  -- lxp is used to parse the XML data.
-  self.lxp = require 'lxp'
-
   self.Version = require 'Version'
 
   -- Get the logger object from the system configuration.
@@ -389,7 +383,7 @@ function ArtifactConfiguration:parse_configuration_file(strConfigurationFilename
   if strConfigurationFilename==nil then
     self.tLog.error('The function "parse_configuration_file" expects a filename as a parameter.')
   else
-    local strXmlText, strMsg = self.pl.utils.readfile(strConfigurationFilename, false)
+    local strXmlText, strMsg = require('pl.utils').readfile(strConfigurationFilename, false)
     if strXmlText==nil then
       self.tLog.error('Error reading the configuration file: %s', strMsg)
     else
@@ -435,7 +429,7 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
   aLxpCallbacks.CharacterData = self.parseCfg_CharacterData
   aLxpCallbacks.userdata      = aLxpAttr
 
-  local tParser = self.lxp.new(aLxpCallbacks)
+  local tParser = require('lxp').new(aLxpCallbacks)
 
   local tParseResult, strMsg, uiLine, uiCol, uiPos = tParser:parse(strConfiguration)
   if tParseResult~=nil then
