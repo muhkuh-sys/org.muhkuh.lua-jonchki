@@ -44,7 +44,8 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
   self.ulDefaultLevel = 50
   local atDefaultLevels = {
     ['finalizer'] = 75,
-    ['pack'] = 80
+    ['pack'] = 80,
+    ['install_docs'] = 80
   }
   self.atDefaultLevels = atDefaultLevels
   self.atDefaultActions = {
@@ -63,6 +64,35 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
       ]],
       path = '${install_base}',
       level = atDefaultLevels['pack']
+    },
+    {
+      name = 'install_docs',
+      code = [[
+        local t = ...
+        local tLog = t.tLog
+        local pl = t.pl
+        local tResult
+
+        -- Get the path to the generated PDF.
+        local strSrc = t:replace_template('${build_doc}/generated/pdf/main.pdf')
+        local strDst = t:replace_template('${prj_root}/targets/${root_artifact_artifact}-${root_artifact_version}.pdf')
+        if pl.path.exists(strSrc)==strSrc then
+          local tCopyResult = pl.file.copy(strSrc, strDst, true)
+          if tCopyResult==true then
+            tLog.debug('Copied documentation to %s', strDst)
+            t:add_replacement('documentation_path', strDst)
+            tResult = true
+          else
+            tLog.error('Failed to copy the documentation from %s to %s .', strSrc, strDst)
+          end
+        else
+          tLog.error('The documentation does not exist at %s. Please look for previous errors.', strSrc)
+        end
+
+        return tResult
+      ]],
+      path = '${install_base}',
+      level = atDefaultLevels['install_docs']
     }
   }
 end
