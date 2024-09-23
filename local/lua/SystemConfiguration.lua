@@ -12,6 +12,7 @@ local SystemConfiguration = class()
 
 
 function SystemConfiguration:_init(cLog, fInstallBuildDependencies, strProjectRoot)
+  self.cLog = cLog
   local tLogWriter = require 'log.writer.prefix'.new('[SystemConfiguration] ', cLog)
   self.tLog = require "log".new(
     -- maximum log level
@@ -167,6 +168,12 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         local strProjectRoot = self.strProjectRoot
         atConfiguration['prj_root'] = strProjectRoot
         atReplacements['prj_root'] = strProjectRoot
+
+        -- Add the VCS version.
+        local tVcsVersion = require 'vcs_version'(self.cLog)
+        local strVcsVersion, strVcsVersionLong = tVcsVersion:getVcsVersion(strProjectRoot)
+        atConfiguration['prj_version_vcs'] = strVcsVersion
+        atConfiguration['prj_version_vcs_long'] = strVcsVersionLong
 
         -- Parse all options.
         for _,tAttr in ipairs(atOptions) do

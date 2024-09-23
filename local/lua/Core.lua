@@ -186,7 +186,7 @@ end
 -- Read the artifact configuration.
 --
 function Core:read_artifact_configuration(strArtifactConfigurationFile)
-  local cArtifactCfg = self.ArtifactConfiguration(self.cLog)
+  local cArtifactCfg = self.ArtifactConfiguration(self.cLog, self.cSysCfg.tConfiguration)
   local tResult = cArtifactCfg:parse_configuration_file(strArtifactConfigurationFile)
   if tResult~=true then
     self.tLog.fatal('Failed to parse the artifact configuration!')

@@ -11,7 +11,10 @@ local ArtifactConfiguration = class()
 
 
 
-function ArtifactConfiguration:_init(cLog)
+function ArtifactConfiguration:_init(cLog, atReplacements)
+  -- Set the replacements. Default to an empty array.
+  self.m_atReplacements = atReplacements or {}
+
   self.Version = require 'Version'
 
   -- Get the logger object from the system configuration.
@@ -95,13 +98,14 @@ end
 function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttributes)
   local aLxpAttr = tParser:getcallbacks().userdata
   local iPosLine, iPosColumn = tParser:pos()
+  local fnReplace = aLxpAttr.fnReplace
 
   table.insert(aLxpAttr.atCurrentPath, strName)
   local strCurrentPath = table.concat(aLxpAttr.atCurrentPath, "/")
   aLxpAttr.strCurrentPath = strCurrentPath
 
   if strCurrentPath=='/jonchki-artifact' then
-    local strVersion = atAttributes['version']
+    local strVersion = fnReplace(atAttributes['version'])
     if strVersion==nil or strVersion=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
@@ -125,28 +129,28 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     tInfo.strExtension = aLxpAttr.strDefaultExtension
     tInfo.strPlatform = ''
 
-    local strGroup = atAttributes['group']
+    local strGroup = fnReplace(atAttributes['group'])
     if strGroup==nil or strGroup=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
     end
     tInfo.strGroup = strGroup
 
-    local strModule = atAttributes['module']
+    local strModule = fnReplace(atAttributes['module'])
     if strModule==nil or strModule=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
     end
     tInfo.strModule = strModule
 
-    local strArtifact = atAttributes['artifact']
+    local strArtifact = fnReplace(atAttributes['artifact'])
     if strArtifact==nil or strArtifact=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
     end
     tInfo.strArtifact = strArtifact
 
-    local strVersion = atAttributes['version']
+    local strVersion = fnReplace(atAttributes['version'])
     if strVersion==nil or strVersion=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
@@ -159,20 +163,20 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     end
     tInfo.tVersion = tVersion
 
-    local strVcsId = atAttributes['vcs-id']
+    local strVcsId = fnReplace(atAttributes['vcs-id'])
     if strVcsId==nil or strVcsId=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "vcs-id".', iPosLine, iPosColumn)
     end
     tInfo.strVcsId = strVcsId
 
-    local strExtension = atAttributes['extension']
+    local strExtension = fnReplace(atAttributes['extension'])
     if strExtension~=nil and strExtension~='' then
       tInfo.strExtension = strExtension
     end
 
     -- The empty string is allowed for the platform attribute.
-    local strPlatform = atAttributes['platform']
+    local strPlatform = fnReplace(atAttributes['platform'])
     if strPlatform~=nil then
       tInfo.strPlatform = strPlatform
     end
@@ -182,7 +186,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
   elseif strCurrentPath=='/jonchki-artifact/info/license' then
     local tInfo = aLxpAttr.tInfo
 
-    local strLicense = atAttributes['name']
+    local strLicense = fnReplace(atAttributes['name'])
     if strLicense~=nil and strLicense~='' then
       tInfo.strLicense = strLicense
     end
@@ -190,12 +194,12 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
   elseif strCurrentPath=='/jonchki-artifact/info/author' then
     local tInfo = aLxpAttr.tInfo
 
-    local strAuthorName = atAttributes['name']
+    local strAuthorName = fnReplace(atAttributes['name'])
     if strAuthorName~=nil and strAuthorName~='' then
       tInfo.strAuthorName = strAuthorName
     end
 
-    local strAuthorUrl = atAttributes['url']
+    local strAuthorUrl = fnReplace(atAttributes['url'])
     if strAuthorUrl~=nil and strAuthorUrl~='' then
       tInfo.strAuthorUrl = strAuthorUrl
     end
@@ -210,28 +214,28 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
   elseif strCurrentPath=='/jonchki-artifact/dependencies/build-dependency' then
     local tDependency = {}
 
-    local strGroup = atAttributes['group']
+    local strGroup = fnReplace(atAttributes['group'])
     if strGroup==nil or strGroup=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
     end
     tDependency.strGroup = strGroup
 
-    local strModule = atAttributes['module']
+    local strModule = fnReplace(atAttributes['module'])
     if strModule==nil or strModule=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
     end
     tDependency.strModule = strModule
 
-    local strArtifact = atAttributes['artifact']
+    local strArtifact = fnReplace(atAttributes['artifact'])
     if strArtifact==nil or strArtifact=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
     end
     tDependency.strArtifact = strArtifact
 
-    local strVersion = atAttributes['version']
+    local strVersion = fnReplace(atAttributes['version'])
     if strVersion==nil or strVersion=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "version".', iPosLine, iPosColumn)
@@ -249,21 +253,21 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
   elseif strCurrentPath=='/jonchki-artifact/dependencies/dependency' then
     local tDependency = {}
 
-    local strGroup = atAttributes['group']
+    local strGroup = fnReplace(atAttributes['group'])
     if strGroup==nil or strGroup=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "group".', iPosLine, iPosColumn)
     end
     tDependency.strGroup = strGroup
 
-    local strModule = atAttributes['module']
+    local strModule = fnReplace(atAttributes['module'])
     if strModule==nil or strModule=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "module".', iPosLine, iPosColumn)
     end
     tDependency.strModule = strModule
 
-    local strArtifact = atAttributes['artifact']
+    local strArtifact = fnReplace(atAttributes['artifact'])
     if strArtifact==nil or strArtifact=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "artifact".', iPosLine, iPosColumn)
@@ -272,7 +276,7 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
 
     -- The version attribute is optional. If it is not present, the version
     -- is taken from the build-dependencies.
-    local strVersion = atAttributes['version']
+    local strVersion = fnReplace(atAttributes['version'])
     if strVersion==nil or strVersion=='' then
       tDependency.tVersion = nil
     else
@@ -290,14 +294,14 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
   elseif strCurrentPath=='/jonchki-artifact/actions/action' then
     local tAction = {}
 
-    local strName = atAttributes['name']
+    local strName = fnReplace(atAttributes['name'])
     if strName==nil or strName=='' then
       aLxpAttr.tResult = nil
       aLxpAttr.tLog.error('Error in line %d, col %d: missing "name" element', iPosLine, iPosColumn)
     end
     tAction.strName = strName
 
-    local strLevel = atAttributes['level']
+    local strLevel = fnReplace(atAttributes['level'])
     local ulLevel
     if strLevel~=nil and strLevel~='' then
       ulLevel = tonumber(strLevel)
@@ -308,13 +312,13 @@ function ArtifactConfiguration.parseCfg_StartElement(tParser, strName, atAttribu
     end
     tAction.ulLevel = ulLevel
 
-    local strFile = atAttributes['file']
+    local strFile = fnReplace(atAttributes['file'])
     if strFile=='' then
       strFile = nil
     end
     tAction.strFile = strFile
 
-    local strPath = atAttributes['path']
+    local strPath = fnReplace(atAttributes['path'])
     if strPath=='' then
       strPath = nil
     end
@@ -365,11 +369,13 @@ end
 function ArtifactConfiguration.parseCfg_CharacterData(tParser, strData)
   local aLxpAttr = tParser:getcallbacks().userdata
   local strCurrentPath = aLxpAttr.strCurrentPath
+  local fnReplace = aLxpAttr.fnReplace
 
   if strCurrentPath=="/jonchki-artifact/info/description" then
-    aLxpAttr.tInfo.strDescription = strData
+    aLxpAttr.tInfo.strDescription = fnReplace(strData)
 
   elseif strCurrentPath=='/jonchki-artifact/actions/action' then
+    -- NOTE: Do not replace anything in the action code blocks. There is a LUA method to do this.
     aLxpAttr.atCurrentAction.strCode = strData
   end
 end
@@ -404,10 +410,23 @@ function ArtifactConfiguration:parse_configuration(strConfiguration, strSourceUr
   self.strSource = strConfiguration
   self.strSourceUrl = strSourceUrl
 
+  -- Create a local function to do the replacements while parsing the XML data.
+  local atReplacements = self.m_atReplacements
+  local function fnReplace(strTemplate)
+    local strResult
+    if type(strTemplate)=='string' then
+      strResult = string.gsub(strTemplate, '%${([a-zA-Z0-9_%.-]+)}', atReplacements)
+    else
+      strResult = strTemplate
+    end
+    return strResult
+  end
+
   local aLxpAttr = {
     -- Start at root ("/").
     atCurrentPath = {""},
     strCurrentPath = nil,
+    fnReplace = fnReplace,
 
     Version = self.Version,
     tVersion = nil,

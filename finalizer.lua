@@ -28,6 +28,7 @@ t:install{
   ['local/lua/resolver/resolver.lua']                    = '${install_lua_path}/resolver/',
   ['local/lua/resolver/resolver_chain.lua']              = '${install_lua_path}/resolver/',
   ['local/lua/test_description.lua']                     = '${install_lua_path}/',
+  ['local/lua/vcs_version.lua']                          = '${install_lua_path}/',
   ['local/lua/ArtifactConfiguration.lua']                = '${install_lua_path}/',
   ['local/lua/Core.lua']                                 = '${install_lua_path}/',
   ['local/lua/DependencyLog.lua']                        = '${install_lua_path}/',
