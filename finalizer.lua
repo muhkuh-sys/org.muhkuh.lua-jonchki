@@ -36,16 +36,9 @@ t:install{
   ['local/lua/Report.lua']                               = '${install_lua_path}/',
   ['local/lua/Version.lua']                              = '${install_lua_path}/',
   ['local/lua/SystemConfiguration.lua']                  = '${install_lua_path}/',
+  ['local/wrapper/jonchki']                              = '${install_base}/',
   ['${report_path}']                                     = '${install_base}/.jonchki/'
 }
-
--- Install the wrapper.
-if strDistId=='windows' then
-  t:install('local/wrapper/windows/jonchki.bat', '${install_base}/')
-elseif strDistId=='ubuntu' then
-  -- This is a shell script setting the library search path for the LUA shared object.
-  t:install('local/wrapper/linux/jonchki', '${install_base}/')
-end
 
 -- Create the package file.
 t:createPackageFile()
