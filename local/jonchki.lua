@@ -287,6 +287,10 @@ tParserCommandInstall:option('-l --logfile')
   :default(nil)
   :target('strLogFileName')
 tParserCommandInstall:mutex(
+  tParserCommandInstall:flag('--no-console-log')
+    :description('Do not print the log to the console. This is useful in combination with a log file.')
+    :action("store_true")
+    :target('fSuppressConsoleLog'),
   tParserCommandInstall:flag('--color')
     :description('Use colors to beautify the console output. This is the default on Linux.')
     :action("store_true")
@@ -374,6 +378,10 @@ tParserCommandInstallDependencies:option('-l --logfile')
   :default(nil)
   :target('strLogFileName')
 tParserCommandInstallDependencies:mutex(
+  tParserCommandInstallDependencies:flag('--no-console-log')
+    :description('Do not print the log to the console. This is useful in combination with a log file.')
+    :action("store_true")
+    :target('fSuppressConsoleLog'),
   tParserCommandInstallDependencies:flag('--color')
     :description('Use colors to beautify the console output. This is the default on Linux.')
     :action("store_true")
@@ -511,18 +519,19 @@ end
 local atLogWriters = {}
 
 -- Create the console logger.
-local tLogWriterConsole
-if fUseColor==true then
-  tLogWriterConsole = require 'log.writer.console.color'.new()
-else
-  tLogWriterConsole = require 'log.writer.console'.new()
+if tArgs.fSuppressConsoleLog~=true then
+  local tLogWriterConsole
+  if fUseColor==true then
+    tLogWriterConsole = require 'log.writer.console.color'.new()
+  else
+    tLogWriterConsole = require 'log.writer.console'.new()
+  end
+  table.insert(atLogWriters, tLogWriterConsole)
 end
-table.insert(atLogWriters, tLogWriterConsole)
 
 -- Create the file logger if requested.
-local tLogWriterFile
 if tArgs.strLogFileName~=nil then
-  tLogWriterFile = require 'log.writer.file'.new{
+  local tLogWriterFile = require 'log.writer.file'.new{
     log_name = pl.path.basename(tArgs.strLogFileName),
     log_dir = pl.path.dirname(tArgs.strLogFileName)
   }
@@ -530,6 +539,7 @@ if tArgs.strLogFileName~=nil then
 end
 
 -- Combine all writers.
+local tLogWriter
 if _G.LUA_VER_NUM==501 then
   tLogWriter = require 'log.writer.list'.new(unpack(atLogWriters))
 else
