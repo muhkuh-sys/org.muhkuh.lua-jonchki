@@ -21,7 +21,7 @@ print('Building for %s' % tPlatform['platform_id'])
 strCfg_projectFolder = os.path.dirname(os.path.realpath(__file__))
 
 # This is the Jonchki version to use.
-strCfg_jonchkiVersion = '0.0.7.1'
+strCfg_jonchkiVersion = '0.0.11.1'
 # Look in this folder for Jonchki archives before downloading them.
 strCfg_jonchkiLocalArchives = os.path.join(
     strCfg_projectFolder,
@@ -84,6 +84,7 @@ if os.path.exists(strWorkingFolder) is not True:
 astrArguments = [strJonchki]
 astrArguments.append('install-dependencies')
 astrArguments.extend(['-v', 'debug'])
+astrArguments.extend(['--project-root', strCfg_projectFolder])
 astrArguments.extend([
     '--logfile',
     os.path.join(strWorkingFolder, 'jonchki.log')
@@ -102,13 +103,6 @@ astrArguments.extend([
     os.path.join(
         strCfg_projectFolder,
         'prepare.lua'
-    )
-])
-astrArguments.extend([
-    '--finalizer',
-    os.path.join(
-        strCfg_projectFolder,
-        'finalizer.lua'
     )
 ])
 astrArguments.extend(astrJonchkiPlatform)

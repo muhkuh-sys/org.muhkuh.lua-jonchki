@@ -4,7 +4,8 @@
 	      module="jonchki"
 	      artifact="jonchki"
 	      version="0.0.12.1"
-	      vcs-id="${PROJECT_VERSION_VCS_LONG}">
+	      vcs-id="${PROJECT_VERSION_VCS_LONG}"
+	      extension="tar.gz">
 		<license name="GPL-2.0"/>
 		<author name="Muhkuh team" url="https://github.com/muhkuh-sys" />
 		<description>
@@ -26,4 +27,7 @@
 		<dependency group="com.github.SatyendraBanjare" module="luagit2" artifact="lua5.4-luagit2" version="0.0"/>
 		<dependency group="com.github.openresty" module="lua-cjson" artifact="lua5.4-lua-cjson" version="2.1"/>
 	</dependencies>
+	<actions>
+		<action name="finalizer" file="${prj_root}/finalizer.lua"/>
+	</actions>
 </jonchki-artifact>
