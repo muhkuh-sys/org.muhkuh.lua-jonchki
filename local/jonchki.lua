@@ -174,7 +174,7 @@ local pl = require'pl.import_into'()
 
 -- Try to read the package file.
 local strPackageInfoFile = pl.path.join(strJonchkiPath, '.jonchki', 'package.txt')
-local strPackageInfo, strError = pl.utils.readfile(strPackageInfoFile, false)
+local strPackageInfo = pl.utils.readfile(strPackageInfoFile, false)
 -- Default to version "unknown".
 local strJonchkiVersion = 'unknown'
 local strJonchkiVcsVersion = 'unknown'
