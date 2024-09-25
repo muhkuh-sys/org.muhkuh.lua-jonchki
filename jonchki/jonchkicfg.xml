@@ -8,22 +8,27 @@
 			<artifact>[group]/[module]/[version]/[artifact]-[version][platform].[extension]</artifact>
 		</repository>
 
-		<!-- The github repository contains stable artifacts. -->
-		<repository id="github" type="url" cacheable="true" rescan="1800">
-			<root>https://github.com/muhkuh-sys</root>
-			<versions>[dotgroup]-[module]/releases</versions>
-			<config>[dotgroup]-[module]/releases/download/v[version]/[artifact]-[version][platform].[extension]</config>
-			<artifact>[dotgroup]-[module]/releases/download/v[version]/[artifact]-[version][platform].[extension]</artifact>
+		<!-- The nexus3 repository contains stable artifacts. -->
+		<repository id="nexus3" type="http" cacheable="true" rescan="1800">
+			<root>https://nexus.hilscher.local</root>
+			<versions>service/rest/repository/browse/jonchki_group/[group]/[module]/[artifact]/</versions>
+			<config>repository/jonchki_group/[group]/[module]/[artifact]/[version]/[artifact]-[version][platform].[extension]</config>
+			<artifact>repository/jonchki_group/[group]/[module]/[artifact]/[version]/[artifact]-[version][platform].[extension]</artifact>
+			<initialpage>1</initialpage>
+			<versionparser>
+  -- Extract the links.
+  local astrVersions = {}
+  for _, n0 in ipairs(document:getElementsByTagName('a')) do
+    local strHref = n0:getAttribute('href')
+    local strVersion = string.match(strHref, '^([0-9.]+)/$')
+    if strVersion~=nil then
+      table.insert(astrVersions, 'v'..strVersion)
+    end
+  end
+
+  return astrVersions
+			</versionparser>
 		</repository>
 
-		<!-- The sourceforge repository contains stable artifacts. -->
-<!-- Sourceforge does not work right now. It needs better http parsing.
-		<repository id="sourceforge" type="url" cacheable="true" rescan="1800">
-			<root>https://sourceforge.net/projects/muhkuh/files/jonchki</root>
-			<versions>[group]/[module]/</versions>
-			<config>[group]/[module]/[version]/[artifact]-[version][platform].[extension]/download</config>
-			<artifact>[group]/[module]/[version]/[artifact]-[version][platform].[extension]/download</artifact>
-		</repository>
--->
 	</repositories>
 </jonchkicfg>
