@@ -354,4 +354,70 @@ function Core:runPrepareScript(strPrepareScriptFile)
 end
 
 
+
+function Core:readBuildMatrixConfiguration(strBuildMatrixScriptFile, strProjectRoot, strLuaInterpreter,
+                                           strJonchkiScript)
+  local tLog = self.tLog
+  local tResult
+
+  -- Get the path to the script.
+  tLog.info('Running the build matrix script "%s".', strBuildMatrixScriptFile)
+  -- Check if the file exists.
+  local path = require 'pl.path'
+  if path.exists(strBuildMatrixScriptFile)~=strBuildMatrixScriptFile then
+    tResult = nil
+    tLog.error('The build matrix script "%s" does not exist.', strBuildMatrixScriptFile)
+  else
+    -- Check if the prepare script is a file.
+    if path.isfile(strBuildMatrixScriptFile)~=true then
+      tResult = nil
+      tLog.error('The build matrix script "%s" is no file.', strBuildMatrixScriptFile)
+    else
+      -- Call the build script.
+      local strError
+      local utils = require 'pl.utils'
+      tResult, strError = utils.readfile(strBuildMatrixScriptFile, false)
+      if tResult==nil then
+        tResult = nil
+        tLog.error('Failed to read the build matrix script "%s": %s', strBuildMatrixScriptFile, strError)
+      else
+        -- Parse the build script.
+        local strBuildMatrixScript = tResult
+        local loadstring = loadstring or load
+        tResult, strError = loadstring(strBuildMatrixScript, strBuildMatrixScriptFile)
+        if tResult==nil then
+          tResult = nil
+          tLog.error('Failed to parse the build matrix script "%s": %s', strBuildMatrixScriptFile, strError)
+        else
+          local fnBuildMatrix = tResult
+
+          -- Create a new build matrix helper.
+          local tBuildMatrixHelper = require 'buildmatrix.buildmatrix_helper'(
+            self.cLog,
+            strProjectRoot,
+            strLuaInterpreter,
+            strJonchkiScript
+          )
+
+          -- Call the build script.
+          tResult, strError = pcall(fnBuildMatrix, tBuildMatrixHelper)
+          if tResult~=true then
+            tResult = nil
+            tLog.error('Failed to run the build matrix script "%s": %s', strBuildMatrixScriptFile, tostring(strError))
+
+          -- The second value is the return value.
+          elseif strError~=true then
+            tResult = nil
+            tLog.error('The build matrix script "%s" returned "%s".', strBuildMatrixScriptFile, tostring(strError))
+          end
+        end
+      end
+    end
+  end
+
+  return tResult
+end
+
+
+
 return Core

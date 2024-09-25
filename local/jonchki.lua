@@ -168,7 +168,26 @@ local function command_install_dependencies(cCore, tArgs, cLog)
 end
 
 
-------------------------------------------------------------------------------
+
+local function command_build(cCore, tArgs)
+  -- Get default for the project root.
+  local path = require 'pl.path'
+  local strProjectRoot = tArgs.strProjectRoot or path.abspath(path.dirname(tArgs.strInputFile))
+
+  -- Get the LUA interpreter.
+  local strLuaInterpreter = arg[-1]
+  local strJonchkiScript = arg[0]
+  local tResult = cCore:readBuildMatrixConfiguration(
+    tArgs.strInputFile,
+    strProjectRoot,
+    strLuaInterpreter,
+    strJonchkiScript
+  )
+
+  return tResult
+end
+
+  ------------------------------------------------------------------------------
 --
 -- Get the path to the application.
 --
@@ -424,6 +443,44 @@ tParserCommandInstallDependencies:mutex(
     :target('fUseColor')
 )
 
+-- Add the "build" command and all its options.
+local tParserCommandBuild = tParser:command('build', 'Process a build matrix.')
+  :target('fCommandBuildSelected')
+tParserCommandBuild:argument('input', 'The build matrix.')
+  :target('strInputFile')
+tParserCommandBuild:option('--project-root')
+  :description('Use PATH as the project root. Default is the path of the artifact configuration.')
+  :argname('<PATH>')
+  :default(nil)
+  :target('strProjectRoot')
+tParserCommandBuild:option('-v --verbose')
+  :description(string.format(
+    'Set the verbosity level to LEVEL. Possible values for LEVEL are %s.',
+    table.concat(atLogLevels, ', ')
+  ))
+  :argname('<LEVEL>')
+  :default('warning')
+  :target('strLogLevel')
+tParserCommandBuild:option('-l --logfile')
+  :description('Write all output to FILE.')
+  :argname('<FILE>')
+  :default(nil)
+  :target('strLogFileName')
+tParserCommandBuild:mutex(
+  tParserCommandBuild:flag('--no-console-log')
+    :description('Do not print the log to the console. This is useful in combination with a log file.')
+    :action("store_true")
+    :target('fSuppressConsoleLog'),
+  tParserCommandBuild:flag('--color')
+    :description('Use colors to beautify the console output. This is the default on Linux.')
+    :action("store_true")
+    :target('fUseColor'),
+  tParserCommandBuild:flag('--no-color')
+    :description('Do not use colors for the console output. This is the default on Windows.')
+    :action("store_false")
+    :target('fUseColor')
+)
+
 -- Add the "cache" command and all its options.
 local tParserCommandCache = tParser:command('cache c', 'Examine and modify the cache.')
   :target('fCommandCacheSelected')
@@ -617,11 +674,20 @@ if tArgs.fCommandInstallSelected==true then
   tResult = command_install(cCore, tArgs, cLog)
   -- Write the report. This is important if an error occured somewhere in the core.
   cReport:write()
+
 -- Is the "install-dependencies" command active?
 elseif tArgs.fCommandInstallDependenciesSelected==true then
   tResult = command_install_dependencies(cCore, tArgs, cLog)
   -- Write the report. This is important if an error occured somewhere in the core.
   cReport:write()
+
+-- Is the "build" command active?
+elseif tArgs.fCommandBuildSelected==true then
+  tResult = command_build(cCore, tArgs, cLog)
+  -- Write the report. This is important if an error occured somewhere in the core.
+  cReport:write()
+
+-- Is the "cache" command active?
 elseif tArgs.fCommandCacheSelected==true then
   error('The cache commands are not implemented yet.')
 end
