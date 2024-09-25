@@ -11,7 +11,7 @@ local SystemConfiguration = class()
 
 
 
-function SystemConfiguration:_init(cLog, fInstallBuildDependencies, strProjectRoot)
+function SystemConfiguration:_init(cLog, fInstallBuildDependencies, strProjectRoot, atDefines)
   self.cLog = cLog
   local tLogWriter = require 'log.writer.prefix'.new('[SystemConfiguration] ', cLog)
   self.tLog = require "log".new(
@@ -24,6 +24,7 @@ function SystemConfiguration:_init(cLog, fInstallBuildDependencies, strProjectRo
 
   self.fInstallBuildDependencies = fInstallBuildDependencies
   self.strProjectRoot = strProjectRoot
+  self.atDefines = atDefines
 
   -- There is no configuration yet.
   self.tConfiguration = nil
@@ -174,6 +175,11 @@ function SystemConfiguration:parse_configuration(strConfigurationFilename)
         local strVcsVersion, strVcsVersionLong = tVcsVersion:getVcsVersion(strProjectRoot)
         atConfiguration['prj_version_vcs'] = strVcsVersion
         atConfiguration['prj_version_vcs_long'] = strVcsVersionLong
+
+        -- Add the commandline defines with a "define_" prefix.
+        for strDefineKey, strDefineValue in pairs(self.atDefines) do
+          atConfiguration[strDefineKey] = strDefineValue
+        end
 
         -- Parse all options.
         for _,tAttr in ipairs(atOptions) do

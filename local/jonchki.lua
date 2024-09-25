@@ -74,59 +74,87 @@ local function command_install_dependencies(cCore, tArgs, cLog)
   local path = require 'pl.path'
   local strProjectRoot = tArgs.strProjectRoot or path.abspath(path.dirname(tArgs.strInputFile))
 
-  -- Read the system configuration.
-  local tResult = cCore:read_system_configuration(
-    tArgs.strSystemConfigurationFile,
-    tArgs.fInstallBuildDependencies,
-    strProjectRoot
-  )
-  if tResult~=nil then
-
-    -- Get the platform ID.
-    tResult = cCore:get_platform_id(tArgs.strCpuArchitecture, tArgs.strDistributionId, tArgs.strDistributionVersion)
+  -- Process the defines.
+  local tResult = true
+  local strDefinePrefix = 'define_'
+  local atDefines = {}
+  for _, strDefine in ipairs(tArgs.astrDefines) do
+    local strKey, strValue = string.match(strDefine, '%s*([^ =]+)%s*=%s*([^ =]+)%s*')
+    if strKey==nil then
+      cLog.error('Define "%s" is invalid.', strDefine)
+      tResult = false
+    elseif string.sub(strKey, 1, string.len(strDefinePrefix))~=strDefinePrefix then
+      cLog.error(
+        'Define "%s" has an invalid key of "%s". All defines must start with "%s".',
+        strDefine,
+        strKey,
+        strDefinePrefix
+      )
+      tResult = false
+    elseif atDefines[strKey]~=nil then
+      cLog.error('Redefinition of define "%s" from "%s" to "%s".', strKey, strValue, atDefines[strKey])
+      tResult = false
+    else
+      cLog.info('Setting define "%s" = "%s".', strKey, strValue)
+      atDefines[strKey] = strValue
+    end
+  end
+  if tResult then
+    -- Read the system configuration.
+    tResult = cCore:read_system_configuration(
+      tArgs.strSystemConfigurationFile,
+      tArgs.fInstallBuildDependencies,
+      strProjectRoot,
+      atDefines
+    )
     if tResult~=nil then
 
-      -- Run the prepare script if there is one.
-      local strPrepareScript = tArgs.strPrepareScript
-      if strPrepareScript~=nil then
-        tResult = cCore:runPrepareScript(strPrepareScript)
-      end
+      -- Get the platform ID.
+      tResult = cCore:get_platform_id(tArgs.strCpuArchitecture, tArgs.strDistributionId, tArgs.strDistributionVersion)
       if tResult~=nil then
 
-        -- Read the project configuration.
-        tResult = cCore:read_project_configuration(tArgs.strProjectConfigurationFile)
+        -- Run the prepare script if there is one.
+        local strPrepareScript = tArgs.strPrepareScript
+        if strPrepareScript~=nil then
+          tResult = cCore:runPrepareScript(strPrepareScript)
+        end
         if tResult~=nil then
 
-          -- Create the cache.
-          if tArgs.fNoCache==true then
-            cLog.info('Do not use a cache as requested.')
-            tResult = true
-          else
-            tResult = cCore:create_cache()
-          end
-          if tResult==true then
+          -- Read the project configuration.
+          tResult = cCore:read_project_configuration(tArgs.strProjectConfigurationFile)
+          if tResult~=nil then
 
-            -- Create the resolver chain.
-            cCore:create_resolver_chain()
-
-            -- Read the artifact configuration.
-            tResult = cCore:read_artifact_configuration(tArgs.strInputFile)
+            -- Create the cache.
+            if tArgs.fNoCache==true then
+              cLog.info('Do not use a cache as requested.')
+              tResult = true
+            else
+              tResult = cCore:create_cache()
+            end
             if tResult==true then
 
-              -- Create the resolver.
-              tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies, tArgs.strDependencyLogFile)
+              -- Create the resolver chain.
+              cCore:create_resolver_chain()
+
+              -- Read the artifact configuration.
+              tResult = cCore:read_artifact_configuration(tArgs.strInputFile)
               if tResult==true then
 
-                -- Resolve all dependencies.
-                tResult = cCore:resolve_all_dependencies()
+                -- Create the resolver.
+                tResult = cCore:create_resolver(tArgs.fInstallBuildDependencies, tArgs.strDependencyLogFile)
                 if tResult==true then
 
-                  -- Download and install all artifacts.
-                  tResult = cCore:download_and_install_all_artifacts(
-                    tArgs.fInstallBuildDependencies,
-                    true,
-                    tArgs.strDependencyLogFile
-                  )
+                  -- Resolve all dependencies.
+                  tResult = cCore:resolve_all_dependencies()
+                  if tResult==true then
+
+                    -- Download and install all artifacts.
+                    tResult = cCore:download_and_install_all_artifacts(
+                      tArgs.fInstallBuildDependencies,
+                      true,
+                      tArgs.strDependencyLogFile
+                    )
+                  end
                 end
               end
             end
@@ -364,6 +392,10 @@ tParserCommandInstallDependencies:mutex(
     )
     :target('fEmptyDistributionVersion')
 )
+tParserCommandInstallDependencies:option('--define')
+  :description('Add a define in the form KEY=VALUE.')
+  :count('*')
+  :target('astrDefines')
 tParserCommandInstallDependencies:option('-v --verbose')
   :description(string.format(
     'Set the verbosity level to LEVEL. Possible values for LEVEL are %s.',

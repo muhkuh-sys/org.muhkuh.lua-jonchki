@@ -64,9 +64,10 @@ end
 --
 -- Read the system configuration.
 --
-function Core:read_system_configuration(strSystemConfigurationFile, fInstallBuildDependencies, strProjectRoot)
+function Core:read_system_configuration(strSystemConfigurationFile, fInstallBuildDependencies, strProjectRoot,
+                                        astrDefines)
   -- Create a configuration object.
-  local cSysCfg = self.SystemConfiguration(self.cLog, fInstallBuildDependencies, strProjectRoot)
+  local cSysCfg = self.SystemConfiguration(self.cLog, fInstallBuildDependencies, strProjectRoot, astrDefines)
   -- Read the settings from the system configuration file.
   local tResult = cSysCfg:parse_configuration(strSystemConfigurationFile)
   if tResult==nil then
