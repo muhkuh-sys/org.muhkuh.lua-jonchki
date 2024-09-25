@@ -163,7 +163,7 @@ end
 -- Get the LUA version number in the form major * 100 + minor .
 local strMaj, strMin = string.match(_VERSION, '^Lua (%d+)%.(%d+)$')
 if strMaj~=nil then
-  LUA_VER_NUM = tonumber(strMaj) * 100 + tonumber(strMin)
+  _G.LUA_VER_NUM = tonumber(strMaj) * 100 + tonumber(strMin)
 end
 
 ------------------------------------------------------------------------------
@@ -530,7 +530,7 @@ if tArgs.strLogFileName~=nil then
 end
 
 -- Combine all writers.
-if LUA_VER_NUM==501 then
+if _G.LUA_VER_NUM==501 then
   tLogWriter = require 'log.writer.list'.new(unpack(atLogWriters))
 else
   tLogWriter = require 'log.writer.list'.new(table.unpack(atLogWriters))
