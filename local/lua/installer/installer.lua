@@ -174,6 +174,8 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
   local tInfo = self.cRootArtifactConfiguration.tInfo
   local atReplacements = {
     ['prj_root'] = tConfiguration.prj_root,
+    ['prj_version_vcs'] = tConfiguration.prj_version_vcs,
+    ['prj_version_vcs_long'] = tConfiguration.prj_version_vcs_long,
 
     ['build'] = tConfiguration.build,
     ['build_doc'] = tConfiguration.build_doc,
