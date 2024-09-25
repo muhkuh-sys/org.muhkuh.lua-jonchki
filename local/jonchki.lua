@@ -4,7 +4,11 @@ local function command_install(cCore, tArgs, cLog)
   local strProjectRoot = tArgs.strProjectRoot or path.currentdir()
 
   -- Read the system configuration.
-  local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies, strProjectRoot)
+  local tResult = cCore:read_system_configuration(
+    tArgs.strSystemConfigurationFile,
+    tArgs.fInstallBuildDependencies,
+    strProjectRoot
+  )
   if tResult~=nil then
 
     -- Get the platform ID.
@@ -38,11 +42,20 @@ local function command_install(cCore, tArgs, cLog)
             if tResult==true then
 
               -- Resolve the root artifact and all dependencies.
-              tResult = cCore:resolve_root_and_dependencies(tArgs.strGroup, tArgs.strModule, tArgs.strArtifact, tArgs.strVersion)
+              tResult = cCore:resolve_root_and_dependencies(
+                tArgs.strGroup,
+                tArgs.strModule,
+                tArgs.strArtifact,
+                tArgs.strVersion
+              )
               if tResult==true then
 
                 -- Download and install all artifacts.
-                tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, tArgs.fSkipRootArtifact, tArgs.strDependencyLogFile)
+                tResult = cCore:download_and_install_all_artifacts(
+                  tArgs.fInstallBuildDependencies,
+                  tArgs.fSkipRootArtifact,
+                  tArgs.strDependencyLogFile
+                )
               end
             end
           end
@@ -62,7 +75,11 @@ local function command_install_dependencies(cCore, tArgs, cLog)
   local strProjectRoot = tArgs.strProjectRoot or path.abspath(path.dirname(tArgs.strInputFile))
 
   -- Read the system configuration.
-  local tResult = cCore:read_system_configuration(tArgs.strSystemConfigurationFile, tArgs.fInstallBuildDependencies, strProjectRoot)
+  local tResult = cCore:read_system_configuration(
+    tArgs.strSystemConfigurationFile,
+    tArgs.fInstallBuildDependencies,
+    strProjectRoot
+  )
   if tResult~=nil then
 
     -- Get the platform ID.
@@ -105,7 +122,11 @@ local function command_install_dependencies(cCore, tArgs, cLog)
                 if tResult==true then
 
                   -- Download and install all artifacts.
-                  tResult = cCore:download_and_install_all_artifacts(tArgs.fInstallBuildDependencies, true, tArgs.strDependencyLogFile)
+                  tResult = cCore:download_and_install_all_artifacts(
+                    tArgs.fInstallBuildDependencies,
+                    true,
+                    tArgs.strDependencyLogFile
+                  )
                 end
               end
             end
@@ -247,11 +268,16 @@ tParserCommandInstall:mutex(
     :default(nil)
     :target('strDistributionVersion'),
   tParserCommandInstall:flag('--empty-distribution-version')
-    :description('Set the distribution version for the installation to the empty string. The default is to autodetect it.')
+    :description(
+      'Set the distribution version for the installation to the empty string. The default is to autodetect it.'
+    )
     :target('fEmptyDistributionVersion')
 )
 tParserCommandInstall:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
+  :description(string.format(
+    'Set the verbosity level to LEVEL. Possible values for LEVEL are %s.',
+    table.concat(atLogLevels, ', ')
+  ))
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
@@ -272,7 +298,10 @@ tParserCommandInstall:mutex(
 )
 
 -- Add the "install-dependencies" command and all its options.
-local tParserCommandInstallDependencies = tParser:command('install-dependencies', 'Install all dependencies of an artifact, but not the artifact itself.')
+local tParserCommandInstallDependencies = tParser:command(
+  'install-dependencies',
+  'Install all dependencies of an artifact, but not the artifact itself.'
+)
   :target('fCommandInstallDependenciesSelected')
 tParserCommandInstallDependencies:argument('input', 'The artifact configuration XML file.')
   :target('strInputFile')
@@ -326,11 +355,16 @@ tParserCommandInstallDependencies:mutex(
     :default(nil)
     :target('strDistributionVersion'),
   tParserCommandInstallDependencies:flag('--empty-distribution-version')
-    :description('Set the distribution version for the installation to the empty string. The default is to autodetect it.')
+    :description(
+      'Set the distribution version for the installation to the empty string. The default is to autodetect it.'
+    )
     :target('fEmptyDistributionVersion')
 )
 tParserCommandInstallDependencies:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
+  :description(string.format(
+    'Set the verbosity level to LEVEL. Possible values for LEVEL are %s.',
+    table.concat(atLogLevels, ', ')
+  ))
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
@@ -354,7 +388,10 @@ tParserCommandInstallDependencies:mutex(
 local tParserCommandCache = tParser:command('cache c', 'Examine and modify the cache.')
   :target('fCommandCacheSelected')
   :command_target("strCacheSubcommand")
-local tParserCommandCacheCheck = tParserCommandCache:command('check', 'Check the complete cache for invalid entries, missing or stray files and total size.')
+local tParserCommandCacheCheck = tParserCommandCache:command(
+  'check',
+  'Check the complete cache for invalid entries, missing or stray files and total size.'
+)
   :target('fCommandCacheCheckSelected')
 tParserCommandCacheCheck:option('-s --syscfg')
   :description('Load the system configuration from FILE.')
@@ -362,7 +399,10 @@ tParserCommandCacheCheck:option('-s --syscfg')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
 tParserCommandCacheCheck:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
+  :description(string.format(
+    'Set the verbosity level to LEVEL. Possible values for LEVEL are %s.',
+    table.concat(atLogLevels, ', ')
+  ))
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
@@ -389,7 +429,10 @@ tParserCommandCacheClear:option('-s --syscfg')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
 tParserCommandCacheClear:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
+  :description(string.format(
+    'Set the verbosity level to LEVEL. Possible values for LEVEL are %s.',
+    table.concat(atLogLevels, ', ')
+  ))
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
@@ -416,7 +459,10 @@ tParserCommandCacheShow:option('-s --syscfg')
   :default('jonchkisys.cfg')
   :target('strSystemConfigurationFile')
 tParserCommandCacheShow:option('-v --verbose')
-  :description(string.format('Set the verbosity level to LEVEL. Possible values for LEVEL are %s.', table.concat(atLogLevels, ', ')))
+  :description(string.format(
+    'Set the verbosity level to LEVEL. Possible values for LEVEL are %s.',
+    table.concat(atLogLevels, ', ')
+  ))
   :argname('<LEVEL>')
   :default('warning')
   :target('strLogLevel')
