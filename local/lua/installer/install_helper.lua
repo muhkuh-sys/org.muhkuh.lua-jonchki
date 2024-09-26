@@ -111,6 +111,12 @@ end
 
 
 
+function InstallHelper:get_replacement(tKey)
+  return self.atReplacements[tostring(tKey)]
+end
+
+
+
 function InstallHelper:setCwd(strCwd)
   -- Set the current working directory.
   self.strCwd = strCwd

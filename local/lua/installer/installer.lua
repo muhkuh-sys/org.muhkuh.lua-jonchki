@@ -45,7 +45,8 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
   local atDefaultLevels = {
     ['finalizer'] = 75,
     ['pack'] = 80,
-    ['install_docs'] = 80
+    ['install_docs'] = 80,
+    ['create_release_list'] = 90
   }
   self.atDefaultLevels = atDefaultLevels
   self.atDefaultActions = {
@@ -93,6 +94,71 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
       ]],
       path = '${install_base}',
       level = atDefaultLevels['install_docs']
+    },
+    {
+      name = 'create_release_list',
+      code = [[
+        local t = ...
+        local tResult
+        local tLog = t.tLog
+        local pl = t.pl
+
+        -- Does a define exist for the release list?
+        local strReleaseListDefine = 'define_release_list_path'
+        local strReleaseListPath = t:get_replacement(strReleaseListDefine)
+        if strReleaseListPath==nil then
+          tLog.info('Not creating a relelase list as the define "%s" is not set.', strReleaseListDefine)
+          tResult = true
+
+        else
+          -- Create a release list with the root artifact.
+          local atReleaseList = {
+            {
+              path = t:replace_template('${root_artifact_path}'),
+              extension = t:replace_template('${root_artifact_extension_real}'),
+              classifier = t:replace_template(
+                '${platform_distribution_id}${conditional_platform_distribution_version_separator}' ..
+                '${platform_distribution_version}_${platform_cpu_architecture}'
+              )
+            }
+          }
+          -- Does a documentation exist?
+          local strDocumentationPath = t:get_replacement('documentation_path')
+          if strDocumentationPath~=nil then
+            -- Get the extension of the documentation. Cut off any leading dot.
+            local strDocumentationExtension = pl.path.extension(strDocumentationPath)
+            if string.sub(strDocumentationExtension, 1, 1)=='.' then
+              strDocumentationExtension = string.sub(strDocumentationExtension, 2)
+            end
+
+            -- Add the documentation to the release list.
+            table.insert(atReleaseList, {
+              path = strDocumentationPath,
+              extension = strDocumentationExtension,
+              classifier = ''
+            })
+          end
+
+          -- Encode the release list as a JSON string.
+          local strReleaseListJson = t.cjson.encode(atReleaseList)
+
+          -- Write the release list to a file.
+          local fWriteResult, strWriteError = pl.utils.writefile(strReleaseListPath, strReleaseListJson, false)
+          if fWriteResult~=true then
+            tLog.error(
+              'Failed to write the release list to "%s": %s',
+              strReleaseListPath,
+              tostring(strWriteError)
+            )
+          else
+            tResult = true
+          end
+        end
+
+        return tResult
+      ]],
+      path = '${install_base}',
+      level = atDefaultLevels['create_release_list']
     }
   }
 end
@@ -215,6 +281,19 @@ function Installer:install_artifacts(atArtifacts, cPlatform, fInstallBuildDepend
       if tResult~=true then
         tLog.error('Failed to add the replacement variable "%s".', strKey)
         break
+      end
+    end
+  end
+  if tResult==true then
+    -- Add all defines.
+    local strDefinePrefix = 'define_'
+    for strKey, strValue in pairs(tConfiguration) do
+      if string.sub(strKey, 1, string.len(strDefinePrefix))==strDefinePrefix then
+        tResult = cInstallHelper:add_replacement(strKey, strValue)
+        if tResult~=true then
+          tLog.error('Failed to add the replacement variable "%s".', strKey)
+          break
+        end
       end
     end
   end
