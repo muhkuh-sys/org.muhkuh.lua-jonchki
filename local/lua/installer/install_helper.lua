@@ -38,6 +38,8 @@ function InstallHelper:_init(cLog, fInstallBuildDependencies, atActions)
   -- Hash is required to build the hash file.
   self.hash = require 'Hash'
 
+  self.cjson = require 'cjson.safe'
+
   -- This is the list of installed files for the complete installation procedure (i.e. over all packages).
   self.atInstalledFiles = {}
 
