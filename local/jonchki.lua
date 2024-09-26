@@ -170,15 +170,18 @@ end
 
 
 local function command_build(cCore, tArgs)
+  -- Get the build matrix.
+  local strBuildMatrix = tArgs.strBuildMatrix
+
   -- Get default for the project root.
   local path = require 'pl.path'
-  local strProjectRoot = tArgs.strProjectRoot or path.abspath(path.dirname(tArgs.strInputFile))
+  local strProjectRoot = tArgs.strProjectRoot or path.abspath(path.dirname(strBuildMatrix))
 
   -- Get the LUA interpreter.
   local strLuaInterpreter = arg[-1]
   local strJonchkiScript = arg[0]
   local tResult = cCore:readBuildMatrixConfiguration(
-    tArgs.strInputFile,
+    strBuildMatrix,
     strProjectRoot,
     strLuaInterpreter,
     strJonchkiScript
@@ -446,8 +449,13 @@ tParserCommandInstallDependencies:mutex(
 -- Add the "build" command and all its options.
 local tParserCommandBuild = tParser:command('build', 'Process a build matrix.')
   :target('fCommandBuildSelected')
-tParserCommandBuild:argument('input', 'The build matrix.')
-  :target('strInputFile')
+--tParserCommandBuild:argument('input', 'The build matrix.')
+--  :target('strInputFile')
+tParserCommandBuild:option('--build-matrix')
+  :description('Use LUA_SCRIPT to define the build matrix.')
+  :argname('<LUA_SCRIPT>')
+  :default('build_matrix.lua')
+  :target('strBuildMatrix')
 tParserCommandBuild:option('--project-root')
   :description('Use PATH as the project root. Default is the path of the artifact configuration.')
   :argname('<PATH>')
