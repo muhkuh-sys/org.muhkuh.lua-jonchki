@@ -526,6 +526,9 @@ function _M:use(strTemplateID)
     -- The test configuration also depends on the artifact ID.
     self:setVar(nil, 'define_test_configuration', '${prj_root}/tests_${artifact_id}.xml')
 
+    -- And so does the finalizer.
+    self:setVar(nil, 'define_finalizer', '${prj_root}/finalizer_${artifact_id}.lua')
+
     -- Build the documentation only for the first build of an artifact.
     -- If an artifact has more than one build, they usually differ only in the CPU architecture. The generated
     -- documentation is the same for all builds in this case, and has even the same filename.
