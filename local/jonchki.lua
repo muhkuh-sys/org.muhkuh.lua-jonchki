@@ -182,6 +182,7 @@ local function command_build(cCore, tArgs)
   local strJonchkiScript = arg[0]
   local tResult = cCore:readBuildMatrixConfiguration(
     strBuildMatrix,
+    tArgs.astrBuilds,
     strProjectRoot,
     strLuaInterpreter,
     strJonchkiScript
@@ -449,8 +450,13 @@ tParserCommandInstallDependencies:mutex(
 -- Add the "build" command and all its options.
 local tParserCommandBuild = tParser:command('build', 'Process a build matrix.')
   :target('fCommandBuildSelected')
---tParserCommandBuild:argument('input', 'The build matrix.')
---  :target('strInputFile')
+tParserCommandBuild:argument(
+  'builds',
+  'Process only the builds with <BUILDID> . The default is to process all default builds.'
+)
+  :argname('<BUILDID>')
+  :args('*')
+  :target('astrBuilds')
 tParserCommandBuild:option('--build-matrix')
   :description('Use LUA_SCRIPT to define the build matrix.')
   :argname('<LUA_SCRIPT>')

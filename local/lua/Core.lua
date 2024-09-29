@@ -355,7 +355,7 @@ end
 
 
 
-function Core:readBuildMatrixConfiguration(strBuildMatrixScriptFile, strProjectRoot, strLuaInterpreter,
+function Core:readBuildMatrixConfiguration(strBuildMatrixScriptFile, astrBuilds, strProjectRoot, strLuaInterpreter,
                                            strJonchkiScript)
   local tLog = self.tLog
   local tResult
@@ -394,6 +394,7 @@ function Core:readBuildMatrixConfiguration(strBuildMatrixScriptFile, strProjectR
           -- Create a new build matrix helper.
           local tBuildMatrixHelper = require 'buildmatrix.buildmatrix_helper'(
             self.cLog,
+            astrBuilds,
             strProjectRoot,
             strLuaInterpreter,
             strJonchkiScript

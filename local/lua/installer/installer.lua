@@ -112,16 +112,24 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
 
         else
           -- Create a release list with the root artifact.
+          local atFiles = {}
           local atReleaseList = {
-            {
-              path = t:replace_template('${root_artifact_path}'),
-              extension = t:replace_template('${root_artifact_extension_real}'),
-              classifier = t:replace_template(
-                '${platform_distribution_id}${conditional_platform_distribution_version_separator}' ..
-                '${platform_distribution_version}_${platform_cpu_architecture}'
-              )
-            }
+            repository = t:replace_template('${define_nup_repository}'),
+            groupID = t:replace_template('${root_artifact_group}'),
+            moduleID = t:replace_template('${root_artifact_module}'),
+            artifactID = t:replace_template('${root_artifact_artifact}'),
+            version = t:replace_template('${root_artifact_version}'),
+            files = atFiles
           }
+
+          table.insert(atFiles, {
+            path = t:replace_template('${root_artifact_path}'),
+            extension = t:replace_template('${root_artifact_extension_real}'),
+            classifier = t:replace_template(
+              '${platform_distribution_id}${conditional_platform_distribution_version_separator}' ..
+              '${platform_distribution_version}_${platform_cpu_architecture}'
+            )
+          })
           -- Does a documentation exist?
           local strDocumentationPath = t:get_replacement('documentation_path')
           if strDocumentationPath~=nil then
@@ -132,7 +140,7 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
             end
 
             -- Add the documentation to the release list.
-            table.insert(atReleaseList, {
+            table.insert(atFiles, {
               path = strDocumentationPath,
               extension = strDocumentationExtension,
               classifier = ''
