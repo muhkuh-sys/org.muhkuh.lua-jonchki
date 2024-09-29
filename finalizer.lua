@@ -8,6 +8,7 @@ t:install{
   ['doc/jonchkicfg.xml']                                 = '${install_doc}/',
   ['doc/jonchkireport.xsl']                              = '${install_doc}/',
   ['doc/jonchkisys.cfg']                                 = '${install_doc}/',
+  ['local/lua/buildmatrix/buildmatrix_helper.lua']       = '${install_lua_path}/buildmatrix/',
   ['local/lua/cache/cache.lua']                          = '${install_lua_path}/cache/',
   ['local/lua/installer/archives.lua']                   = '${install_lua_path}/installer/',
   ['local/lua/installer/installer.lua']                  = '${install_lua_path}/installer/',
