@@ -57,8 +57,14 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
         t:createPackageFile()
         t:createHashFile()
         local strArchivePath, strRealExtension = t:createArchive('${prj_root}/targets/${default_archive_name}')
-        t:add_replacement('root_artifact_path', strArchivePath)
-        t:add_replacement('root_artifact_extension_real', strRealExtension)
+        t:add_release(
+          strArchivePath,
+          strRealExtension,
+          t:replace_template(
+            '${platform_distribution_id}${conditional_platform_distribution_version_separator}' ..
+            '${platform_distribution_version}_${platform_cpu_architecture}'
+          )
+        )
 
         return true
       ]],
@@ -81,41 +87,15 @@ function Installer:_init(cLog, cReport, cSystemConfiguration, cRootArtifactConfi
           tResult = true
 
         else
-          -- Create a release list with the root artifact.
-          local atFiles = {}
+          -- Create a release list with all released files.
           local atReleaseList = {
             repository = t:replace_template('${define_nup_repository}'),
             groupID = t:replace_template('${root_artifact_group}'),
             moduleID = t:replace_template('${root_artifact_module}'),
             artifactID = t:replace_template('${root_artifact_artifact}'),
             version = t:replace_template('${root_artifact_version}'),
-            files = atFiles
+            files = t:get_all_releases()
           }
-
-          table.insert(atFiles, {
-            path = t:replace_template('${root_artifact_path}'),
-            extension = t:replace_template('${root_artifact_extension_real}'),
-            classifier = t:replace_template(
-              '${platform_distribution_id}${conditional_platform_distribution_version_separator}' ..
-              '${platform_distribution_version}_${platform_cpu_architecture}'
-            )
-          })
-          -- Does a documentation exist?
-          local strDocumentationPath = t:get_replacement('documentation_path')
-          if strDocumentationPath~=nil then
-            -- Get the extension of the documentation. Cut off any leading dot.
-            local strDocumentationExtension = pl.path.extension(strDocumentationPath)
-            if string.sub(strDocumentationExtension, 1, 1)=='.' then
-              strDocumentationExtension = string.sub(strDocumentationExtension, 2)
-            end
-
-            -- Add the documentation to the release list.
-            table.insert(atFiles, {
-              path = strDocumentationPath,
-              extension = strDocumentationExtension,
-              classifier = ''
-            })
-          end
 
           -- Encode the release list as a JSON string.
           local strReleaseListJson = t.cjson.encode(atReleaseList)

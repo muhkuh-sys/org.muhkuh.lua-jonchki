@@ -29,6 +29,9 @@ function InstallHelper:_init(cLog, fInstallBuildDependencies, atActions)
   -- No replacement variables yet.
   self.atReplacements = {}
 
+  -- No released files yet.
+  self.atReleasedFiles = {}
+
   -- Copy the flag for installation of development components.
   self.fInstallBuildDependencies = fInstallBuildDependencies
 
@@ -113,6 +116,30 @@ end
 
 function InstallHelper:get_replacement(tKey)
   return self.atReplacements[tostring(tKey)]
+end
+
+
+
+function InstallHelper:add_release(strPath, strExtension, strClassifier)
+  table.insert(self.atReleasedFiles, {
+    path = strPath,
+    extension = strExtension,
+    classifier = strClassifier
+  })
+end
+
+
+
+function InstallHelper:get_all_releases()
+  local atCopy = {}
+  for _, tRelease in ipairs(self.atReleasedFiles) do
+    table.insert(atCopy, {
+      path = tRelease.path,
+      extension = tRelease.extension,
+      classifier = tRelease.classifier
+    })
+  end
+  return atCopy
 end
 
 
