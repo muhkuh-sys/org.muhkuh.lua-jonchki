@@ -698,8 +698,8 @@ elseif tArgs.fCommandInstallDependenciesSelected==true then
 -- Is the "build" command active?
 elseif tArgs.fCommandBuildSelected==true then
   tResult = command_build(cCore, tArgs, cLog)
-  -- Write the report. This is important if an error occured somewhere in the core.
-  cReport:write()
+
+  -- Do not write a report here. It has no useful information.
 
 -- Is the "cache" command active?
 elseif tArgs.fCommandCacheSelected==true then
