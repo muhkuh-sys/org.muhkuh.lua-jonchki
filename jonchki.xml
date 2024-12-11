@@ -4,7 +4,7 @@
 	      module="jonchki"
 	      artifact="jonchki"
 	      version="0.0.12.1"
-	      vcs-id="${PROJECT_VERSION_VCS_LONG}"
+	      vcs-id="${prj_version_vcs_long}"
 	      extension="tar.gz">
 		<license name="GPL-2.0"/>
 		<author name="Muhkuh team" url="https://github.com/muhkuh-sys" />
