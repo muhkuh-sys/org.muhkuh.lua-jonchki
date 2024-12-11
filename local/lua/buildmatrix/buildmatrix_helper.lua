@@ -466,15 +466,20 @@ function _M.actionGenerateNupFiles(tBuildHelper)
               },
 
               releases = {
-                repository = tRelease.repository,
+                {
+                  repository = tRelease.repository,
 
-                groupID = tRelease.groupID,
-                artifactID = tRelease.artifactID,
-                version = tRelease.version,
+                  groupID = tRelease.groupID,
+                  artifactID = tRelease.artifactID,
+                  version = tRelease.version,
 
-                files = atFilesRelative
+                  files = atFilesRelative
+                }
               }
             }
+            -- Create JSON arrays from the "releases" and "files".
+            setmetatable(tNup.releases, cjson.array_mt)
+            setmetatable(tNup.releases[1].files, cjson.array_mt)
 
             -- Encode the NUP data as JSON.
             local strNupJson = cjson.encode(tNup)
