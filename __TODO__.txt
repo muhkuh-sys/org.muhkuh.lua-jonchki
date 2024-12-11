@@ -1,6 +1,11 @@
 TODO
 ----
 
+* Artifact names must be unique
+Having com.hilscher.lua-data_provider_pt and org.muhkuh.lua-data_provider_pt gives a mess.
+Both files are stored in jonchi/depack and the first one is overwritten by the last one.
+Use the full GMAV as a filename?
+
 * Every test step has an "install_testcase.lua" file which differs only in the ID.
 Is there a better way?
 
